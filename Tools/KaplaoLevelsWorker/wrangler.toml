@@ -1,0 +1,7 @@
+name = "kaplao-levels"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+[[r2_buckets]]
+binding = "LEVELS_BUCKET"
+bucket_name = "kaplao-levels"

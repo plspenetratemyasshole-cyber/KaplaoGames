@@ -1,0 +1,124 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32689fa0910328548901cbc0ae6b7380, type: 3}
+  m_Name: LocalizationTable
+  m_EditorClassIdentifier: 
+  entries:
+  - key: Single Player
+    english: Single Player
+    russian: "\u041E\u0434\u0438\u043D\u043E\u0447\u043D\u0430\u044F \u0438\u0433\u0440\u0430"
+  - key: Multiplayer
+    english: Multiplayer
+    russian: "\u0421\u0435\u0442\u0435\u0432\u0430\u044F \u0438\u0433\u0440\u0430"
+  - key: Settings
+    english: Settings
+    russian: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438"
+  - key: Browse Levels
+    english: Browse Levels
+    russian: "\u041F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u0435 \u0443\u0440\u043E\u0432\u043D\u0438"
+  - key: Exit Game
+    english: Exit Game
+    russian: "\u0412\u044B\u0439\u0442\u0438"
+  - key: Enter Nickname
+    english: Enter Nickname
+    russian: "\u0412\u0432\u0435\u0434\u0438 \u043D\u0438\u043A"
+  - key: Your Name
+    english: Your Name
+    russian: "\u0422\u0432\u043E\u0451 \u0438\u043C\u044F"
+  - key: Back
+    english: Back
+    russian: "\u041D\u0430\u0437\u0430\u0434"
+  - key: Continue
+    english: Continue
+    russian: "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C"
+  - key: No worlds found
+    english: No worlds found
+    russian: "\u041D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u043C\u0438\u0440\u0430
+      \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E"
+  - key: Select World
+    english: Select World
+    russian: "\u0412\u044B\u0431\u0435\u0440\u0438 \u043C\u0438\u0440"
+  - key: Create New
+    english: Create New
+    russian: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439"
+  - key: Open Folder
+    english: Open Folder
+    russian: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043F\u043A\u0443"
+  - key: Start
+    english: Start
+    russian: "\u041D\u0430\u0447\u0430\u0442\u044C"
+  - key: New world name
+    english: New world name
+    russian: "\u0418\u043C\u044F \u043D\u043E\u0432\u043E\u0433\u043E \u043C\u0438\u0440\u0430"
+  - key: Name
+    english: Name
+    russian: "\u0418\u043C\u044F"
+  - key: Refresh
+    english: Refresh
+    russian: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C"
+  - key: Connect Directly
+    english: Connect Directly
+    russian: "\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F"
+  - key: Servers
+    english: Servers
+    russian: "\u0421\u0435\u0440\u0432\u0435\u0440\u0430"
+  - key: Searching for servers...
+    english: Searching for servers...
+    russian: "\u041F\u043E\u0438\u0441\u043A \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u0432..."
+  - key: Play
+    english: Play
+    russian: "\u0418\u0433\u0440\u0430\u0442\u044C"
+  - key: Delete
+    english: Delete
+    russian: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"
+  - key: Are you sure you want to delete this world?
+    english: Are you sure you want to delete this world?
+    russian: "\u0422\u044B \u0443\u0432\u0435\u0440\u0435\u043D, \u0447\u0442\u043E
+      \u0445\u043E\u0447\u0435\u0448\u044C \u043D\u0430\u0432\u0441\u0435\u0433\u0434\u0430
+      \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u044D\u0442\u043E\u0442 \u043C\u0438\u0440?"
+  - key: Cancel
+    english: Cancel
+    russian: "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C"
+  - key: Only change it if you know what you're doing!
+    english: Only change it if you know what you're doing!
+    russian: "\u041D\u0435 \u0438\u0437\u043C\u0435\u043D\u044F\u0439, \u0435\u0441\u043B\u0438
+      \u043D\u0435 \u0437\u043D\u0430\u0435\u0448\u044C \u0447\u0442\u043E \u0434\u0435\u043B\u0430\u0435\u0448\u044C!"
+  - key: Nickname
+    english: Nickname
+    russian: "\u041D\u0438\u043A"
+  - key: Skin
+    english: Skin
+    russian: "\u0421\u043A\u0438\u043D"
+  - key: Rnd
+    english: Rnd
+    russian: "\u0421\u043B\u0443\u0447."
+  - key: Sign in
+    english: Sign in
+    russian: "\u0417\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u044F"
+  - key: Language
+    english: Language
+    russian: "\u042F\u0437\u044B\u043A"
+  - key: Music
+    english: Music
+    russian: "\u041C\u0443\u0437\u044B\u043A\u0430"
+  - key: Music Vol
+    english: Music Vol
+    russian: "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C \u043C\u0443\u0437\u044B\u043A\u0438"
+  - key: SFX Vol
+    english: SFX Vol
+    russian: "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C SFX"
+  - key: Copy
+    english: Copy
+    russian: "\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C"
+  - key: Delete From Servers
+    english: Delete From Servers
+    russian: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u0432"

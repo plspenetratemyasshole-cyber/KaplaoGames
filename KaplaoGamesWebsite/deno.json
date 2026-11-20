@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "deploy": {
+    "framework": "nextjs",
+    "install": "npm ci",
+    "build": "npm run build"
+  },
+  "nodeModulesDir": "auto",
+  "unstable": ["unsafe-proto", "kv"]
+}

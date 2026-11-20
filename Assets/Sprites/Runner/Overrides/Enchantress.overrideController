@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!221 &22100000
+AnimatorOverrideController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Enchantress
+  m_Controller: {fileID: 9100000, guid: acd69de7555e07947b153895711e93e1, type: 2}
+  m_Clips:
+  - m_OriginalClip: {fileID: 7400000, guid: 6b793b5194f6ad143bf070aafbdab702, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 4f178ebf0ac41c945a9f2d88d12eeacc, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 74ca32c4983387a41b0ccc47b33b91f9, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: b0d1e57b9f5964045b79ed971f40baca, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 79d7ac753e84c4e4586676f61f964d39, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 6348a35c1678bcb459f9fba86d2981f5, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: cc9956dd626a5ea42b1fc700f2674dbc, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 84b71cbcdbf3e23439760a7745a73ca7, type: 2}

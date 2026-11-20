@@ -1,0 +1,111 @@
+:root {
+  --header-bg: rgba(255, 255, 255, 0.95);
+  --menu-bg: white;
+  --text-color: #1a1d26;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --shadow-color: rgba(0, 0, 0, 0.06);
+  --menu-item-selected: #e6f4ff;
+  --background: #f4f6fb;
+  --gradient1-start: #d7e6ff;
+  --gradient2-start: #ffe8d6;
+  --card-bg: #ffffff;
+  --card-secondary-bg: #f5f7fa;
+  --messages-bg: #fafafa;
+  --admin-message-bg: #e6f7ff;
+  --admin-message-border: #91d5ff;
+  --user-message-bg: #f0f0f0;
+  --user-message-border: #d9d9d9;
+  --primary-color: #1890ff;
+}
+
+[data-theme="dark"] {
+  --header-bg: rgba(26, 29, 38, 0.95);
+  --menu-bg: #1a1d26;
+  --text-color: #e8e9ed;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --menu-item-selected: #1a3a5c;
+  --background: #0d0f15;
+  --gradient1-start: #1a2b4a;
+  --gradient2-start: #2a1f15;
+  --card-bg: #1a1d26;
+  --card-secondary-bg: #252830;
+  --messages-bg: #0d0f15;
+  --admin-message-bg: #1a3a52;
+  --admin-message-border: #2e5a7a;
+  --user-message-bg: #1a1d26;
+  --user-message-border: #2a2d36;
+  --primary-color: #4096ff;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--gradient1-start) 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, var(--gradient2-start) 0%, transparent 50%),
+    var(--background);
+  color: var(--text-color);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: #2f6fed;
+}
+
+/* Ant Design Input theme fix - prevent white flash in dark mode */
+:global(.ant-input),
+:global(.ant-input-password),
+:global(.ant-input-affix-wrapper),
+:global(.ant-input-password .ant-input) {
+  background-color: var(--card-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+:global(.ant-input:hover),
+:global(.ant-input:focus),
+:global(.ant-input-affix-wrapper:hover),
+:global(.ant-input-affix-wrapper:focus),
+:global(.ant-input-affix-wrapper-focused) {
+  background-color: var(--card-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+:global(.ant-input::placeholder),
+:global(.ant-input-password::placeholder) {
+  color: rgba(232, 233, 237, 0.45) !important;
+}
+
+[data-theme="dark"] :global(.ant-input::placeholder),
+[data-theme="dark"] :global(.ant-input-password::placeholder) {
+  color: rgba(232, 233, 237, 0.45) !important;
+}
+
+/* Мобильные оптимизации */
+@media (max-width: 480px) {
+  html,
+  body {
+    background:
+      radial-gradient(800px 400px at 10% -10%, var(--gradient1-start) 0%, transparent 60%),
+      radial-gradient(600px 300px at 100% 0%, var(--gradient2-start) 0%, transparent 60%),
+      var(--background);
+  }
+}
+
+/* Tablets */
+@media (min-width: 481px) and (max-width: 768px) {
+  html,
+  body {
+    background:
+      radial-gradient(1000px 500px at 10% -10%, var(--gradient1-start) 0%, transparent 55%),
+      radial-gradient(800px 400px at 100% 0%, var(--gradient2-start) 0%, transparent 55%),
+      var(--background);
+  }
+}

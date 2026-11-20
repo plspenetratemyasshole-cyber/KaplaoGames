@@ -1,0 +1,8 @@
+[functions.levels-upload-url]
+verify_jwt = false
+
+[functions.levels-download]
+verify_jwt = false
+
+[functions.verify-player]
+verify_jwt = false

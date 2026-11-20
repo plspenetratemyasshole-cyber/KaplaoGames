@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e99c467ff3eb0e4393b446e1e3fc4d5, type: 3}
+  m_Name: KaplaoNicknameFontRegistry
+  m_EditorClassIdentifier: 
+  fonts:
+  - name: default
+    font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  - name: MaverFree
+    font: {fileID: 11400000, guid: 3031dd001631d69439cd275781237a04, type: 2}
+  - name: Belepotan
+    font: {fileID: 11400000, guid: fa73d1845eaef224aa44953b71e4ad0f, type: 2}
+  - name: BlacktearScript
+    font: {fileID: 11400000, guid: fc4c6052e7dd468449057ffac5c40e76, type: 2}
+  - name: Consolas
+    font: {fileID: 11400000, guid: ebdf1802f58539142b4837a18d956e2a, type: 2}
+  - name: MarseilleFree
+    font: {fileID: 11400000, guid: 19f2de611c026fa49bc45b7c8d5c3961, type: 2}
+  - name: MaskingRentra
+    font: {fileID: 11400000, guid: db14b974700d49d40a80b95501775d74, type: 2}
+  - name: Montserrat
+    font: {fileID: 11400000, guid: 1018fbb0f83df7c4380dc76e4d030484, type: 2}
+  - name: SlackOnChristmas
+    font: {fileID: 11400000, guid: a3209dda859aeab42a92e6c3d3951d9d, type: 2}
+  - name: PeaceMarker
+    font: {fileID: 11400000, guid: 6b42ebf381826d544a495d76ef5bf5d6, type: 2}
+  - name: Verdana
+    font: {fileID: 11400000, guid: 32002c7eff12bf0419cfb7826fd232c7, type: 2}
+  - name: Verunchik
+    font: {fileID: 11400000, guid: c9be54f11fef8ab4486ab1e8f7cfb063, type: 2}
+  fallbackFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  fallbackColor: {r: 1, g: 1, b: 1, a: 1}

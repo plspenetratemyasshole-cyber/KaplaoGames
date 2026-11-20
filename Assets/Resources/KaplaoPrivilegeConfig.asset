@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46107a18f5df98549867eca69930c53a, type: 3}
+  m_Name: KaplaoPrivilegeConfig
+  m_EditorClassIdentifier: 
+  accounts:
+  - email: asmoloff55@gmail.com
+    nicknameFont: {fileID: 11400000, guid: a3209dda859aeab42a92e6c3d3951d9d, type: 2}
+    gradientColors:
+    - {r: 1, g: 0, b: 0, a: 1}
+    - {r: 0, g: 0, b: 0, a: 1}
+    shimmerSpeed: -1
+    shimmerSpreadPerCharacter: -1
+  - email: leody1120@gmail.com
+    nicknameFont: {fileID: 11400000, guid: c9be54f11fef8ab4486ab1e8f7cfb063, type: 2}
+    gradientColors:
+    - {r: 1, g: 0, b: 0, a: 1}
+    - {r: 0, g: 0.2157743, b: 1, a: 1}
+    shimmerSpeed: -1
+    shimmerSpreadPerCharacter: -1
+  - email: plspenetratemyasshole@gmail.com
+    nicknameFont: {fileID: 11400000, guid: a3209dda859aeab42a92e6c3d3951d9d, type: 2}
+    gradientColors:
+    - {r: 0.9622642, g: 0.34950158, b: 0.9382905, a: 1}
+    - {r: 1, g: 1, b: 1, a: 1}
+    shimmerSpeed: -1
+    shimmerSpreadPerCharacter: -1
+  defaultNicknameFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  defaultNicknameColor: {r: 1, g: 1, b: 1, a: 1}
+  defaultShimmerSpeed: 0.55
+  defaultShimmerSpreadPerCharacter: 0.12
+  rolePresets:
+  - presetName: mod
+    nicknameFont: {fileID: 11400000, guid: 19f2de611c026fa49bc45b7c8d5c3961, type: 2}
+    gradientColors:
+    - {r: 1, g: 0.9843189, b: 0.2980392, a: 1}
+    - {r: 1, g: 0, b: 0.029075146, a: 1}
+    shimmerSpeed: -1
+    shimmerSpreadPerCharacter: -1
+  - presetName: creator
+    nicknameFont: {fileID: 11400000, guid: 6b42ebf381826d544a495d76ef5bf5d6, type: 2}
+    gradientColors:
+    - {r: 1, g: 0.85, b: 0.2, a: 1}
+    - {r: 1, g: 1, b: 1, a: 1}
+    shimmerSpeed: -1
+    shimmerSpreadPerCharacter: -1
+  privilegedEmails:
+  - asmoloff55@gmail.com
+  privilegedNicknameFont: {fileID: 11400000, guid: fc4c6052e7dd468449057ffac5c40e76, type: 2}
+  privilegedGradientColors:
+  - {r: 1, g: 0, b: 0.049950123, a: 1}
+  - {r: 0, g: 0, b: 0, a: 1}
+  shimmerSpeed: 0.55
+  shimmerSpreadPerCharacter: 0.12

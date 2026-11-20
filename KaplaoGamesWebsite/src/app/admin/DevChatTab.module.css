@@ -1,0 +1,50 @@
+.messagesContainer {
+  min-height: 400px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background-color: var(--card-secondary-bg, #fafafa);
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.messageWrapper {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.messageWrapper.fromAdmin {
+  justify-content: flex-end;
+}
+
+.messageWrapper.fromPlayer {
+  justify-content: flex-start;
+}
+
+.messageBubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.messageBubble.fromAdmin {
+  background-color: #1890ff;
+  color: white;
+}
+
+.messageBubble.fromPlayer {
+  background-color: var(--menu-item-selected, #e6f7ff);
+  color: var(--text-color, black);
+}
+
+.conversationItem {
+  cursor: pointer;
+  background-color: transparent;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color, #f0f0f0);
+}
+
+.conversationItem:hover {
+  background-color: var(--card-secondary-bg, #f5f7fa);
+}

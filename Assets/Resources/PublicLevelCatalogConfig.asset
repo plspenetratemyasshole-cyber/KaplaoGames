@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89e30821763e6e149aaf4a9ead51f56c, type: 3}
+  m_Name: PublicLevelCatalogConfig
+  m_EditorClassIdentifier: 
+  supabaseUrl: https://dmazorbjzecsfrcyxdsq.supabase.co
+  anonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtYXpvcmJqemVjc2ZyY3l4ZHNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTIyNjksImV4cCI6MjEwMjEyODI2OX0.fI8oHAvZIhsQznrDqOWPMbnmw8fEodcQdAMLWGTveaQ
+  levelsTable: levels
+  fileStorage: 1
+  storageBucket: kaplao-levels-cold
+  websiteUrl: https://kaplaogames.vercel.app
+  gameServerSecret: o52EuZPf4gmSDs07p4QVEesoWyt7qo7C0oDz0wHx8tWpcXx9JVKk0mRCSEL6MNRd
+  cloudflareWorkerUrl: 
+  cloudflareUploadToken: 
+  pageSize: 20
