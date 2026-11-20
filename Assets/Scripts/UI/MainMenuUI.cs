@@ -1,8 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using KaplaoGames.Client;
 using KaplaoGames.Network;
 using KaplaoGames.Shared;
+using KaplaoGames.UI.Animation;
+using KaplaoGames.UI.Theme;
 using Mirror;
 using TMPro;
 using UnityEngine;
@@ -1008,7 +1011,6 @@ namespace KaplaoGames.UI
         void ShowOnlyPanels(params GameObject[] visiblePanels)
         {
             UiFlyInChildren flyIn = FindFirstObjectByType<UiFlyInChildren>();
-            flyIn?.RefreshRestFromCurrentPositions();
             flyIn?.SnapAllToRest();
 
             SetPanelActive(mainPanel, false);
@@ -1153,12 +1155,19 @@ namespace KaplaoGames.UI
             if (!WorldSaveService.TryValidateWorldName(rawName, out string sanitized, out string error))
             {
                 Debug.LogWarning($"[MainMenuUI] {error}");
+                KaplaoUiToast.ShowError(error);
+                if (worldNameInput != null)
+                    KaplaoUiAnimator.ShakeError(worldNameInput.GetComponent<RectTransform>());
                 return;
             }
 
             if (WorldSaveService.WorldExists(sanitized))
             {
-                Debug.LogWarning("[MainMenuUI] A world with this name already exists.");
+                const string existsErr = "A world with this name already exists.";
+                Debug.LogWarning($"[MainMenuUI] {existsErr}");
+                KaplaoUiToast.ShowError(existsErr);
+                if (worldNameInput != null)
+                    KaplaoUiAnimator.ShakeError(worldNameInput.GetComponent<RectTransform>());
                 return;
             }
 
@@ -1218,7 +1227,22 @@ namespace KaplaoGames.UI
                 if (entry == null)
                     continue;
 
-                TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>();
+                WorldEntryView view = entry.GetComponent<WorldEntryView>();
+                if (view != null && !string.IsNullOrEmpty(view.WorldName))
+                {
+                    if (string.Equals(view.WorldName, worldName, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        SelectWorld(worldName, entry);
+                        return;
+                    }
+                    continue;
+                }
+
+                Transform titleTrans = entry.transform.Find("Title");
+                TextMeshProUGUI label = titleTrans != null
+                    ? titleTrans.GetComponent<TextMeshProUGUI>()
+                    : entry.GetComponentInChildren<TextMeshProUGUI>();
+
                 if (label == null || !string.Equals(label.text, worldName, System.StringComparison.OrdinalIgnoreCase))
                     continue;
 
@@ -1294,6 +1318,8 @@ namespace KaplaoGames.UI
 
             LanNetworkUi.EnsureSelectedInterfaceStillExists();
             NetworkTransportConfig.Instance?.ApplyFromSession();
+            if (WorldSession.HasActiveWorld && !WorldSession.IsBrowsePlaySession)
+                WorldSaveService.RecordWorldVisited(WorldSession.ActiveWorldName);
             Debug.Log(
                 $"[MainMenuUI] Starting single player host for world '{WorldSession.ActiveWorldName}' port={PlayerSession.Port} transport={(PlayerSession.UseTcpTransport ? "TCP" : "KCP")}.");
             networkManager.StartSinglePlayerHost();
@@ -1302,7 +1328,7 @@ namespace KaplaoGames.UI
         void RefreshWorldList()
         {
             ClearWorldListUi();
-            IReadOnlyList<string> worlds = WorldSaveService.ListWorlds();
+            IReadOnlyList<WorldListItem> worlds = WorldSaveService.ListWorldsWithMetadata();
 
             if (emptyWorldsLabel != null)
                 emptyWorldsLabel.gameObject.SetActive(worlds.Count == 0);
@@ -1330,6 +1356,17 @@ namespace KaplaoGames.UI
 
         void CreateWorldEntry(string worldName)
         {
+            WorldMetadata meta = WorldSaveService.ReadWorldMetadata(worldName);
+            CreateWorldEntry(new WorldListItem
+            {
+                Name = worldName,
+                LastPlayedUtcTicks = meta.lastPlayedUtcTicks,
+                CreatedUtcTicks = meta.createdUtcTicks
+            });
+        }
+
+        void CreateWorldEntry(WorldListItem item)
+        {
             if (worldListContent == null || worldEntryTemplate == null)
                 return;
 
@@ -1337,9 +1374,70 @@ namespace KaplaoGames.UI
             entry.SetActive(true);
             worldEntryObjects.Add(entry);
 
-            TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>();
-            if (label != null)
-                label.text = worldName;
+            WorldEntryView view = entry.GetComponent<WorldEntryView>();
+            if (view == null)
+                view = entry.AddComponent<WorldEntryView>();
+
+            view.WorldName = item.Name;
+
+            Transform titleTrans = entry.transform.Find("Title");
+            TextMeshProUGUI title = titleTrans != null
+                ? titleTrans.GetComponent<TextMeshProUGUI>()
+                : null;
+
+            if (title == null)
+            {
+                title = entry.GetComponentInChildren<TextMeshProUGUI>();
+                if (title != null)
+                    title.gameObject.name = "Title";
+            }
+
+            if (title != null)
+            {
+                title.text = item.Name;
+                view.Title = title;
+            }
+
+            Transform subtitleTrans = entry.transform.Find("Subtitle");
+            TextMeshProUGUI subtitle = subtitleTrans != null
+                ? subtitleTrans.GetComponent<TextMeshProUGUI>()
+                : null;
+
+            if (subtitle == null && title != null)
+            {
+                GameObject subObj = new GameObject("Subtitle", typeof(RectTransform));
+                subObj.transform.SetParent(title.transform.parent, false);
+                subtitle = subObj.AddComponent<TextMeshProUGUI>();
+                subtitle.fontSize = 13f;
+                subtitle.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f); // #94A3B8
+                subtitle.raycastTarget = false;
+
+                // Adjust positions inside entry card
+                RectTransform subRect = subtitle.rectTransform;
+                subRect.anchorMin = new Vector2(0f, 0f);
+                subRect.anchorMax = new Vector2(1f, 0.42f);
+                subRect.offsetMin = new Vector2(18f, 6f);
+                subRect.offsetMax = new Vector2(-18f, 0f);
+
+                RectTransform titleRect = title.rectTransform;
+                titleRect.anchorMin = new Vector2(0f, 0.42f);
+                titleRect.anchorMax = new Vector2(1f, 1f);
+                titleRect.offsetMin = new Vector2(18f, 0f);
+                titleRect.offsetMax = new Vector2(-18f, -6f);
+            }
+
+            if (subtitle != null)
+            {
+                subtitle.text = WorldEntryView.FormatLastPlayed(item.LastPlayedUtcTicks);
+                view.Subtitle = subtitle;
+            }
+
+            view.Background = entry.GetComponent<Image>() ?? entry.GetComponentInChildren<Image>();
+            Transform borderTrans = entry.transform.Find("UI_Border");
+            if (borderTrans != null)
+                view.Border = borderTrans.GetComponent<Image>();
+
+            view.SetSelected(string.Equals(selectedWorldName, item.Name, StringComparison.OrdinalIgnoreCase));
 
             Button button = entry.GetComponent<Button>();
             if (button == null)
@@ -1347,7 +1445,7 @@ namespace KaplaoGames.UI
 
             if (button != null)
             {
-                string capturedName = worldName;
+                string capturedName = item.Name;
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => SelectWorld(capturedName, entry));
             }
@@ -1364,14 +1462,21 @@ namespace KaplaoGames.UI
                 if (entry == null)
                     continue;
 
-                Image image = entry.GetComponent<Image>();
-                if (image == null)
-                    image = entry.GetComponentInChildren<Image>();
-
-                if (image != null)
-                    image.color = entry == entryObject
-                        ? new Color(0.35f, 0.55f, 0.85f, 0.95f)
-                        : Color.white;
+                WorldEntryView view = entry.GetComponent<WorldEntryView>();
+                if (view != null)
+                {
+                    view.SetSelected(entry == entryObject);
+                }
+                else
+                {
+                    Image image = entry.GetComponent<Image>() ?? entry.GetComponentInChildren<Image>();
+                    if (image != null)
+                    {
+                        image.color = entry == entryObject
+                            ? new Color(0x1D / 255f, 0x3A / 255f, 0x5F / 255f, 0.98f)
+                            : new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 0.95f);
+                    }
+                }
             }
         }
 

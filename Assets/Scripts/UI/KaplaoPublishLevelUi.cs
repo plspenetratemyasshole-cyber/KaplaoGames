@@ -98,6 +98,7 @@ namespace KaplaoGames.UI
 
             if (publishRoutine != null) StopCoroutine(publishRoutine);
             if (progressRoot != null) progressRoot.SetActive(true);
+            if (confirmPublishButton != null) confirmPublishButton.interactable = false;
             publishRoutine = StartCoroutine(PublishRoutine(title, PlayerSession.Nickname));
         }
 
@@ -116,9 +117,15 @@ namespace KaplaoGames.UI
                     SetStatus(msg);
                     ClosePanel();
                     if (progressRoot != null) progressRoot.SetActive(false);
+                    if (confirmPublishButton != null) confirmPublishButton.interactable = true;
                     pauseMenu?.ResumeFromExternal();
                 },
-                err => SetStatus(err));
+                err =>
+                {
+                    SetStatus(err);
+                    if (progressRoot != null) progressRoot.SetActive(false);
+                    if (confirmPublishButton != null) confirmPublishButton.interactable = true;
+                });
             publishRoutine = null;
         }
 

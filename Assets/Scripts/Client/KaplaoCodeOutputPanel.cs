@@ -109,6 +109,14 @@ namespace KaplaoGames.Client
             if (toggleButton != null)
                 toggleButton.onClick.RemoveListener(ToggleCollapsed);
 
+            if (copyFeedbackRoutine != null)
+            {
+                StopCoroutine(copyFeedbackRoutine);
+                copyFeedbackRoutine = null;
+            }
+            if (copyButtonLabel != null && !string.IsNullOrEmpty(originalCopyButtonText))
+                copyButtonLabel.text = originalCopyButtonText;
+
             LevelScriptOutputService.LogAppended -= OnExternalLogAppended;
         }
 
@@ -260,8 +268,9 @@ namespace KaplaoGames.Client
         IEnumerator ShowCopiedFeedbackRoutine()
         {
             copyButtonLabel.text = "Copied!";
-            yield return new WaitForSeconds(1.2f);
+            yield return new WaitForSecondsRealtime(1.2f);
             copyButtonLabel.text = originalCopyButtonText;
+            copyFeedbackRoutine = null;
         }
 
         public void ToggleCollapsed()

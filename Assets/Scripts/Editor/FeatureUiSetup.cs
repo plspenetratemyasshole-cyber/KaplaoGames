@@ -269,15 +269,28 @@ namespace KaplaoGames.Editor
             Canvas canvas = Object.FindFirstObjectByType<Canvas>();
             if (canvas == null) return;
 
-            Transform pauseRoot = canvas.transform.Find("PauseMenuRoot/PauseMenuPanel");
-            if (pauseRoot == null)
+            Transform pauseMenuRoot = canvas.transform.Find("PauseMenuRoot");
+            if (pauseMenuRoot == null)
             {
                 Debug.LogError("[Kaplao] Pause menu not found. Run Kaplao/Setup Pause Menu UI.");
                 return;
             }
 
-            Button publishBtn = UiHelpers.FindOrCreateCenterButton(pauseRoot, "PublishButton", "Publish", new Vector2(0.5f, -0.12f));
-            GameObject panel = UiHelpers.FindOrCreatePanel(pauseRoot, "PublishLevelPanel", new Vector2(400f, 260f));
+            Transform pauseMenuPanel = pauseMenuRoot.Find("PauseMenuPanel");
+            if (pauseMenuPanel == null)
+            {
+                Debug.LogError("[Kaplao] PauseMenuPanel not found. Run Kaplao/Setup Pause Menu UI.");
+                return;
+            }
+
+            Button publishBtn = UiHelpers.FindOrCreateCenterButton(pauseMenuPanel, "PublishButton", "Publish", new Vector2(0.5f, -0.12f));
+
+            // If PublishLevelPanel was previously nested inside PauseMenuPanel, move it out to PauseMenuRoot.
+            Transform oldNested = pauseMenuPanel.Find("PublishLevelPanel");
+            if (oldNested != null)
+                oldNested.SetParent(pauseMenuRoot, false);
+
+            GameObject panel = UiHelpers.FindOrCreatePanel(pauseMenuRoot, "PublishLevelPanel", new Vector2(400f, 260f));
             TMP_InputField title = UiHelpers.FindOrCreateInput(panel.transform, "PublishTitleInput", new Vector2(0f, 40f));
             Button confirm = UiHelpers.FindOrCreateButton(panel.transform, "PublishConfirmButton", "Publish", new Vector2(-60f, -20f));
             Button cancel = UiHelpers.FindOrCreateButton(panel.transform, "PublishCancelButton", "Cancel", new Vector2(60f, -20f));

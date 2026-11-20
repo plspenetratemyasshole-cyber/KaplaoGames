@@ -89,12 +89,20 @@ namespace KaplaoGames.Client
             if (session == null) return;
 
             suppress = true;
-            if (runnersCanCollideToggle != null)
-                runnersCanCollideToggle.isOn = session.RunnersCanInteract;
-            Vector2 spawn = session.WorldSpawn;
-            if (worldSpawnXInput != null) worldSpawnXInput.text = spawn.x.ToString("G");
-            if (worldSpawnYInput != null) worldSpawnYInput.text = spawn.y.ToString("G");
-            suppress = false;
+            try
+            {
+                if (runnersCanCollideToggle != null)
+                    runnersCanCollideToggle.isOn = session.RunnersCanInteract;
+                Vector2 spawn = session.WorldSpawn;
+                if (worldSpawnXInput != null && !worldSpawnXInput.isFocused)
+                    worldSpawnXInput.text = spawn.x.ToString("G");
+                if (worldSpawnYInput != null && !worldSpawnYInput.isFocused)
+                    worldSpawnYInput.text = spawn.y.ToString("G");
+            }
+            finally
+            {
+                suppress = false;
+            }
         }
 
         void OnLiveApplyToggle(bool _)

@@ -37,6 +37,7 @@ namespace KaplaoGames.UI
         bool endReached;
         bool canModerateDelete;
         bool deleteInProgress;
+        bool downloadInProgress;
         Coroutine fetchRoutine;
         Coroutine accessRoutine;
         MainMenuUI mainMenu;
@@ -62,7 +63,11 @@ namespace KaplaoGames.UI
             if (deleteFromServersButton != null) deleteFromServersButton.onClick.AddListener(ShowDeleteConfirm);
             if (deleteConfirmButton != null) deleteConfirmButton.onClick.AddListener(ConfirmDeleteSelected);
             if (deleteCancelButton != null) deleteCancelButton.onClick.AddListener(HideDeleteConfirm);
-            if (searchInput != null) searchInput.onSubmit.AddListener(_ => RefreshSearch());
+            if (searchInput != null)
+            {
+                searchInput.onSubmit.RemoveListener(OnSearchSubmit);
+                searchInput.onSubmit.AddListener(OnSearchSubmit);
+            }
             mainMenu = GetComponent<MainMenuUI>() ?? FindFirstObjectByType<MainMenuUI>();
         }
 
@@ -75,6 +80,12 @@ namespace KaplaoGames.UI
             if (deleteFromServersButton != null) deleteFromServersButton.onClick.RemoveListener(ShowDeleteConfirm);
             if (deleteConfirmButton != null) deleteConfirmButton.onClick.RemoveListener(ConfirmDeleteSelected);
             if (deleteCancelButton != null) deleteCancelButton.onClick.RemoveListener(HideDeleteConfirm);
+            if (searchInput != null) searchInput.onSubmit.RemoveListener(OnSearchSubmit);
+        }
+
+        void OnSearchSubmit(string _)
+        {
+            RefreshSearch();
         }
 
         void Update()
@@ -208,6 +219,8 @@ namespace KaplaoGames.UI
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => SelectEntry(captured));
             }
+
+            HighlightSelectedEntry();
         }
 
         void ClearEntries()
@@ -221,17 +234,46 @@ namespace KaplaoGames.UI
             selected = entry;
             HideDeleteConfirm();
             UpdateActionButtonsVisible();
+            HighlightSelectedEntry();
+        }
+
+        void HighlightSelectedEntry()
+        {
+            for (int i = 0; i < entryObjects.Count; i++)
+            {
+                if (i >= loadedEntries.Count) continue;
+                GameObject obj = entryObjects[i];
+                if (obj == null) continue;
+
+                bool isSelected = selected != null && selected.id == loadedEntries[i].id;
+
+                Image bg = obj.GetComponent<Image>() ?? obj.GetComponentInChildren<Image>();
+                if (bg != null)
+                {
+                    bg.color = isSelected
+                        ? new Color(0x1D / 255f, 0x3A / 255f, 0x5F / 255f, 0.98f)
+                        : new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 0.95f);
+                }
+
+                Transform borderTrans = obj.transform.Find("UI_Border");
+                if (borderTrans != null && borderTrans.TryGetComponent(out Image border))
+                {
+                    border.color = isSelected
+                        ? new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 0.95f)
+                        : new Color(0x2B / 255f, 0x3B / 255f, 0x5C / 255f, 0.55f);
+                }
+            }
         }
 
         void PlaySelected()
         {
-            if (selected == null) return;
+            if (selected == null || downloadInProgress) return;
             StartCoroutine(DownloadRoutine(selected, PublicLevelService.LevelInstallTarget.BrowsePlay, playAfterDownload: true));
         }
 
         void CopySelected()
         {
-            if (selected == null) return;
+            if (selected == null || downloadInProgress) return;
             StartCoroutine(DownloadRoutine(selected, PublicLevelService.LevelInstallTarget.UserLibrary, playAfterDownload: false));
         }
 
@@ -309,22 +351,30 @@ namespace KaplaoGames.UI
             PublicLevelService.LevelInstallTarget target,
             bool playAfterDownload)
         {
+            downloadInProgress = true;
             HideDeleteConfirm();
             UpdateActionButtonsVisible(false);
             if (progressRoot != null) progressRoot.SetActive(true);
             string worldName = null;
             string error = null;
-            yield return PublicLevelService.DownloadAndInstall(
-                entry.storage_path,
-                entry.title,
-                p =>
-                {
-                    if (progressBar != null) progressBar.value = p;
-                    if (progressLabel != null) progressLabel.text = $"{Mathf.RoundToInt(p * 100f)}%";
-                },
-                name => worldName = name,
-                e => error = e,
-                target);
+            try
+            {
+                yield return PublicLevelService.DownloadAndInstall(
+                    entry.storage_path,
+                    entry.title,
+                    p =>
+                    {
+                        if (progressBar != null) progressBar.value = p;
+                        if (progressLabel != null) progressLabel.text = $"{Mathf.RoundToInt(p * 100f)}%";
+                    },
+                    name => worldName = name,
+                    e => error = e,
+                    target);
+            }
+            finally
+            {
+                downloadInProgress = false;
+            }
 
             if (progressRoot != null) progressRoot.SetActive(false);
             if (!string.IsNullOrEmpty(error))

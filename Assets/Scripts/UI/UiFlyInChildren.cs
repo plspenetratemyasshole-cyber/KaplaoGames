@@ -106,6 +106,30 @@ namespace KaplaoGames.UI
             }
         }
 
+        public void PlayPanelTransition(RectTransform targetRoot = null)
+        {
+            ForceLayoutRefresh();
+
+            RectTransform root = targetRoot != null ? targetRoot : (searchRoot != null ? searchRoot : transform as RectTransform);
+            if (root == null)
+                return;
+
+            List<RectTransform> targets = CollectTargets(root);
+            SortBottomToTop(targets);
+            animatedTargets.Clear();
+            animatedTargets.AddRange(targets);
+
+            const float fastDuration = 0.28f;
+            const float fastStagger = 0.025f;
+            const float fastOffsetY = 36f;
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                float delay = i * fastStagger;
+                UiFlyInUtility.Play(targets[i], fastOffsetY, fastDuration, delay, LeanTweenType.easeOutCubic);
+            }
+        }
+
         public void SnapAllToRest()
         {
             ForceLayoutRefresh();

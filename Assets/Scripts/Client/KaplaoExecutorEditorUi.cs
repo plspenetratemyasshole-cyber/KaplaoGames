@@ -251,56 +251,62 @@ namespace KaplaoGames.Client
             if (server == null || server.SelectedCount <= 0) return;
 
             suppressApply = true;
-            if (server.SelectedCount == 1)
+            try
             {
-                if (!LevelScriptObjectUtility.TryResolveTile(server.SelectedTiles[0], out LevelTileServer tile) ||
-                    tile == null || !tile.TryGetComponent(out ExecutorTile executor))
-                    return;
-
-                if (targetGroupInput != null) targetGroupInput.text = executor.TargetGroup.ToString();
-                if (durationInput != null) durationInput.text = executor.Duration.ToString("G");
-                if (x360Input != null) x360Input.text = executor.X360.ToString();
-                if (spawnedExecutorToggle != null) spawnedExecutorToggle.isOn = executor.SpawnedExecutor;
-                if (spawnAtEndToggle != null) spawnAtEndToggle.isOn = executor.SpawnExecutorAtEnd;
-                if (spawnAtEndGroupInput != null) spawnAtEndGroupInput.text = executor.SpawnAtEndGroup.ToString();
-                if (loopToggle != null) loopToggle.isOn = executor.Loop;
-                if (loopEveryInput != null) loopEveryInput.text = executor.LoopEverySeconds.ToString("G");
-                if (useKeyframesToggle != null) useKeyframesToggle.isOn = executor.UseKeyframes;
-                if (keyframesGroupInput != null) keyframesGroupInput.text = executor.KeyframesGroup.ToString();
-                if (returnToggle != null) returnToggle.isOn = executor.ReturnEnabled;
-                if (returnDelayInput != null) returnDelayInput.text = executor.ReturnDelaySeconds.ToString("G");
-
-                if (animDropdown != null)
+                if (server.SelectedCount == 1)
                 {
-                    int index = executor.Anim switch
-                    {
-                        "easein" => 1,
-                        "easeout" => 2,
-                        "easeinout" => 3,
-                        _ => 0
-                    };
-                    animDropdown.value = index;
-                }
-            }
-            else
-            {
-                if (targetGroupInput != null) targetGroupInput.text = string.Empty;
-                if (durationInput != null) durationInput.text = string.Empty;
-                if (x360Input != null) x360Input.text = string.Empty;
-                if (spawnedExecutorToggle != null) spawnedExecutorToggle.isOn = false;
-                if (spawnAtEndToggle != null) spawnAtEndToggle.isOn = false;
-                if (spawnAtEndGroupInput != null) spawnAtEndGroupInput.text = string.Empty;
-                if (loopToggle != null) loopToggle.isOn = false;
-                if (loopEveryInput != null) loopEveryInput.text = string.Empty;
-                if (useKeyframesToggle != null) useKeyframesToggle.isOn = false;
-                if (keyframesGroupInput != null) keyframesGroupInput.text = string.Empty;
-                if (returnToggle != null) returnToggle.isOn = false;
-                if (returnDelayInput != null) returnDelayInput.text = string.Empty;
-                if (animDropdown != null) animDropdown.value = 0;
-            }
+                    if (!LevelScriptObjectUtility.TryResolveTile(server.SelectedTiles[0], out LevelTileServer tile) ||
+                        tile == null || !tile.TryGetComponent(out ExecutorTile executor))
+                        return;
 
-            RefreshConditionalVisibility();
-            suppressApply = false;
+                    if (targetGroupInput != null) targetGroupInput.text = executor.TargetGroup.ToString();
+                    if (durationInput != null) durationInput.text = executor.Duration.ToString("G");
+                    if (x360Input != null) x360Input.text = executor.X360.ToString();
+                    if (spawnedExecutorToggle != null) spawnedExecutorToggle.isOn = executor.SpawnedExecutor;
+                    if (spawnAtEndToggle != null) spawnAtEndToggle.isOn = executor.SpawnExecutorAtEnd;
+                    if (spawnAtEndGroupInput != null) spawnAtEndGroupInput.text = executor.SpawnAtEndGroup.ToString();
+                    if (loopToggle != null) loopToggle.isOn = executor.Loop;
+                    if (loopEveryInput != null) loopEveryInput.text = executor.LoopEverySeconds.ToString("G");
+                    if (useKeyframesToggle != null) useKeyframesToggle.isOn = executor.UseKeyframes;
+                    if (keyframesGroupInput != null) keyframesGroupInput.text = executor.KeyframesGroup.ToString();
+                    if (returnToggle != null) returnToggle.isOn = executor.ReturnEnabled;
+                    if (returnDelayInput != null) returnDelayInput.text = executor.ReturnDelaySeconds.ToString("G");
+
+                    if (animDropdown != null)
+                    {
+                        int index = executor.Anim switch
+                        {
+                            "easein" => 1,
+                            "easeout" => 2,
+                            "easeinout" => 3,
+                            _ => 0
+                        };
+                        animDropdown.value = index;
+                    }
+                }
+                else
+                {
+                    if (targetGroupInput != null) targetGroupInput.text = string.Empty;
+                    if (durationInput != null) durationInput.text = string.Empty;
+                    if (x360Input != null) x360Input.text = string.Empty;
+                    if (spawnedExecutorToggle != null) spawnedExecutorToggle.isOn = false;
+                    if (spawnAtEndToggle != null) spawnAtEndToggle.isOn = false;
+                    if (spawnAtEndGroupInput != null) spawnAtEndGroupInput.text = string.Empty;
+                    if (loopToggle != null) loopToggle.isOn = false;
+                    if (loopEveryInput != null) loopEveryInput.text = string.Empty;
+                    if (useKeyframesToggle != null) useKeyframesToggle.isOn = false;
+                    if (keyframesGroupInput != null) keyframesGroupInput.text = string.Empty;
+                    if (returnToggle != null) returnToggle.isOn = false;
+                    if (returnDelayInput != null) returnDelayInput.text = string.Empty;
+                    if (animDropdown != null) animDropdown.value = 0;
+                }
+
+                RefreshConditionalVisibility();
+            }
+            finally
+            {
+                suppressApply = false;
+            }
         }
 
         void RefreshConditionalVisibility()

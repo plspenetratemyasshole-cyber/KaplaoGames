@@ -186,33 +186,45 @@ namespace KaplaoGames.Editor
             settingsPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
             settingsPanelRect.pivot = new Vector2(0.5f, 0.5f);
             settingsPanelRect.anchoredPosition = Vector2.zero;
-            settingsPanelRect.sizeDelta = new Vector2(420f, 300f);
+            settingsPanelRect.sizeDelta = new Vector2(440f, 480f);
             Image settingsPanelImage = settingsPanel.GetComponent<Image>() ?? settingsPanel.AddComponent<Image>();
             settingsPanelImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
             settingsPanel.SetActive(false);
 
             FindOrCreateLabel(settingsPanel.transform, "SettingsTitleLabel", "Tile Settings",
-                new Vector2(0f, 60f), new Vector2(320f, 32f), 22f).alignment = TextAlignmentOptions.Center;
+                new Vector2(0f, 200f), new Vector2(320f, 32f), 22f).alignment = TextAlignmentOptions.Center;
 
             TMP_InputField transparencyInput = FindOrCreateInputField(settingsPanel.transform, "TransparencyInputField",
-                new Vector2(0f, 10f), new Vector2(280f, 34f));
+                new Vector2(0f, 150f), new Vector2(280f, 34f));
             SetInputPlaceholder(transparencyInput, "0..1");
             Toggle noHitboxToggle = FindOrCreateSettingsToggle(settingsPanel.transform, "NoHitboxToggle",
-                "No Hitbox (disable collision)", new Vector2(0f, -34f));
-            settingsPanelRect.sizeDelta = new Vector2(420f, 340f);
-            TMP_InputField posXInput = FindOrCreateInputField(settingsPanel.transform, "PosXInputField", new Vector2(-130f, -78f), new Vector2(90f, 34f));
-            TMP_InputField posYInput = FindOrCreateInputField(settingsPanel.transform, "PosYInputField", new Vector2(-30f, -78f), new Vector2(90f, 34f));
-            TMP_InputField rotInput = FindOrCreateInputField(settingsPanel.transform, "RotationInputField", new Vector2(70f, -78f), new Vector2(90f, 34f));
-            TMP_InputField scaleXInput = FindOrCreateInputField(settingsPanel.transform, "ScaleXInputField", new Vector2(-80f, -118f), new Vector2(90f, 34f));
-            TMP_InputField scaleYInput = FindOrCreateInputField(settingsPanel.transform, "ScaleYInputField", new Vector2(30f, -118f), new Vector2(90f, 34f));
-            FindOrCreateLabel(settingsPanel.transform, "SortingOrderLabel", "Order", new Vector2(-120f, -158f), new Vector2(70f, 28f), 16f);
-            TMP_InputField sortingOrderInput = FindOrCreateInputField(settingsPanel.transform, "SortingOrderInputField", new Vector2(-20f, -158f), new Vector2(90f, 34f));
+                "No Hitbox (disable collision)", new Vector2(0f, 105f));
+            TMP_InputField posXInput = FindOrCreateInputField(settingsPanel.transform, "PosXInputField", new Vector2(-130f, 50f), new Vector2(90f, 34f));
+            TMP_InputField posYInput = FindOrCreateInputField(settingsPanel.transform, "PosYInputField", new Vector2(-30f, 50f), new Vector2(90f, 34f));
+            TMP_InputField rotInput = FindOrCreateInputField(settingsPanel.transform, "RotationInputField", new Vector2(70f, 50f), new Vector2(90f, 34f));
+            TMP_InputField scaleXInput = FindOrCreateInputField(settingsPanel.transform, "ScaleXInputField", new Vector2(-80f, 0f), new Vector2(90f, 34f));
+            TMP_InputField scaleYInput = FindOrCreateInputField(settingsPanel.transform, "ScaleYInputField", new Vector2(30f, 0f), new Vector2(90f, 34f));
+            FindOrCreateLabel(settingsPanel.transform, "SortingOrderLabel", "Order", new Vector2(-120f, -50f), new Vector2(70f, 28f), 16f);
+            TMP_InputField sortingOrderInput = FindOrCreateInputField(settingsPanel.transform, "SortingOrderInputField", new Vector2(-20f, -50f), new Vector2(90f, 34f));
             SetInputPlaceholder(sortingOrderInput, "-10..10");
             Button applyTransformButton = FindOrCreatePanelButton(settingsPanel.transform, "ApplyTransformButton", "Apply",
-                new Vector2(0f, -208f));
+                new Vector2(-70f, -180f));
             applyTransformButton.gameObject.SetActive(false);
             Button settingsCloseButton = FindOrCreatePanelButton(settingsPanel.transform, "SettingsCloseButton", "Close",
-                new Vector2(0f, -208f));
+                new Vector2(0f, -180f));
+
+            SetAnchored(settingsPanel.transform.Find("SettingsTitleLabel"), new Vector2(0f, 200f), new Vector2(320f, 32f));
+            SetAnchored(transparencyInput, new Vector2(0f, 150f), new Vector2(280f, 34f));
+            SetAnchored(noHitboxToggle, new Vector2(0f, 105f));
+            SetAnchored(posXInput, new Vector2(-130f, 50f), new Vector2(90f, 34f));
+            SetAnchored(posYInput, new Vector2(-30f, 50f), new Vector2(90f, 34f));
+            SetAnchored(rotInput, new Vector2(70f, 50f), new Vector2(90f, 34f));
+            SetAnchored(scaleXInput, new Vector2(-80f, 0f), new Vector2(90f, 34f));
+            SetAnchored(scaleYInput, new Vector2(30f, 0f), new Vector2(90f, 34f));
+            SetAnchored(settingsPanel.transform.Find("SortingOrderLabel"), new Vector2(-120f, -50f), new Vector2(70f, 28f));
+            SetAnchored(sortingOrderInput, new Vector2(-20f, -50f), new Vector2(90f, 34f));
+            SetAnchored(applyTransformButton, new Vector2(-70f, -180f));
+            SetAnchored(settingsCloseButton, new Vector2(0f, -180f));
 
             GameObject createSettingsPanel = FindOrCreateChild(root, "CreateSettingsPanel");
             RectTransform createSettingsPanelRect = createSettingsPanel.GetComponent<RectTransform>();
@@ -220,59 +232,59 @@ namespace KaplaoGames.Editor
             createSettingsPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
             createSettingsPanelRect.pivot = new Vector2(0.5f, 0.5f);
             createSettingsPanelRect.anchoredPosition = Vector2.zero;
-            createSettingsPanelRect.sizeDelta = new Vector2(360f, 540f);
+            createSettingsPanelRect.sizeDelta = new Vector2(380f, 620f);
             Image createSettingsPanelImage = createSettingsPanel.GetComponent<Image>() ?? createSettingsPanel.AddComponent<Image>();
             createSettingsPanelImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
             createSettingsPanel.SetActive(false);
 
             FindOrCreateLabel(createSettingsPanel.transform, "CreateSettingsTitleLabel", "Create Settings",
-                new Vector2(0f, 240f), new Vector2(320f, 32f), 22f).alignment = TextAlignmentOptions.Center;
+                new Vector2(0f, 265f), new Vector2(320f, 32f), 22f).alignment = TextAlignmentOptions.Center;
             TMP_InputField rotationSnapInput = FindOrCreateInputField(createSettingsPanel.transform, "RotationSnapInputField",
-                new Vector2(0f, 190f), new Vector2(280f, 34f));
+                new Vector2(0f, 215f), new Vector2(280f, 34f));
             TMP_InputField positionSnapInput = FindOrCreateInputField(createSettingsPanel.transform, "PositionSnapInputField",
-                new Vector2(0f, 150f), new Vector2(280f, 34f));
+                new Vector2(0f, 175f), new Vector2(280f, 34f));
             TMP_InputField scaleSnapInput = FindOrCreateInputField(createSettingsPanel.transform, "ScaleSnapInputField",
-                new Vector2(0f, 110f), new Vector2(280f, 34f));
+                new Vector2(0f, 135f), new Vector2(280f, 34f));
             Toggle showGridToggle = FindOrCreateSettingsToggle(createSettingsPanel.transform, "ShowGridToggle",
-                "Show grid", new Vector2(0f, 70f));
+                "Show grid", new Vector2(0f, 95f));
             Toggle showHitboxesToggle = FindOrCreateSettingsToggle(createSettingsPanel.transform, "ShowHitboxesToggle",
-                "Show hitboxes", new Vector2(0f, 30f));
+                "Show hitboxes", new Vector2(0f, 55f));
             Toggle showPlayersToggle = FindOrCreateSettingsToggle(createSettingsPanel.transform, "ShowPlayersToggle",
-                "Show players", new Vector2(0f, -10f));
+                "Show players", new Vector2(0f, 15f));
             Toggle hideCursorToggle = FindOrCreateSettingsToggle(createSettingsPanel.transform, "HideCursorToggle",
-                "Hide cursor", new Vector2(0f, -50f));
+                "Hide cursor", new Vector2(0f, -25f));
             Toggle hitboxTrailToggle = FindOrCreateSettingsToggle(createSettingsPanel.transform, "HitboxTrailToggle",
-                "Hitbox Trail", new Vector2(0f, -90f));
+                "Hitbox Trail", new Vector2(0f, -65f));
             FindOrCreateLabel(createSettingsPanel.transform, "MinZoomLabel", "Min ortho size",
-                new Vector2(0f, -126f), new Vector2(280f, 22f), 14f);
+                new Vector2(0f, -106f), new Vector2(280f, 22f), 14f);
             TMP_InputField minZoomInput = FindOrCreateInputField(createSettingsPanel.transform, "MinZoomInputField",
-                new Vector2(0f, -154f), new Vector2(280f, 34f));
+                new Vector2(0f, -134f), new Vector2(280f, 34f));
             SetInputPlaceholder(minZoomInput, "3");
             FindOrCreateLabel(createSettingsPanel.transform, "MaxZoomLabel", "Max ortho size",
-                new Vector2(0f, -190f), new Vector2(280f, 22f), 14f);
+                new Vector2(0f, -170f), new Vector2(280f, 22f), 14f);
             TMP_InputField maxZoomInput = FindOrCreateInputField(createSettingsPanel.transform, "MaxZoomInputField",
-                new Vector2(0f, -218f), new Vector2(280f, 34f));
+                new Vector2(0f, -198f), new Vector2(280f, 34f));
             SetInputPlaceholder(maxZoomInput, "20");
             Button createSettingsSaveButton = FindOrCreatePanelButton(createSettingsPanel.transform, "CreateSettingsSaveButton", "Save",
-                new Vector2(-70f, -260f));
+                new Vector2(-70f, -255f));
             Button createSettingsCloseButton = FindOrCreatePanelButton(createSettingsPanel.transform, "CreateSettingsCloseButton", "Close",
-                new Vector2(70f, -260f));
+                new Vector2(70f, -255f));
 
-            SetAnchored(createSettingsPanel.transform.Find("CreateSettingsTitleLabel"), new Vector2(0f, 240f), new Vector2(320f, 32f));
-            SetAnchored(rotationSnapInput, new Vector2(0f, 190f), new Vector2(280f, 34f));
-            SetAnchored(positionSnapInput, new Vector2(0f, 150f), new Vector2(280f, 34f));
-            SetAnchored(scaleSnapInput, new Vector2(0f, 110f), new Vector2(280f, 34f));
-            SetAnchored(showGridToggle, new Vector2(0f, 70f));
-            SetAnchored(showHitboxesToggle, new Vector2(0f, 30f));
-            SetAnchored(showPlayersToggle, new Vector2(0f, -10f));
-            SetAnchored(hideCursorToggle, new Vector2(0f, -50f));
-            SetAnchored(hitboxTrailToggle, new Vector2(0f, -90f));
-            SetAnchored(createSettingsPanel.transform.Find("MinZoomLabel"), new Vector2(0f, -126f), new Vector2(280f, 22f));
-            SetAnchored(minZoomInput, new Vector2(0f, -154f), new Vector2(280f, 34f));
-            SetAnchored(createSettingsPanel.transform.Find("MaxZoomLabel"), new Vector2(0f, -190f), new Vector2(280f, 22f));
-            SetAnchored(maxZoomInput, new Vector2(0f, -218f), new Vector2(280f, 34f));
-            SetAnchored(createSettingsSaveButton, new Vector2(-70f, -260f));
-            SetAnchored(createSettingsCloseButton, new Vector2(70f, -260f));
+            SetAnchored(createSettingsPanel.transform.Find("CreateSettingsTitleLabel"), new Vector2(0f, 265f), new Vector2(320f, 32f));
+            SetAnchored(rotationSnapInput, new Vector2(0f, 215f), new Vector2(280f, 34f));
+            SetAnchored(positionSnapInput, new Vector2(0f, 175f), new Vector2(280f, 34f));
+            SetAnchored(scaleSnapInput, new Vector2(0f, 135f), new Vector2(280f, 34f));
+            SetAnchored(showGridToggle, new Vector2(0f, 95f));
+            SetAnchored(showHitboxesToggle, new Vector2(0f, 55f));
+            SetAnchored(showPlayersToggle, new Vector2(0f, 15f));
+            SetAnchored(hideCursorToggle, new Vector2(0f, -25f));
+            SetAnchored(hitboxTrailToggle, new Vector2(0f, -65f));
+            SetAnchored(createSettingsPanel.transform.Find("MinZoomLabel"), new Vector2(0f, -106f), new Vector2(280f, 22f));
+            SetAnchored(minZoomInput, new Vector2(0f, -134f), new Vector2(280f, 34f));
+            SetAnchored(createSettingsPanel.transform.Find("MaxZoomLabel"), new Vector2(0f, -170f), new Vector2(280f, 22f));
+            SetAnchored(maxZoomInput, new Vector2(0f, -198f), new Vector2(280f, 34f));
+            SetAnchored(createSettingsSaveButton, new Vector2(-70f, -255f));
+            SetAnchored(createSettingsCloseButton, new Vector2(70f, -255f));
 
             TextMeshProUGUI cursorCoordsLabel = FindOrCreateLabel(root, "CursorCoordinatesLabel", "X: 0.00  Y: 0.00",
                 new Vector2(180f, 18f), new Vector2(320f, 26f), 16f);

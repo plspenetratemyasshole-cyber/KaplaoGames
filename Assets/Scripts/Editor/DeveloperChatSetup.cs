@@ -231,33 +231,41 @@ namespace KaplaoGames.UI.Editor
             inputImage.color = new Color(0.3f, 0.3f, 0.3f); // Dark gray input
             
             TMP_InputField inputComponent = inputField.AddComponent<TMP_InputField>();
-            inputComponent.textComponent = null; // Will be set below
             inputComponent.lineType = TMP_InputField.LineType.MultiLineNewline;
             inputComponent.characterLimit = 5000;
 
+            GameObject textArea = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D));
+            textArea.transform.SetParent(inputField.transform, false);
+            RectTransform textAreaRect = textArea.GetComponent<RectTransform>();
+            textAreaRect.anchorMin = Vector2.zero;
+            textAreaRect.anchorMax = Vector2.one;
+            textAreaRect.offsetMin = new Vector2(12, 6);
+            textAreaRect.offsetMax = new Vector2(-12, -6);
+            inputComponent.textViewport = textAreaRect;
+
             GameObject inputText = new GameObject("Text");
-            inputText.transform.SetParent(inputField.transform, false);
+            inputText.transform.SetParent(textArea.transform, false);
             RectTransform inputTextRect = inputText.AddComponent<RectTransform>();
             inputTextRect.anchorMin = Vector2.zero;
             inputTextRect.anchorMax = Vector2.one;
-            inputTextRect.offsetMin = new Vector2(10, 5);
-            inputTextRect.offsetMax = new Vector2(-10, -5);
+            inputTextRect.offsetMin = Vector2.zero;
+            inputTextRect.offsetMax = Vector2.zero;
             
             TextMeshProUGUI inputTMP = inputText.AddComponent<TextMeshProUGUI>();
             inputTMP.fontSize = 16;
             inputTMP.color = Color.white; // White text
             inputTMP.alignment = TextAlignmentOptions.TopLeft;
-            inputTMP.enableWordWrapping = true;
+            inputTMP.textWrappingMode = TextWrappingModes.Normal;
             
             inputComponent.textComponent = inputTMP;
 
             GameObject placeholder = new GameObject("Placeholder");
-            placeholder.transform.SetParent(inputField.transform, false);
+            placeholder.transform.SetParent(textArea.transform, false);
             RectTransform placeholderRect = placeholder.AddComponent<RectTransform>();
             placeholderRect.anchorMin = Vector2.zero;
             placeholderRect.anchorMax = Vector2.one;
-            placeholderRect.offsetMin = new Vector2(10, 5);
-            placeholderRect.offsetMax = new Vector2(-10, -5);
+            placeholderRect.offsetMin = Vector2.zero;
+            placeholderRect.offsetMax = Vector2.zero;
             
             TextMeshProUGUI placeholderTMP = placeholder.AddComponent<TextMeshProUGUI>();
             placeholderTMP.text = "Type your message... (Shift+Enter for new line)";

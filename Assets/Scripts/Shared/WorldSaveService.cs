@@ -10,30 +10,161 @@ using UnityEngine;
 
 namespace KaplaoGames.Shared
 {
+    [Serializable]
+    public struct WorldMetadata
+    {
+        public long createdUtcTicks;
+        public long lastPlayedUtcTicks;
+    }
+
+    public struct WorldListItem
+    {
+        public string Name;
+        public long LastPlayedUtcTicks;
+        public long CreatedUtcTicks;
+    }
+
     public static class WorldSaveService
     {
         public const string LevelFileName = "level.json";
+        public const string MetadataFileName = "world_meta.json";
         const int MaxWorldNameLength = 48;
 
-        public static IReadOnlyList<string> ListWorlds()
+        public static string GetWorldMetadataPath(string worldName)
+        {
+            return Path.Combine(GetUserWorldDirectory(worldName), MetadataFileName);
+        }
+
+        public static void RecordWorldVisited(string worldName)
+        {
+            if (string.IsNullOrWhiteSpace(worldName) || WorldSession.IsBrowsePlaySession)
+                return;
+
+            string sanitized = SanitizeWorldName(worldName);
+            string dir = GetUserWorldDirectory(sanitized);
+            if (!Directory.Exists(dir))
+                return;
+
+            try
+            {
+                WorldMetadata meta = default;
+                string metaPath = GetWorldMetadataPath(sanitized);
+                if (File.Exists(metaPath))
+                {
+                    try
+                    {
+                        string existingJson = File.ReadAllText(metaPath);
+                        meta = JsonUtility.FromJson<WorldMetadata>(existingJson);
+                    }
+                    catch
+                    {
+                        meta = default;
+                    }
+                }
+
+                long nowTicks = DateTime.UtcNow.Ticks;
+                meta.lastPlayedUtcTicks = nowTicks;
+                if (meta.createdUtcTicks <= 0)
+                {
+                    string levelPath = Path.Combine(dir, LevelFileName);
+                    if (File.Exists(levelPath))
+                        meta.createdUtcTicks = File.GetCreationTimeUtc(levelPath).Ticks;
+                    else
+                        meta.createdUtcTicks = nowTicks;
+                }
+
+                File.WriteAllText(metaPath, JsonUtility.ToJson(meta, true));
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[WorldSaveService] Failed to record world visited for '{sanitized}': {ex.Message}");
+            }
+        }
+
+        public static WorldMetadata ReadWorldMetadata(string worldName)
+        {
+            string sanitized = SanitizeWorldName(worldName);
+            string dir = GetUserWorldDirectory(sanitized);
+            string metaPath = GetWorldMetadataPath(sanitized);
+
+            if (File.Exists(metaPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(metaPath);
+                    WorldMetadata meta = JsonUtility.FromJson<WorldMetadata>(json);
+                    if (meta.lastPlayedUtcTicks > 0)
+                        return meta;
+                }
+                catch
+                {
+                    // Fall back to file timestamps below
+                }
+            }
+
+            // Fallback for old worlds without world_meta.json
+            string levelPath = Path.Combine(dir, LevelFileName);
+            long lastPlayed = 0;
+            long created = 0;
+            if (File.Exists(levelPath))
+            {
+                lastPlayed = File.GetLastWriteTimeUtc(levelPath).Ticks;
+                created = File.GetCreationTimeUtc(levelPath).Ticks;
+            }
+            else if (Directory.Exists(dir))
+            {
+                lastPlayed = Directory.GetLastWriteTimeUtc(dir).Ticks;
+                created = Directory.GetCreationTimeUtc(dir).Ticks;
+            }
+
+            return new WorldMetadata
+            {
+                createdUtcTicks = created > 0 ? created : DateTime.UtcNow.Ticks,
+                lastPlayedUtcTicks = lastPlayed > 0 ? lastPlayed : DateTime.UtcNow.Ticks
+            };
+        }
+
+        public static IReadOnlyList<WorldListItem> ListWorldsWithMetadata()
         {
             string root = LevelIoPaths.LevelsDirectory;
             if (!Directory.Exists(root))
-                return Array.Empty<string>();
+                return Array.Empty<WorldListItem>();
 
             string[] directories = Directory.GetDirectories(root);
-            var worlds = new List<string>(directories.Length);
+            var worlds = new List<WorldListItem>(directories.Length);
             for (int i = 0; i < directories.Length; i++)
             {
                 string directory = directories[i];
-                if (!File.Exists(GetWorldLevelPath(Path.GetFileName(directory))))
+                string name = Path.GetFileName(directory);
+                if (!File.Exists(GetWorldLevelPath(name)))
                     continue;
 
-                worlds.Add(Path.GetFileName(directory));
+                WorldMetadata meta = ReadWorldMetadata(name);
+                worlds.Add(new WorldListItem
+                {
+                    Name = name,
+                    LastPlayedUtcTicks = meta.lastPlayedUtcTicks,
+                    CreatedUtcTicks = meta.createdUtcTicks
+                });
             }
 
-            worlds.Sort(StringComparer.OrdinalIgnoreCase);
+            worlds.Sort((a, b) =>
+            {
+                int cmp = b.LastPlayedUtcTicks.CompareTo(a.LastPlayedUtcTicks);
+                if (cmp != 0) return cmp;
+                return StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
+            });
+
             return worlds;
+        }
+
+        public static IReadOnlyList<string> ListWorlds()
+        {
+            var withMeta = ListWorldsWithMetadata();
+            var names = new List<string>(withMeta.Count);
+            for (int i = 0; i < withMeta.Count; i++)
+                names.Add(withMeta[i].Name);
+            return names;
         }
 
         public static string GetWorldDirectory(string worldName)
@@ -122,6 +253,7 @@ namespace KaplaoGames.Shared
                 File.WriteAllText(GetWorldLevelPath(sanitized), LevelFileSerializer.ToJson(empty));
                 if (!WorldScriptProjectService.TryCreateDefaultProject(sanitized, string.Empty, out error))
                     return false;
+                RecordWorldVisited(sanitized);
                 return true;
             }
             catch (Exception ex)
@@ -199,6 +331,8 @@ namespace KaplaoGames.Shared
             {
                 Directory.CreateDirectory(directory);
                 File.WriteAllText(path, LevelFileSerializer.ToJson(data));
+                if (!WorldSession.IsBrowsePlaySession)
+                    RecordWorldVisited(sanitized);
                 return true;
             }
             catch (Exception ex)

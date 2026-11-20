@@ -46,6 +46,9 @@ namespace KaplaoGames.UI
 
         void Update()
         {
+            if (DeveloperChatManager.IsAnyChatOpen)
+                return;
+
             if (!CanUsePauseMenu())
                 return;
 
@@ -187,7 +190,9 @@ namespace KaplaoGames.UI
 
             if (open)
             {
-                transform.SetAsLastSibling();
+                if (pauseMenuRoot != null)
+                    pauseMenuRoot.transform.SetAsLastSibling();
+
                 Transform canvas = pauseMenuRoot != null
                     ? pauseMenuRoot.transform.parent
                     : transform.parent;
@@ -196,6 +201,10 @@ namespace KaplaoGames.UI
                     Transform moderation = canvas.Find("HostModerationPanel");
                     if (moderation != null)
                         moderation.SetAsLastSibling();
+
+                    Transform banned = canvas.Find("BannedPlayersPanel");
+                    if (banned != null)
+                        banned.SetAsLastSibling();
                 }
             }
 

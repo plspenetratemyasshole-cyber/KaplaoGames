@@ -240,7 +240,7 @@ namespace KaplaoGames.Editor
             chatPanel.transform.SetParent(root.transform, false);
             StretchFull(chatPanel.GetComponent<RectTransform>());
 
-            GameObject scrollGo = new GameObject("ChatScroll", typeof(RectTransform), typeof(Image), typeof(Mask), typeof(ScrollRect));
+            GameObject scrollGo = new GameObject("ChatScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollGo.transform.SetParent(chatPanel.transform, false);
             RectTransform scrollRect = scrollGo.GetComponent<RectTransform>();
             scrollRect.anchorMin = new Vector2(0f, 0.22f);
@@ -249,12 +249,10 @@ namespace KaplaoGames.Editor
             scrollRect.offsetMax = Vector2.zero;
             scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
 
-            GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
             viewport.transform.SetParent(scrollGo.transform, false);
             RectTransform viewportRect = viewport.GetComponent<RectTransform>();
             StretchFull(viewportRect);
-            viewport.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.01f);
-            viewport.GetComponent<Mask>().showMaskGraphic = false;
 
             GameObject content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             content.transform.SetParent(viewport.transform, false);
@@ -391,6 +389,19 @@ namespace KaplaoGames.Editor
                 rect.sizeDelta = new Vector2(360f, 320f);
                 panel = panelObject.transform;
             }
+
+            VerticalLayoutGroup vlg = panel.GetComponent<VerticalLayoutGroup>() ?? panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = false;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = false;
+            vlg.childForceExpandHeight = false;
+            vlg.spacing = 10f;
+            vlg.padding = new RectOffset(24, 24, 24, 24);
+
+            ContentSizeFitter csf = panel.GetComponent<ContentSizeFitter>() ?? panel.gameObject.AddComponent<ContentSizeFitter>();
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             CreateMenuButton(panel, "ResumeButton", "Resume", new Vector2(0.5f, 0.78f));
             CreateMenuButton(panel, "SaveButton", "Save", new Vector2(0.5f, 0.58f));
@@ -576,11 +587,16 @@ namespace KaplaoGames.Editor
             GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
 
+            Vector2 s = size ?? new Vector2(280f, 44f);
             RectTransform rect = buttonObject.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(anchorY.x, anchorY.y);
             rect.anchorMax = new Vector2(anchorY.x, anchorY.y);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size ?? new Vector2(280f, 44f);
+            rect.sizeDelta = s;
+
+            LayoutElement le = buttonObject.AddComponent<LayoutElement>();
+            le.preferredWidth = s.x;
+            le.preferredHeight = s.y;
 
             Image image = buttonObject.GetComponent<Image>();
             image.color = new Color(0.2f, 0.2f, 0.2f, 1f);
@@ -653,6 +669,19 @@ namespace KaplaoGames.Editor
                 rect.sizeDelta = new Vector2(320f, 180f);
                 panel = panelObject.transform;
             }
+
+            VerticalLayoutGroup vlg = panel.GetComponent<VerticalLayoutGroup>() ?? panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = false;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = false;
+            vlg.childForceExpandHeight = false;
+            vlg.spacing = 10f;
+            vlg.padding = new RectOffset(20, 20, 24, 24);
+
+            ContentSizeFitter csf = panel.GetComponent<ContentSizeFitter>() ?? panel.gameObject.AddComponent<ContentSizeFitter>();
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             CreateMenuButton(panel, "ResumeButton", "Resume", new Vector2(0.5f, 0.62f));
             CreateMenuButton(panel, "ExitButton", "Exit", new Vector2(0.5f, 0.32f));

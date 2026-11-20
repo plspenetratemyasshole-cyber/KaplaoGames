@@ -233,116 +233,67 @@ namespace KaplaoGames.Client
 
 
             suppress = true;
-
-            dirtyDuration = false;
-
-            dirtySpawnId = false;
-
-            dirtyAnim = false;
-
-            dirtyCurve = false;
-
-            dirtyCloseLoop = false;
-
-            dirtyDistance = false;
-
-
-
-            // When multiple keyframes are selected, keep all fields "unknown" by default.
-
-            // We only apply fields which user actually changes (dirty flags).
-
-            if (server.SelectedCount == 1)
-
+            try
             {
+                dirtyDuration = false;
+                dirtySpawnId = false;
+                dirtyAnim = false;
+                dirtyCurve = false;
+                dirtyCloseLoop = false;
+                dirtyDistance = false;
 
-                if (!LevelScriptObjectUtility.TryResolveTile(server.SelectedTiles[0], out LevelTileServer tile) ||
-
-                    tile == null || !tile.TryGetComponent(out KeyframeTile keyframe))
-
-                    return;
-
-
-
-                if (durationInput != null) durationInput.text = keyframe.Duration.ToString("G");
-
-                if (spawnIdInput != null) spawnIdInput.text = keyframe.SpawnId.ToString();
-
-                if (curveToggle != null) curveToggle.isOn = keyframe.Curve;
-
-                IReadOnlyList<int> groups = tile.CachedGroupIds;
-
-                if (closeLoopToggle != null)
-
+                // When multiple keyframes are selected, keep all fields "unknown" by default.
+                // We only apply fields which user actually changes (dirty flags).
+                if (server.SelectedCount == 1)
                 {
+                    if (!LevelScriptObjectUtility.TryResolveTile(server.SelectedTiles[0], out LevelTileServer tile) ||
+                        tile == null || !tile.TryGetComponent(out KeyframeTile keyframe))
+                        return;
 
-                    closeLoopToggle.isOn = groups.Count > 0
-
-                        ? KeyframeAnimator.GetCloseLoopForGroup(groups[0])
-
-                        : keyframe.CloseLoop;
-
-                }
-
-
-
-                if (distanceToggle != null)
-
-                {
-
-                    distanceToggle.isOn = groups.Count > 0
-
-                        ? KeyframeAnimator.GetDistanceForGroup(groups[0])
-
-                        : keyframe.Distance;
-
-                }
-
-
-
-                if (animDropdown != null)
-
-                {
-
-                    int index = keyframe.Anim switch
-
+                    if (durationInput != null) durationInput.text = keyframe.Duration.ToString("G");
+                    if (spawnIdInput != null) spawnIdInput.text = keyframe.SpawnId.ToString();
+                    if (curveToggle != null) curveToggle.isOn = keyframe.Curve;
+                    IReadOnlyList<int> groups = tile.CachedGroupIds;
+                    if (closeLoopToggle != null)
                     {
+                        closeLoopToggle.isOn = groups.Count > 0
+                            ? KeyframeAnimator.GetCloseLoopForGroup(groups[0])
+                            : keyframe.CloseLoop;
+                    }
 
-                        "easein" => 1,
+                    if (distanceToggle != null)
+                    {
+                        distanceToggle.isOn = groups.Count > 0
+                            ? KeyframeAnimator.GetDistanceForGroup(groups[0])
+                            : keyframe.Distance;
+                    }
 
-                        "easeout" => 2,
-
-                        "easeinout" => 3,
-
-                        _ => 0
-
-                    };
-
-                    animDropdown.value = index;
-
+                    if (animDropdown != null)
+                    {
+                        int index = keyframe.Anim switch
+                        {
+                            "easein" => 1,
+                            "easeout" => 2,
+                            "easeinout" => 3,
+                            _ => 0
+                        };
+                        animDropdown.value = index;
+                    }
                 }
-
+                else
+                {
+                    if (durationInput != null) durationInput.text = string.Empty;
+                    if (spawnIdInput != null) spawnIdInput.text = string.Empty;
+                    if (curveToggle != null) curveToggle.isOn = false;
+                    if (closeLoopToggle != null) closeLoopToggle.isOn = false;
+                    if (distanceToggle != null) distanceToggle.isOn = false;
+                    if (animDropdown != null) animDropdown.value = 0;
+                }
             }
-
-            else
-
+            finally
             {
-
-                if (durationInput != null) durationInput.text = string.Empty;
-
-                if (spawnIdInput != null) spawnIdInput.text = string.Empty;
-
-                if (curveToggle != null) curveToggle.isOn = false;
-
-                if (closeLoopToggle != null) closeLoopToggle.isOn = false;
-
-                if (distanceToggle != null) distanceToggle.isOn = false;
-
-                if (animDropdown != null) animDropdown.value = 0;
-
+                suppress = false;
             }
-
-            suppress = false;
 
         }
 

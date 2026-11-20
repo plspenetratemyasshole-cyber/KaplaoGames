@@ -5,16 +5,18 @@ public class PanelClickOutside : MonoBehaviour, IPointerExitHandler
 {
     private DocumentationPanel documentationPanel;
     private RectTransform panelRect;
+    private Canvas parentCanvas;
 
     private void Start()
     {
         documentationPanel = GetComponentInParent<DocumentationPanel>();
         panelRect = GetComponent<RectTransform>();
+        parentCanvas = GetComponentInParent<Canvas>();
     }
 
     private void Update()
     {
-        if (!gameObject.activeSelf) return;
+        if (!gameObject.activeSelf || panelRect == null) return;
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -25,7 +27,14 @@ public class PanelClickOutside : MonoBehaviour, IPointerExitHandler
                 return;
             }
 
-            if (!RectTransformUtility.RectangleContainsScreenPoint(panelRect, Input.mousePosition))
+            if (parentCanvas == null)
+                parentCanvas = GetComponentInParent<Canvas>();
+
+            Camera eventCamera = (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                ? parentCanvas.worldCamera
+                : null;
+
+            if (!RectTransformUtility.RectangleContainsScreenPoint(panelRect, Input.mousePosition, eventCamera))
             {
                 documentationPanel?.ClosePanel();
             }

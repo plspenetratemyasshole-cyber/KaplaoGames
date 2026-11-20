@@ -73,6 +73,29 @@ namespace KaplaoGames.UI
 
         readonly List<OverheadMessage> overheadMessages = new List<OverheadMessage>();
 
+        Coroutine statusFadeRoutine;
+
+        void Awake()
+        {
+            if (chatScrollRect != null)
+            {
+                Mask scrollMask = chatScrollRect.GetComponent<Mask>();
+                if (scrollMask != null)
+                    Destroy(scrollMask);
+
+                Transform vp = chatScrollRect.viewport != null ? chatScrollRect.viewport.transform : chatScrollRect.transform.Find("Viewport");
+                if (vp != null)
+                {
+                    Mask vpMask = vp.GetComponent<Mask>();
+                    if (vpMask != null)
+                        Destroy(vpMask);
+
+                    if (vp.GetComponent<RectMask2D>() == null)
+                        vp.gameObject.AddComponent<RectMask2D>();
+                }
+            }
+        }
+
         void OnEnable()
         {
             TryBindHooks();
@@ -333,7 +356,12 @@ namespace KaplaoGames.UI
             if (statusText == null)
                 return;
 
-            StopAllCoroutines();
+            if (statusFadeRoutine != null)
+            {
+                StopCoroutine(statusFadeRoutine);
+                statusFadeRoutine = null;
+            }
+
             statusText.gameObject.SetActive(true);
             statusText.text = $"Your message is being moderated by {moderatorDisplayName}";
             statusText.color = Color.white;
@@ -345,11 +373,16 @@ namespace KaplaoGames.UI
             if (statusText == null)
                 return;
 
-            StopAllCoroutines();
+            if (statusFadeRoutine != null)
+            {
+                StopCoroutine(statusFadeRoutine);
+                statusFadeRoutine = null;
+            }
+
             statusText.gameObject.SetActive(true);
             statusText.text = accepted ? "Your message is accepted" : "Your message is rejected";
             statusText.color = Color.white;
-            StartCoroutine(FadeStatusCoroutine());
+            statusFadeRoutine = StartCoroutine(FadeStatusCoroutine());
         }
 
         IEnumerator FadeStatusCoroutine()

@@ -68,6 +68,9 @@ namespace KaplaoGames.UI
 
         void Update()
         {
+            if (DeveloperChatManager.IsAnyChatOpen)
+                return;
+
             if (!CanUsePauseMenu())
                 return;
 
@@ -259,12 +262,10 @@ namespace KaplaoGames.UI
                 if (networkManager != null)
                     lanAdvertised = networkManager.IsLanAdvertised;
 
-                // Keep pause above Code mode / other fullscreen overlays.
-                transform.SetAsLastSibling();
                 if (pauseMenuRoot != null)
                     pauseMenuRoot.transform.SetAsLastSibling();
 
-                // Player list must draw above the pause backdrop/panel.
+                // Player list and banned list must draw above the pause backdrop/panel.
                 Transform canvas = pauseMenuRoot != null
                     ? pauseMenuRoot.transform.parent
                     : transform.parent;
@@ -273,6 +274,10 @@ namespace KaplaoGames.UI
                     Transform moderation = canvas.Find("HostModerationPanel");
                     if (moderation != null)
                         moderation.SetAsLastSibling();
+
+                    Transform banned = canvas.Find("BannedPlayersPanel");
+                    if (banned != null)
+                        banned.SetAsLastSibling();
                 }
             }
 
@@ -339,6 +344,12 @@ namespace KaplaoGames.UI
         {
             if (overlay == null)
                 return;
+
+            if (externalOverlay != null && externalOverlay != overlay)
+            {
+                externalOverlay.SetActive(false);
+                externalOverlay = null;
+            }
 
             SetOverlayActive(saveSuccessPanel, false);
             SetOverlayActive(exitWithoutSavePanel, false);

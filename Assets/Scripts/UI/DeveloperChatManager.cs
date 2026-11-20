@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 using TMPro;
+using KaplaoGames.UI.Animation;
 
 namespace KaplaoGames.UI
 {
@@ -38,11 +39,15 @@ namespace KaplaoGames.UI
         [SerializeField] float pollInterval = 10f; // Poll every 10 seconds
         [SerializeField] int maxMessageLength = 5000;
 
+        static DeveloperChatManager activeInstance;
+        public static bool IsAnyChatOpen => activeInstance != null && activeInstance.isOpen;
+
         bool isOpen;
         bool isPolling;
         float nextPollTime;
         List<DevMessage> messages = new List<DevMessage>();
         Coroutine sendCoroutine;
+        string lastRenderedFingerprint;
 
         [Serializable]
         class DevMessage
@@ -83,6 +88,8 @@ namespace KaplaoGames.UI
 
         void Awake()
         {
+            activeInstance = this;
+
             if (chatRoot != null)
                 chatRoot.SetActive(false);
 
@@ -91,6 +98,14 @@ namespace KaplaoGames.UI
 
             if (sendButton != null)
                 sendButton.onClick.AddListener(SendMessage);
+
+            if (backgroundPanel != null)
+            {
+                Button bgButton = backgroundPanel.GetComponent<Button>();
+                if (bgButton == null)
+                    bgButton = backgroundPanel.AddComponent<Button>();
+                bgButton.onClick.AddListener(Close);
+            }
 
             if (messageInput != null)
             {
@@ -108,6 +123,9 @@ namespace KaplaoGames.UI
 
         void OnDestroy()
         {
+            if (activeInstance == this)
+                activeInstance = null;
+
             if (closeButton != null)
                 closeButton.onClick.RemoveListener(Close);
 
@@ -123,7 +141,16 @@ namespace KaplaoGames.UI
 
         void Update()
         {
-            if (!isOpen || !isPolling)
+            if (!isOpen)
+                return;
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Close();
+                return;
+            }
+
+            if (!isPolling)
                 return;
 
             // Poll for new messages
@@ -152,7 +179,7 @@ namespace KaplaoGames.UI
             if (!Shared.PlayerSession.IsLoggedIn)
             {
                 Debug.LogWarning("[DeveloperChat] Player must be logged in to contact developer.");
-                // Could show a message box here
+                KaplaoUiToast.ShowWarning("Sign in to your account in Settings to contact the developer.");
                 return;
             }
 
@@ -343,6 +370,11 @@ namespace KaplaoGames.UI
                 Debug.LogError("[DeveloperChat] messageTemplatePrefab is null! Assign it in Inspector.");
                 return;
             }
+
+            string fingerprint = messages.Count + (messages.Count > 0 ? (messages[messages.Count - 1].id + messages[messages.Count - 1].message) : "");
+            if (fingerprint == lastRenderedFingerprint && messagesContainer.childCount > 1)
+                return;
+            lastRenderedFingerprint = fingerprint;
 
             Debug.Log($"[DeveloperChat] RenderMessages called with {messages.Count} messages");
 

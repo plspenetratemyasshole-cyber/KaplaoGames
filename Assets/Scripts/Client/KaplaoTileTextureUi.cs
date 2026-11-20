@@ -95,6 +95,18 @@ namespace KaplaoGames.Client
             ClearKaplaoBinding();
         }
 
+        void OnDestroy()
+        {
+            ClearEntryViews();
+            if (noneSprite != null)
+            {
+                if (noneSprite.texture != null)
+                    SafeDestroy(noneSprite.texture);
+                SafeDestroy(noneSprite);
+                noneSprite = null;
+            }
+        }
+
         IEnumerator WatchLocalKaplao()
         {
             while (enabled)

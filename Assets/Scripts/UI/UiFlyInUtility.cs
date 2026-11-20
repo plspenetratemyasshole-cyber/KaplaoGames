@@ -7,6 +7,7 @@ namespace KaplaoGames.UI
     {
         static readonly Dictionary<int, Vector3> RestPositions = new();
         static readonly Dictionary<int, int> MoveTweenIds = new();
+        static readonly Dictionary<int, int> AlphaTweenIds = new();
 
         public static void Play(
             RectTransform rect,
@@ -24,13 +25,36 @@ namespace KaplaoGames.UI
                 ? flyOffsetY
                 : ResolveAutoFlyOffset(rect);
 
-            Vector3 targetPosition = rect.anchoredPosition3D;
-            RestPositions[rect.GetInstanceID()] = targetPosition;
+            int id = rect.GetInstanceID();
+            Vector3 targetPosition;
+            if (RestPositions.TryGetValue(id, out Vector3 saved))
+            {
+                targetPosition = saved;
+            }
+            else
+            {
+                targetPosition = rect.anchoredPosition3D;
+                RestPositions[id] = targetPosition;
+            }
+
             rect.anchoredPosition3D = targetPosition + new Vector3(0f, -offset, 0f);
+
+            CanvasGroup group = rect.GetComponent<CanvasGroup>();
+            if (group != null)
+            {
+                group.alpha = 0f;
+                LTDescr alphaTween = LeanTween.alphaCanvas(group, 1f, duration * 0.7f)
+                    .setIgnoreTimeScale(true)
+                    .setDelay(delay)
+                    .setEase(LeanTweenType.easeOutQuad);
+                AlphaTweenIds[id] = alphaTween != null ? alphaTween.uniqueId : -1;
+            }
+
             LTDescr tween = LeanTween.move(rect, targetPosition, duration)
+                .setIgnoreTimeScale(true)
                 .setEase(ease)
                 .setDelay(delay);
-            MoveTweenIds[rect.GetInstanceID()] = tween != null ? tween.uniqueId : -1;
+            MoveTweenIds[id] = tween != null ? tween.uniqueId : -1;
         }
 
         public static void SnapToRest(RectTransform rect)
@@ -40,8 +64,13 @@ namespace KaplaoGames.UI
 
             CancelMoveTween(rect);
 
-            if (RestPositions.TryGetValue(rect.GetInstanceID(), out Vector3 restPosition))
+            int id = rect.GetInstanceID();
+            if (RestPositions.TryGetValue(id, out Vector3 restPosition))
                 rect.anchoredPosition3D = restPosition;
+
+            CanvasGroup group = rect.GetComponent<CanvasGroup>();
+            if (group != null)
+                group.alpha = 1f;
         }
 
         public static void SyncRestFromCurrentPosition(RectTransform rect)
@@ -62,21 +91,29 @@ namespace KaplaoGames.UI
         {
             if (rect != null)
             {
-                RestPositions.Remove(rect.GetInstanceID());
-                MoveTweenIds.Remove(rect.GetInstanceID());
+                int id = rect.GetInstanceID();
+                RestPositions.Remove(id);
+                MoveTweenIds.Remove(id);
+                AlphaTweenIds.Remove(id);
             }
         }
 
         static void CancelMoveTween(RectTransform rect)
         {
             int id = rect.GetInstanceID();
-            if (!MoveTweenIds.TryGetValue(id, out int tweenId))
-                return;
+            if (MoveTweenIds.TryGetValue(id, out int tweenId))
+            {
+                if (tweenId >= 0)
+                    LeanTween.cancel(tweenId);
+                MoveTweenIds.Remove(id);
+            }
 
-            if (tweenId >= 0)
-                LeanTween.cancel(tweenId);
-
-            MoveTweenIds.Remove(id);
+            if (AlphaTweenIds.TryGetValue(id, out int alphaId))
+            {
+                if (alphaId >= 0)
+                    LeanTween.cancel(alphaId);
+                AlphaTweenIds.Remove(id);
+            }
         }
 
         static float ResolveAutoFlyOffset(RectTransform rect)

@@ -45,9 +45,11 @@ namespace KaplaoGames.UI
 
         float nextRefreshTime;
         LevelSessionServer subscribedSession;
+        string lastBansFingerprint;
 
         void OnDisable()
         {
+            lastBansFingerprint = null;
             UnsubscribeSession();
         }
 
@@ -106,6 +108,25 @@ namespace KaplaoGames.UI
 
             if (listContent == null)
                 listContent = panel.Find("BannedScroll/Viewport/Content");
+
+            Transform scroll = panel.Find("BannedScroll");
+            if (scroll != null)
+            {
+                Mask scrollMask = scroll.GetComponent<Mask>();
+                if (scrollMask != null)
+                    Destroy(scrollMask);
+
+                Transform viewport = scroll.Find("Viewport");
+                if (viewport != null)
+                {
+                    Mask vpMask = viewport.GetComponent<Mask>();
+                    if (vpMask != null)
+                        Destroy(vpMask);
+
+                    if (viewport.GetComponent<RectMask2D>() == null)
+                        viewport.gameObject.AddComponent<RectMask2D>();
+                }
+            }
         }
 
         void EnsureSessionSubscription()
@@ -174,13 +195,19 @@ namespace KaplaoGames.UI
             if (listContent == null || LevelSessionServer.Instance == null)
                 return;
 
-            for (int i = listContent.childCount - 1; i >= 0; i--)
-                Destroy(listContent.GetChild(i).gameObject);
-
             var nameBans = new List<string>(LevelSessionServer.Instance.BannedIds);
             var ipBans = new List<string>(LevelSessionServer.Instance.BannedIps);
             nameBans.Sort(System.StringComparer.OrdinalIgnoreCase);
             ipBans.Sort(System.StringComparer.OrdinalIgnoreCase);
+
+            string fingerprint = string.Join(";", nameBans) + "|" + string.Join(";", ipBans);
+            if (fingerprint == lastBansFingerprint && listContent.childCount > 0)
+                return;
+
+            lastBansFingerprint = fingerprint;
+
+            for (int i = listContent.childCount - 1; i >= 0; i--)
+                Destroy(listContent.GetChild(i).gameObject);
 
             if (nameBans.Count == 0 && ipBans.Count == 0)
             {

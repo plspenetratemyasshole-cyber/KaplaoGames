@@ -296,6 +296,7 @@ namespace KaplaoGames.Client
 
         void OnEnable()
         {
+            Instance = this;
             ResolveCodeInputField();
             ResolveStatusLabel();
             EnsureCodeEditorEnhancer();

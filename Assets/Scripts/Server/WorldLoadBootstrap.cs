@@ -70,6 +70,8 @@ namespace KaplaoGames.Server
                 LevelSessionServer.Instance?.ServerBroadcastScriptProject();
                 KaplaoCursorServer.ServerResetAllKaplaoPlaceColors();
                 Debug.Log($"[WorldLoadBootstrap] Created new world '{WorldSession.ActiveWorldName}'.");
+                if (!WorldSession.IsBrowsePlaySession && WorldSession.HasActiveWorld)
+                    WorldSaveService.RecordWorldVisited(WorldSession.ActiveWorldName);
                 TryLogSinglePlayerWorldEnter();
                 yield break;
             }
@@ -97,6 +99,8 @@ namespace KaplaoGames.Server
             LevelSessionServer.Instance?.ServerBroadcastScriptProject();
             KaplaoCursorServer.ServerResetAllKaplaoPlaceColors();
             Debug.Log($"[WorldLoadBootstrap] Loaded world '{WorldSession.ActiveWorldName}'. tiles={(data.tiles != null ? data.tiles.Length : 0)} customTextures={customTextures}.");
+            if (!WorldSession.IsBrowsePlaySession && WorldSession.HasActiveWorld)
+                WorldSaveService.RecordWorldVisited(WorldSession.ActiveWorldName);
             TryLogSinglePlayerWorldEnter();
 
             if (WorldSession.IsBrowsePlaySession)
