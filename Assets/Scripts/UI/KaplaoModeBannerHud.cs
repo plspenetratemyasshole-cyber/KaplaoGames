@@ -36,6 +36,9 @@ namespace KaplaoGames.UI
         void Awake()
         {
             EnsureUi();
+            if (bannerBackground != null) bannerBackground.raycastTarget = false;
+            if (bannerAccentDot != null) bannerAccentDot.raycastTarget = false;
+            if (bannerText != null) bannerText.raycastTarget = false;
             if (bannerRoot != null)
                 bannerRoot.gameObject.SetActive(false);
         }

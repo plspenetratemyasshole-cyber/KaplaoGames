@@ -129,6 +129,7 @@ namespace KaplaoGames.UI
 
         void Awake()
         {
+            KaplaoNicknamePresetCatalog.RequestRefresh();
             PlayerSession.Load();
             WorldSession.Clear();
             ResolveNetworkComponents();

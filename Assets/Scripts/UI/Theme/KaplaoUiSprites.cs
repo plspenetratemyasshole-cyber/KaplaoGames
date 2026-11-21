@@ -26,15 +26,15 @@ namespace KaplaoGames.UI.Theme
             if (TryGetCached(key, out Sprite cached)) return cached;
 
             Sprite res = Resources.Load<Sprite>(ResourcesThemeFolder + "rounded_rect");
-            if (res != null && radius == 14)
+            if (res != null)
             {
                 SpriteCache[key] = res;
                 return res;
             }
 
-            int size = radius * 2 + 6;
-            Texture2D tex = CreateSdfRoundedRectTexture(size, size, radius, 0);
-            Vector4 border = new Vector4(radius + 2, radius + 2, radius + 2, radius + 2);
+            int size = 64;
+            Texture2D tex = CreateSdfRoundedRectTexture(size, size, 14, 0);
+            Vector4 border = new Vector4(18, 18, 18, 18);
             Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
             sprite.name = $"KaplaoUi_RoundedRect_r{radius}";
             sprite.hideFlags = HideFlags.DontSave;
@@ -48,15 +48,15 @@ namespace KaplaoGames.UI.Theme
             if (TryGetCached(key, out Sprite cached)) return cached;
 
             Sprite res = Resources.Load<Sprite>(ResourcesThemeFolder + "rounded_border");
-            if (res != null && radius == 14 && thickness == 2)
+            if (res != null)
             {
                 SpriteCache[key] = res;
                 return res;
             }
 
-            int size = radius * 2 + 6;
-            Texture2D tex = CreateSdfRoundedBorderTexture(size, size, radius, thickness);
-            Vector4 border = new Vector4(radius + 2, radius + 2, radius + 2, radius + 2);
+            int size = 64;
+            Texture2D tex = CreateSdfRoundedBorderTexture(size, size, 14, thickness);
+            Vector4 border = new Vector4(18, 18, 18, 18);
             Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
             sprite.name = $"KaplaoUi_RoundedBorder_r{radius}_t{thickness}";
             sprite.hideFlags = HideFlags.DontSave;
@@ -122,30 +122,10 @@ namespace KaplaoGames.UI.Theme
                 return res;
             }
 
-            const int width = 16;
-            const int height = 64;
-            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            tex.filterMode = FilterMode.Bilinear;
-            tex.wrapMode = TextureWrapMode.Clamp;
-            tex.hideFlags = HideFlags.DontSave;
-
-            Color[] pixels = new Color[width * height];
-            for (int y = 0; y < height; y++)
-            {
-                float t = (float)y / (height - 1); // 0 at bottom, 1 at top
-                // Soft exponential gloss fade from 0.12 at top to 0 at bottom
-                float alpha = Mathf.Pow(t, 1.8f) * 0.14f;
-                Color col = new Color(1f, 1f, 1f, alpha);
-                for (int x = 0; x < width; x++)
-                    pixels[y * width + x] = col;
-            }
-
-            tex.SetPixels(pixels);
-            tex.Apply();
-            TextureCache[key] = tex;
-
-            Vector4 border = new Vector4(2, 6, 2, 2);
-            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
+            const int size = 64;
+            Texture2D tex = CreateSdfTopGlowTexture(size, size, 14);
+            Vector4 border = new Vector4(16, 16, 16, 16);
+            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
             sprite.name = "KaplaoUi_TopGradientOverlay";
             sprite.hideFlags = HideFlags.DontSave;
             SpriteCache[key] = sprite;
@@ -400,6 +380,46 @@ namespace KaplaoGames.UI.Theme
             return tex;
         }
 
+        static Texture2D CreateSdfTopGlowTexture(int width, int height, float radius)
+        {
+            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.hideFlags = HideFlags.DontSave;
+
+            float halfW = (width - 1) * 0.5f;
+            float halfH = (height - 1) * 0.5f;
+            float innerW = halfW - radius;
+            float innerH = halfH - radius;
+
+            Color[] pixels = new Color[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                float dy = Mathf.Max(0f, Mathf.Abs(y - halfH) - innerH);
+                for (int x = 0; x < width; x++)
+                {
+                    float dx = Mathf.Max(0f, Mathf.Abs(x - halfW) - innerW);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float sdfAlpha = Mathf.Clamp01(radius + 0.5f - d);
+
+                    // Gradient only in the top half
+                    float topGradAlpha = 0f;
+                    if (y >= height / 2)
+                    {
+                        float t = (float)(y - height / 2) / (height - 1 - height / 2);
+                        topGradAlpha = Mathf.Pow(t, 1.4f);
+                    }
+
+                    float alpha = sdfAlpha * topGradAlpha;
+                    pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
         static float DistanceToSegment(Vector2 p, Vector2 a, Vector2 b)
         {
             Vector2 ab = b - a;
@@ -428,11 +448,11 @@ namespace KaplaoGames.UI.Theme
             if (!Directory.Exists(AssetsThemeFolder))
                 Directory.CreateDirectory(AssetsThemeFolder);
 
-            // 1. rounded_rect.png (r=14)
-            SaveTextureAndImportSprite("rounded_rect", CreateSdfRoundedRectTexture(34, 34, 14, 0), new Vector4(16, 16, 16, 16));
+            // 1. rounded_rect.png (size=64x64, r=14)
+            SaveTextureAndImportSprite("rounded_rect", CreateSdfRoundedRectTexture(64, 64, 14, 0), new Vector4(18, 18, 18, 18));
 
-            // 2. rounded_border.png (r=14, t=2)
-            SaveTextureAndImportSprite("rounded_border", CreateSdfRoundedBorderTexture(34, 34, 14, 2), new Vector4(16, 16, 16, 16));
+            // 2. rounded_border.png (size=64x64, r=14, t=2)
+            SaveTextureAndImportSprite("rounded_border", CreateSdfRoundedBorderTexture(64, 64, 14, 2), new Vector4(18, 18, 18, 18));
 
             // 3. pill.png (r=24)
             SaveTextureAndImportSprite("pill", CreateSdfRoundedRectTexture(54, 54, 24, 0), new Vector4(26, 26, 26, 26));
@@ -441,19 +461,8 @@ namespace KaplaoGames.UI.Theme
             int shadowPad = 18 + 16 + 4;
             SaveTextureAndImportSprite("soft_shadow", CreateSoftShadowTexture(shadowPad * 2, shadowPad * 2, 18, 16), new Vector4(shadowPad, shadowPad, shadowPad, shadowPad));
 
-            // 5. top_glow.png
-            Texture2D topGlow = new Texture2D(16, 64, TextureFormat.RGBA32, false);
-            Color[] glowPix = new Color[16 * 64];
-            for (int y = 0; y < 64; y++)
-            {
-                float t = (float)y / 63f;
-                float alpha = Mathf.Pow(t, 1.8f) * 0.14f;
-                Color col = new Color(1f, 1f, 1f, alpha);
-                for (int x = 0; x < 16; x++) glowPix[y * 16 + x] = col;
-            }
-            topGlow.SetPixels(glowPix);
-            topGlow.Apply();
-            SaveTextureAndImportSprite("top_glow", topGlow, new Vector4(2, 6, 2, 2));
+            // 5. top_glow.png (size=64x64, r=14)
+            SaveTextureAndImportSprite("top_glow", CreateSdfTopGlowTexture(64, 64, 14), new Vector4(16, 16, 16, 16));
 
             // 6. circle.png
             SaveTextureAndImportSprite("circle", CreateCircleTexture(64, 29f), Vector4.zero);

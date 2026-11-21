@@ -17,8 +17,8 @@ namespace KaplaoGames.UI
         static KaplaoToggleButtonStyle cached;
 
         [Header("Button background")]
-        [SerializeField] Color offColor = new Color(0x1E / 255f, 0x29 / 255f, 0x3B / 255f, 0.94f);
-        [SerializeField] Color onColor = new Color(0x0E / 255f, 0xA5 / 255f, 0xE9 / 255f, 1f);
+        [SerializeField] Color offColor = new Color(0x1E / 255f, 0x29 / 255f, 0x3B / 255f, 1f);
+        [SerializeField] Color onColor = new Color(0x10 / 255f, 0xB9 / 255f, 0x81 / 255f, 1f);
 
         [Header("Button text (optional)")]
         [SerializeField] Color offTextColor = new Color(0xCB / 255f, 0xD5 / 255f, 0xE1 / 255f, 1f);
@@ -51,55 +51,34 @@ namespace KaplaoGames.UI
             KaplaoToggleButtonStyle style = Load();
             Color background = style != null
                 ? (on ? style.onColor : style.offColor)
-                : (on ? new Color(0x0E / 255f, 0xA5 / 255f, 0xE9 / 255f, 1f) : new Color(0x1E / 255f, 0x29 / 255f, 0x3B / 255f, 0.94f));
+                : (on ? new Color(0x10 / 255f, 0xB9 / 255f, 0x81 / 255f, 1f) : new Color(0x1E / 255f, 0x29 / 255f, 0x3B / 255f, 1f));
             Color textColor = style != null
                 ? (on ? style.onTextColor : style.offTextColor)
                 : (on ? Color.white : new Color(0xCB / 255f, 0xD5 / 255f, 0xE1 / 255f, 1f));
 
-            Graphic graphic = button.targetGraphic;
-            if (graphic == null)
-                graphic = button.GetComponent<Image>();
+            Color borderColor = on
+                ? new Color(0x34 / 255f, 0xD3 / 255f, 0x99 / 255f, 1f)
+                : new Color(0x47 / 255f, 0x55 / 255f, 0x69 / 255f, 1f);
 
-            if (graphic != null)
+            if (button.TryGetComponent(out UiButtonLeanScale scale))
             {
-                if (button.gameObject.activeInHierarchy && Application.isPlaying)
-                {
-                    LeanTween.cancel(graphic.gameObject);
-                    Color startBg = graphic.color;
-                    LeanTween.value(graphic.gameObject, startBg, background, 0.15f)
-                        .setIgnoreTimeScale(true)
-                        .setEase(LeanTweenType.easeOutQuad)
-                        .setOnUpdate((Color c) =>
-                        {
-                            if (graphic != null)
-                                graphic.color = c;
-                        });
-                }
-                else
-                {
+                scale.SetBaseColors(background, borderColor);
+            }
+            else
+            {
+                Graphic graphic = button.targetGraphic;
+                if (graphic == null)
+                    graphic = button.GetComponent<Image>();
+
+                if (graphic != null)
                     graphic.color = background;
-                }
             }
 
             TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
             if (label != null)
             {
-                if (button.gameObject.activeInHierarchy && Application.isPlaying)
-                {
-                    Color startText = label.color;
-                    LeanTween.value(label.gameObject, startText, textColor, 0.15f)
-                        .setIgnoreTimeScale(true)
-                        .setEase(LeanTweenType.easeOutQuad)
-                        .setOnUpdate((Color c) =>
-                        {
-                            if (label != null)
-                                label.color = c;
-                        });
-                }
-                else
-                {
+                if (label.color != textColor)
                     label.color = textColor;
-                }
             }
         }
 

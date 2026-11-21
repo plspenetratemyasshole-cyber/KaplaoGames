@@ -15,13 +15,10 @@ namespace KaplaoGames.UI.Theme
         void Awake()
         {
             ApplySkin(transform);
-            KaplaoUiStyler.ApplyRuntimePolish(transform);
         }
 
         void Start()
         {
-            ApplySkin(transform);
-            KaplaoUiStyler.ApplyRuntimePolish(transform);
         }
 
         public static void ApplySkin(Transform root)
@@ -39,10 +36,12 @@ namespace KaplaoGames.UI.Theme
                 {
                     case StyledElementType.Panel:
                         Image pImg = el.GetComponent<Image>();
-                        if (pImg != null && KaplaoUiStyler.CanSafelyReplaceSprite(pImg.sprite))
+                        int pRadius = el.Radius > 0 ? el.Radius : 16;
+                        if (pImg != null && !KaplaoUiStyler.IsProtectedArtImage(pImg) && (pImg.sprite == null || KaplaoUiStyler.CanSafelyReplaceSprite(pImg.sprite)))
                         {
-                            pImg.sprite = KaplaoUiSprites.RoundedRect(el.Radius > 0 ? el.Radius : 16);
+                            pImg.sprite = KaplaoUiSprites.RoundedRect(pRadius);
                             pImg.type = Image.Type.Sliced;
+                            pImg.pixelsPerUnitMultiplier = 14f / pRadius;
                         }
                         Transform border = el.transform.Find("UI_Border");
                         if (border != null)
@@ -50,8 +49,9 @@ namespace KaplaoGames.UI.Theme
                             Image bImg = border.GetComponent<Image>();
                             if (bImg != null)
                             {
-                                bImg.sprite = KaplaoUiSprites.RoundedBorder(el.Radius > 0 ? el.Radius : 16, 2);
+                                bImg.sprite = KaplaoUiSprites.RoundedBorder(pRadius, 2);
                                 bImg.type = Image.Type.Sliced;
+                                bImg.pixelsPerUnitMultiplier = 14f / pRadius;
                             }
                         }
                         Transform shadow = el.transform.Find("UI_Shadow");
@@ -72,16 +72,19 @@ namespace KaplaoGames.UI.Theme
                             {
                                 gImg.sprite = KaplaoUiSprites.TopGradientOverlay();
                                 gImg.type = Image.Type.Sliced;
+                                gImg.pixelsPerUnitMultiplier = 14f / pRadius;
                             }
                         }
                         break;
 
                     case StyledElementType.Card:
                         Image cImg = el.GetComponent<Image>();
-                        if (cImg != null && KaplaoUiStyler.CanSafelyReplaceSprite(cImg.sprite))
+                        int cRadius = el.Radius > 0 ? el.Radius : 12;
+                        if (cImg != null && !KaplaoUiStyler.IsProtectedArtImage(cImg) && (cImg.sprite == null || KaplaoUiStyler.CanSafelyReplaceSprite(cImg.sprite)))
                         {
-                            cImg.sprite = KaplaoUiSprites.RoundedRect(el.Radius > 0 ? el.Radius : 12);
+                            cImg.sprite = KaplaoUiSprites.RoundedRect(cRadius);
                             cImg.type = Image.Type.Sliced;
+                            cImg.pixelsPerUnitMultiplier = 14f / cRadius;
                         }
                         Transform cBorder = el.transform.Find("UI_Border");
                         if (cBorder != null)
@@ -89,21 +92,24 @@ namespace KaplaoGames.UI.Theme
                             Image bImg = cBorder.GetComponent<Image>();
                             if (bImg != null)
                             {
-                                bImg.sprite = KaplaoUiSprites.RoundedBorder(el.Radius > 0 ? el.Radius : 12, 2);
+                                bImg.sprite = KaplaoUiSprites.RoundedBorder(cRadius, 2);
                                 bImg.type = Image.Type.Sliced;
+                                bImg.pixelsPerUnitMultiplier = 14f / cRadius;
                             }
                         }
                         break;
 
                     case StyledElementType.Button:
                         Button btn = el.GetComponent<Button>();
+                        int bRadius = el.Radius > 0 ? el.Radius : 10;
                         if (btn != null)
                         {
                             Image bImage = btn.targetGraphic as Image ?? btn.GetComponent<Image>();
-                            if (bImage != null && KaplaoUiStyler.CanSafelyReplaceSprite(bImage.sprite))
+                            if (bImage != null && !KaplaoUiStyler.IsProtectedArtImage(bImage) && (bImage.sprite == null || KaplaoUiStyler.CanSafelyReplaceSprite(bImage.sprite)))
                             {
-                                bImage.sprite = KaplaoUiSprites.RoundedRect(el.Radius > 0 ? el.Radius : 10);
+                                bImage.sprite = KaplaoUiSprites.RoundedRect(bRadius);
                                 bImage.type = Image.Type.Sliced;
+                                bImage.pixelsPerUnitMultiplier = 14f / bRadius;
                             }
                         }
                         Transform btnBorder = el.transform.Find("UI_Border");
@@ -112,8 +118,20 @@ namespace KaplaoGames.UI.Theme
                             Image bImg = btnBorder.GetComponent<Image>();
                             if (bImg != null)
                             {
-                                bImg.sprite = KaplaoUiSprites.RoundedBorder(el.Radius > 0 ? el.Radius : 10, 2);
+                                bImg.sprite = KaplaoUiSprites.RoundedBorder(bRadius, 2);
                                 bImg.type = Image.Type.Sliced;
+                                bImg.pixelsPerUnitMultiplier = 14f / bRadius;
+                            }
+                        }
+                        Transform btnGlow = el.transform.Find("UI_BtnGlow");
+                        if (btnGlow != null)
+                        {
+                            Image gImg = btnGlow.GetComponent<Image>();
+                            if (gImg != null)
+                            {
+                                gImg.sprite = KaplaoUiSprites.TopGradientOverlay();
+                                gImg.type = Image.Type.Sliced;
+                                gImg.pixelsPerUnitMultiplier = 14f / bRadius;
                             }
                         }
                         break;
@@ -123,10 +141,11 @@ namespace KaplaoGames.UI.Theme
                         if (input != null)
                         {
                             Image inImg = input.targetGraphic as Image ?? input.GetComponent<Image>();
-                            if (inImg != null && KaplaoUiStyler.CanSafelyReplaceSprite(inImg.sprite))
+                            if (inImg != null && !KaplaoUiStyler.IsProtectedArtImage(inImg) && (inImg.sprite == null || KaplaoUiStyler.CanSafelyReplaceSprite(inImg.sprite)))
                             {
                                 inImg.sprite = KaplaoUiSprites.RoundedRect(10);
                                 inImg.type = Image.Type.Sliced;
+                                inImg.pixelsPerUnitMultiplier = 14f / 10f;
                             }
                         }
                         Transform inBorder = el.transform.Find("UI_Border");
@@ -137,6 +156,7 @@ namespace KaplaoGames.UI.Theme
                             {
                                 bImg.sprite = KaplaoUiSprites.RoundedBorder(10, 2);
                                 bImg.type = Image.Type.Sliced;
+                                bImg.pixelsPerUnitMultiplier = 14f / 10f;
                             }
                         }
                         break;
@@ -146,10 +166,11 @@ namespace KaplaoGames.UI.Theme
                         if (drop != null)
                         {
                             Image dropImg = drop.targetGraphic as Image ?? drop.GetComponent<Image>();
-                            if (dropImg != null && KaplaoUiStyler.CanSafelyReplaceSprite(dropImg.sprite))
+                            if (dropImg != null && !KaplaoUiStyler.IsProtectedArtImage(dropImg) && (dropImg.sprite == null || KaplaoUiStyler.CanSafelyReplaceSprite(dropImg.sprite)))
                             {
                                 dropImg.sprite = KaplaoUiSprites.RoundedRect(10);
                                 dropImg.type = Image.Type.Sliced;
+                                dropImg.pixelsPerUnitMultiplier = 14f / 10f;
                             }
                         }
                         break;

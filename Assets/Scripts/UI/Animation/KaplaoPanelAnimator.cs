@@ -26,6 +26,7 @@ namespace KaplaoGames.UI.Animation
         bool hasBasePosition;
         int activeTweenId = -1;
         int alphaTweenId = -1;
+        internal bool suppressNextOnEnable;
 
         public PanelAnimStyle Style
         {
@@ -56,6 +57,12 @@ namespace KaplaoGames.UI.Animation
 
         void OnEnable()
         {
+            if (suppressNextOnEnable)
+            {
+                suppressNextOnEnable = false;
+                return;
+            }
+
             if (rectTransform == null)
                 rectTransform = GetComponent<RectTransform>();
 
@@ -78,7 +85,8 @@ namespace KaplaoGames.UI.Animation
 
             if (rectTransform != null && hasBasePosition)
             {
-                rectTransform.anchoredPosition = baseAnchoredPosition;
+                if (style != PanelAnimStyle.PopScale && style != PanelAnimStyle.FadeOnly)
+                    rectTransform.anchoredPosition = baseAnchoredPosition;
                 rectTransform.localScale = baseScale;
             }
 
@@ -111,8 +119,7 @@ namespace KaplaoGames.UI.Animation
             switch (effectiveStyle)
             {
                 case PanelAnimStyle.PopScale:
-                    rectTransform.anchoredPosition = baseAnchoredPosition;
-                    rectTransform.localScale = baseScale * 0.82f;
+                    rectTransform.localScale = baseScale * 0.88f;
                     activeTweenId = LeanTween.scale(rectTransform, baseScale, duration)
                         .setIgnoreTimeScale(true)
                         .setEaseOutBack()

@@ -29,23 +29,36 @@ namespace KaplaoGames.UI
         NetworkPlayer localNetworkPlayer;
         string lastPlayersFingerprint;
         bool rowTemplateLayoutEnsured;
+        bool? lastModerateChatOn;
 
         void OnEnable()
         {
             nextRefreshTime = 0f;
             lastPlayersFingerprint = null;
+            lastModerateChatOn = null;
             TryAutoBind();
             if (Application.isPlaying && playerRowTemplate != null)
                 playerRowTemplate.SetActive(false);
 
             if (moderateChatButton != null)
                 moderateChatButton.onClick.AddListener(OnModerateChatClicked);
+
+            KaplaoNicknamePresetCatalog.RequestRefresh();
+            KaplaoNicknamePresetCatalog.Changed += OnNicknamePresetsChanged;
         }
 
         void OnDisable()
         {
             if (moderateChatButton != null)
                 moderateChatButton.onClick.RemoveListener(OnModerateChatClicked);
+
+            KaplaoNicknamePresetCatalog.Changed -= OnNicknamePresetsChanged;
+        }
+
+        void OnNicknamePresetsChanged()
+        {
+            lastPlayersFingerprint = null;
+            nextRefreshTime = 0f;
         }
 
         void Update()
@@ -78,7 +91,14 @@ namespace KaplaoGames.UI
                 moderateChatButton.gameObject.SetActive(canModerate);
 
             if (canModerate)
-                SyncModerateChatButton();
+            {
+                bool chatOn = LevelSessionServer.Instance != null && LevelSessionServer.Instance.ModerateChatEnabled;
+                if (!lastModerateChatOn.HasValue || lastModerateChatOn.Value != chatOn)
+                {
+                    lastModerateChatOn = chatOn;
+                    SyncModerateChatButton();
+                }
+            }
 
             if (Time.time < nextRefreshTime)
                 return;
@@ -255,6 +275,29 @@ namespace KaplaoGames.UI
             }
 
             RebuildListLayout();
+            StartCoroutine(ReapplyNicknameStylesNextFrame(players));
+        }
+
+        System.Collections.IEnumerator ReapplyNicknameStylesNextFrame(List<NetworkPlayer> playersSnapshot)
+        {
+            yield return null;
+            if (listContent == null || playersSnapshot == null)
+                yield break;
+
+            for (int i = 0; i < playersSnapshot.Count; i++)
+            {
+                NetworkPlayer np = playersSnapshot[i];
+                if (np == null) continue;
+                Transform rowTrans = listContent.Find($"PlayerRow_{np.netId}");
+                if (rowTrans != null)
+                {
+                    TextMeshProUGUI label = FindChildText(rowTrans, "PlayerName");
+                    if (label != null)
+                    {
+                        Client.NicknameStyle.Apply(label, np.accountEmail, np.nicknamePreset);
+                    }
+                }
+            }
         }
 
         void RebuildListLayout()
@@ -319,7 +362,8 @@ namespace KaplaoGames.UI
                     .Append((int)np.role).Append(':')
                     .Append(np.isModerator ? '1' : '0').Append(':')
                     .Append(np.displayName).Append(':')
-                    .Append(np.accountEmail).Append(';');
+                    .Append(np.accountEmail).Append(':')
+                    .Append(np.nicknamePreset).Append(';');
             }
 
             return sb.ToString();

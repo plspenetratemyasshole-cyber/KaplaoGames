@@ -195,15 +195,31 @@ namespace KaplaoGames.Client
 
             if (cursorCoordinatesLabel != null)
             {
-                Image pillBg = cursorCoordinatesLabel.GetComponent<Image>();
-                if (pillBg == null)
+                cursorCoordinatesLabel.raycastTarget = false;
+                Transform existingBg = cursorCoordinatesLabel.transform.Find("CoordsPillBg");
+                GameObject pillGo;
+                if (existingBg != null)
                 {
-                    pillBg = cursorCoordinatesLabel.gameObject.AddComponent<Image>();
-                    pillBg.sprite = KaplaoUiSprites.Pill();
-                    pillBg.type = Image.Type.Sliced;
-                    pillBg.color = new Color(0.06f, 0.09f, 0.16f, 0.65f);
-                    pillBg.raycastTarget = false;
+                    pillGo = existingBg.gameObject;
                 }
+                else
+                {
+                    pillGo = new GameObject("CoordsPillBg", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                    pillGo.transform.SetParent(cursorCoordinatesLabel.transform, false);
+                    pillGo.transform.SetAsFirstSibling();
+                }
+
+                RectTransform rt = pillGo.GetComponent<RectTransform>();
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = new Vector2(-12f, -4f);
+                rt.offsetMax = new Vector2(12f, 4f);
+
+                Image pillBg = pillGo.GetComponent<Image>();
+                pillBg.sprite = KaplaoUiSprites.Pill();
+                pillBg.type = Image.Type.Sliced;
+                pillBg.color = new Color(0.05f, 0.08f, 0.15f, 0.85f);
+                pillBg.raycastTarget = false;
             }
         }
 
@@ -213,7 +229,8 @@ namespace KaplaoGames.Client
             HideSetGroupPanel();
             HideSettingsPanel();
             HideCreateSettingsPanel();
-            SetSelectionToolbarVisible(false);
+            if (selectionToolbarRoot != null)
+                selectionToolbarRoot.SetActive(false);
             StartCoroutine(WatchLocalKaplao());
         }
 

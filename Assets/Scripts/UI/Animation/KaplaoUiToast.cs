@@ -72,6 +72,14 @@ namespace KaplaoGames.UI.Animation
 
             if (container == null)
                 BuildHierarchy();
+
+            if (background != null)
+                background.raycastTarget = false;
+            if (canvasGroup != null)
+            {
+                canvasGroup.blocksRaycasts = false;
+                canvasGroup.interactable = false;
+            }
         }
 
         void BuildHierarchy()
@@ -89,6 +97,7 @@ namespace KaplaoGames.UI.Animation
             background.sprite = KaplaoUiSprites.RoundedRect(14);
             background.type = Image.Type.Sliced;
             background.color = new Color(0x0F / 255f, 0x15 / 255f, 0x24 / 255f, 0.98f);
+            background.raycastTarget = false;
 
             GameObject borderObj = new GameObject("UI_Border", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             borderObj.transform.SetParent(transform, false);
@@ -119,6 +128,8 @@ namespace KaplaoGames.UI.Animation
 
             canvasGroup = gameObject.GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
             canvasGroup.alpha = 0f;
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.interactable = false;
             gameObject.SetActive(false);
         }
 

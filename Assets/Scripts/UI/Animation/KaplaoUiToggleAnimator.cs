@@ -13,8 +13,8 @@ namespace KaplaoGames.UI.Animation
     {
         [SerializeField] RectTransform handle;
         [SerializeField] Graphic trackGraphic;
-        [SerializeField] float offPosX = -12f;
-        [SerializeField] float onPosX = 12f;
+        [SerializeField] float offPosX = -10f;
+        [SerializeField] float onPosX = 10f;
         [SerializeField] Color offColor = new Color(0x33 / 255f, 0x41 / 255f, 0x55 / 255f, 1f);
         [SerializeField] Color onColor = new Color(0x10 / 255f, 0xB9 / 255f, 0x81 / 255f, 1f);
         [SerializeField] float duration = 0.16f;

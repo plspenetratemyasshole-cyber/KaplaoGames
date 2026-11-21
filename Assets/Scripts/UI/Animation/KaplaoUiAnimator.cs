@@ -45,6 +45,10 @@ namespace KaplaoGames.UI.Animation
             if (group == null)
                 group = panel.AddComponent<CanvasGroup>();
 
+            KaplaoPanelAnimator anim = panel.GetComponent<KaplaoPanelAnimator>();
+            if (anim != null)
+                anim.suppressNextOnEnable = true;
+
             panel.SetActive(true);
 
             if (rect != null && !RestPositions.ContainsKey(id))
@@ -185,7 +189,8 @@ namespace KaplaoGames.UI.Animation
                     if (rect != null)
                     {
                         rect.localScale = Vector3.one;
-                        rect.anchoredPosition3D = restPos;
+                        if (style != PanelAnimStyle.PopScale && style != PanelAnimStyle.Fade && style != PanelAnimStyle.FadeOnly)
+                            rect.anchoredPosition3D = restPos;
                     }
                     onComplete?.Invoke();
                 });

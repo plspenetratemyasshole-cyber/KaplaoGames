@@ -89,6 +89,7 @@ namespace KaplaoGames.UI.Animation
             canvasGroup = bgObj.GetComponent<CanvasGroup>();
             canvasGroup.alpha = 0f;
             canvasGroup.blocksRaycasts = false;
+            canvasGroup.interactable = false;
 
             // Center container
             GameObject centerObj = new GameObject("CenterContent", typeof(RectTransform));
@@ -199,15 +200,17 @@ namespace KaplaoGames.UI.Animation
                 timeoutRoutine = null;
             }
 
-            if (canvasGroup != null && canvasGroup.alpha > 0f)
-            {
-                FadeOut();
-            }
+            isTransitioning = false;
+            FadeOut();
         }
 
         void FadeOut()
         {
             if (canvasGroup == null) return;
+
+            isTransitioning = false;
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.interactable = false;
 
             LeanTween.cancel(canvasGroup.gameObject);
             LeanTween.alphaCanvas(canvasGroup, 0f, 0.35f)
@@ -216,6 +219,7 @@ namespace KaplaoGames.UI.Animation
                 .setOnComplete(() =>
                 {
                     canvasGroup.blocksRaycasts = false;
+                    canvasGroup.interactable = false;
                     isTransitioning = false;
                 });
         }

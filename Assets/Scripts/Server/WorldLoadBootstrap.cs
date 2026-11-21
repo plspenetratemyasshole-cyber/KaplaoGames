@@ -17,6 +17,8 @@ namespace KaplaoGames.Server
 
         void Start()
         {
+            KaplaoNicknamePresetCatalog.RequestRefresh();
+
             if (!loadOnStart || !NetworkServer.active)
                 return;
 
