@@ -26,6 +26,13 @@ namespace KaplaoGames.Editor
                 return;
             }
 
+            BindMainMenuUi(canvas, scene);
+        }
+
+        public static void BindMainMenuUi(Canvas canvas, Scene scene)
+        {
+            if (canvas == null) return;
+
             MainMenuUI menuUi = canvas.GetComponent<MainMenuUI>();
             if (menuUi == null)
                 menuUi = canvas.gameObject.AddComponent<MainMenuUI>();

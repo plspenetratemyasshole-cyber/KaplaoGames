@@ -302,6 +302,7 @@ namespace KaplaoGames.Server
             if (tileObject.TryGetComponent(out NetworkIdentity identity))
             {
                 RegisterExistingTile(tileObject);
+                LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
                 return identity.netId;
             }
 
@@ -501,6 +502,7 @@ namespace KaplaoGames.Server
 
             NetworkServer.Destroy(tileObject);
             tiles.Remove(identity.netId);
+            LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
             return true;
         }
 
@@ -520,6 +522,7 @@ namespace KaplaoGames.Server
 
             NetworkServer.Destroy(tileObject);
             tiles.Remove(netId);
+            LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
             return true;
         }
 
@@ -794,6 +797,116 @@ namespace KaplaoGames.Server
             return updated;
         }
 
+        public static LevelTileRecord CreateRecordFromTile(LevelTileServer tile)
+        {
+            if (tile == null)
+                return default;
+
+            GameObject tileObject = tile.gameObject;
+            Color32 color = tile.TileColor;
+            ParticleEmitterRecord particle = default;
+            KeyframeRecord keyframe = default;
+            ExecutorRecord executor = default;
+            if (tile.TileType == TileType.Particle &&
+                tileObject.TryGetComponent(out ParticleEmitterTile particleTile))
+            {
+                particle = particleTile.ExportRecord();
+            }
+
+            if (tile.TileType == TileType.Keyframe &&
+                tileObject.TryGetComponent(out KeyframeTile keyframeTile))
+            {
+                keyframe = keyframeTile.ExportRecord();
+            }
+
+            if (tile.TileType == TileType.Executor &&
+                tileObject.TryGetComponent(out ExecutorTile executorTile))
+            {
+                executor = executorTile.ExportRecord();
+            }
+
+            return new LevelTileRecord
+            {
+                x = Mathf.Round(tile.Position.x * 100f) * 0.01f,
+                y = Mathf.Round(tile.Position.y * 100f) * 0.01f,
+                rotationDegrees = Mathf.Round(tile.transform.eulerAngles.z * 100f) * 0.01f,
+                scaleX = Mathf.Round(tile.Scale.x * 100f) * 0.01f,
+                scaleY = Mathf.Round(tile.Scale.y * 100f) * 0.01f,
+                type = tile.TileType,
+                r = color.r,
+                g = color.g,
+                b = color.b,
+                textureId = tile.TextureId ?? string.Empty,
+                sortingOrder = tile.SortingOrder,
+                groups = tile.GroupsDisplay,
+                quarterTurns = tile.QuarterTurns,
+                transparency = tile.Transparency,
+                noHitbox = tile.HasNoHitbox,
+                editorLayer = tile.EditorLayer,
+                particle = particle,
+                createdAt = tile.CreatedAtUnixMs,
+                isSpawnPoint = tile.IsSpawnPoint,
+                keyframe = keyframe,
+                executor = executor
+            };
+        }
+
+        public uint SpawnTileFromRecord(LevelTileRecord record)
+        {
+            if (!NetworkServer.active || record.type == TileType.None)
+                return 0;
+
+            var position = new Vector2(record.x, record.y);
+            float scaleX = record.scaleX > 0f ? record.scaleX : 1f;
+            float scaleY = record.scaleY > 0f ? record.scaleY : 1f;
+            var color = new Color32(record.r, record.g, record.b, 255);
+            float transparency = Mathf.Clamp01(record.transparency);
+
+            uint netId = TryPlaceTile(
+                record.type,
+                position,
+                record.rotationDegrees,
+                color,
+                record.groups ?? string.Empty,
+                record.quarterTurns,
+                transparency,
+                record.noHitbox,
+                record.textureId,
+                record.sortingOrder,
+                record.editorLayer);
+
+            if (netId != 0 && TryGetTileByNetId(netId, out LevelTileServer importedTile))
+            {
+                importedTile.ServerSetTransform(position, record.rotationDegrees, new Vector2(scaleX, scaleY), roundValues: false);
+
+                if (record.type == TileType.Particle &&
+                    importedTile.TryGetComponent(out ParticleEmitterTile particleTile))
+                {
+                    particleTile.ServerApply(record.particle);
+                }
+
+                if (record.createdAt > 0)
+                    importedTile.ServerSetCreatedAtUnixMs(record.createdAt);
+
+                if (record.type == TileType.Trigger && record.isSpawnPoint)
+                    importedTile.ServerSetSpawnPoint(true);
+
+                if (record.type == TileType.Keyframe &&
+                    importedTile.TryGetComponent(out KeyframeTile keyframeTile))
+                {
+                    keyframeTile.ServerApply(record.keyframe);
+                }
+
+                if (record.type == TileType.Executor &&
+                    importedTile.TryGetComponent(out ExecutorTile executorTile))
+                {
+                    executorTile.ServerApply(record.executor);
+                }
+            }
+
+            return netId;
+        }
+
         public LevelData ExportLevelData()
         {
             var records = new List<LevelTileRecord>(tiles.Count);
@@ -802,52 +915,7 @@ namespace KaplaoGames.Server
                 if (tileObject == null || !tileObject.TryGetComponent(out LevelTileServer tile))
                     continue;
 
-                Color32 color = tile.TileColor;
-                ParticleEmitterRecord particle = default;
-                KeyframeRecord keyframe = default;
-                ExecutorRecord executor = default;
-                if (tile.TileType == TileType.Particle &&
-                    tileObject.TryGetComponent(out ParticleEmitterTile particleTile))
-                {
-                    particle = particleTile.ExportRecord();
-                }
-
-                if (tile.TileType == TileType.Keyframe &&
-                    tileObject.TryGetComponent(out KeyframeTile keyframeTile))
-                {
-                    keyframe = keyframeTile.ExportRecord();
-                }
-
-                if (tile.TileType == TileType.Executor &&
-                    tileObject.TryGetComponent(out ExecutorTile executorTile))
-                {
-                    executor = executorTile.ExportRecord();
-                }
-
-                records.Add(new LevelTileRecord
-                {
-                    x = Mathf.Round(tile.Position.x * 100f) * 0.01f,
-                    y = Mathf.Round(tile.Position.y * 100f) * 0.01f,
-                    rotationDegrees = Mathf.Round(tile.transform.eulerAngles.z * 100f) * 0.01f,
-                    scaleX = Mathf.Round(tile.Scale.x * 100f) * 0.01f,
-                    scaleY = Mathf.Round(tile.Scale.y * 100f) * 0.01f,
-                    type = tile.TileType,
-                    r = color.r,
-                    g = color.g,
-                    b = color.b,
-                    textureId = tile.TextureId ?? string.Empty,
-                    sortingOrder = tile.SortingOrder,
-                    groups = tile.GroupsDisplay,
-                    quarterTurns = tile.QuarterTurns,
-                    transparency = tile.Transparency,
-                    noHitbox = tile.HasNoHitbox,
-                    editorLayer = tile.EditorLayer,
-                    particle = particle,
-                    createdAt = tile.CreatedAtUnixMs,
-                    isSpawnPoint = tile.IsSpawnPoint,
-                    keyframe = keyframe,
-                    executor = executor
-                });
+                records.Add(CreateRecordFromTile(tile));
             }
 
             LevelSessionServer session = LevelSessionServer.Instance;
@@ -887,54 +955,7 @@ namespace KaplaoGames.Server
                 if (record.type == TileType.None)
                     continue;
 
-                var position = new Vector2(record.x, record.y);
-                float scaleX = record.scaleX > 0f ? record.scaleX : 1f;
-                float scaleY = record.scaleY > 0f ? record.scaleY : 1f;
-                var color = new Color32(record.r, record.g, record.b, 255);
-                float transparency = data.version < 7
-                    ? (record.invisible ? 0f : 1f)
-                    : Mathf.Clamp01(record.transparency);
-
-                uint netId = TryPlaceTile(
-                    record.type,
-                    position,
-                    record.rotationDegrees,
-                    color,
-                    record.groups ?? string.Empty,
-                    record.quarterTurns,
-                    transparency,
-                    record.noHitbox,
-                    record.textureId,
-                    record.sortingOrder,
-                    record.editorLayer);
-                if (netId != 0 && TryGetTileByNetId(netId, out LevelTileServer importedTile))
-                {
-                    importedTile.ServerSetTransform(position, record.rotationDegrees, new Vector2(scaleX, scaleY), roundValues: false);
-
-                    if (record.type == TileType.Particle &&
-                        importedTile.TryGetComponent(out ParticleEmitterTile particleTile))
-                    {
-                        particleTile.ServerApply(record.particle);
-                    }
-
-                    if (record.createdAt > 0)
-                        importedTile.ServerSetCreatedAtUnixMs(record.createdAt);
-
-                    if (record.type == TileType.Trigger && record.isSpawnPoint)
-                        importedTile.ServerSetSpawnPoint(true);
-
-                    if (record.type == TileType.Keyframe &&
-                        importedTile.TryGetComponent(out KeyframeTile keyframeTile))
-                    {
-                        keyframeTile.ServerApply(record.keyframe);
-                    }
-
-                    if (record.type == TileType.Executor &&
-                        importedTile.TryGetComponent(out ExecutorTile executorTile))
-                    {
-                        executorTile.ServerApply(record.executor);
-                    }
-                }
+                SpawnTileFromRecord(record);
             }
 
             selectionLinks.ImportRecords(data.linkGroups);

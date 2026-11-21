@@ -177,8 +177,20 @@ namespace KaplaoGames.LevelScript
         public void ResetMotions()
         {
             moveMotions.Clear();
+            for (int i = 0; i < rotateMotions.Count; i++)
+            {
+                if (rotateMotions[i].OrbitWrapper != null)
+                    FinalizeOrbitWrapper(rotateMotions[i].OrbitWrapper);
+            }
             rotateMotions.Clear();
+
+            for (int i = 0; i < rotateToMotions.Count; i++)
+            {
+                if (rotateToMotions[i].Wrapper != null)
+                    FinalizeOrbitWrapper(rotateToMotions[i].Wrapper);
+            }
             rotateToMotions.Clear();
+
             scaleMotions.Clear();
             transparencyMotions.Clear();
 
@@ -187,11 +199,24 @@ namespace KaplaoGames.LevelScript
 
             groupPivots.Clear();
 
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = transform.GetChild(i);
+                if (child != null)
+                {
+                    while (child.childCount > 0)
+                        child.GetChild(0).SetParent(null, true);
+                    Destroy(child.gameObject);
+                }
+            }
+
             ForEachRegisteredTile(tile =>
             {
                 tile.DetachFromScriptPivot();
                 tile.ApplyScriptTransform(Vector2.zero, 0f);
             });
+
+            SyncActivePivotTilesToClients();
         }
 
         public void RestoreAllTilesToBase()

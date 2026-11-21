@@ -330,25 +330,90 @@ namespace KaplaoGames.Editor
             if (mainPanel == null) mainPanel = canvas.transform;
 
             Button browse = UiHelpers.FindOrCreateCenterButton(mainPanel, "BrowseLevelsButton", "Browse Levels", new Vector2(0f, -440f));
-            GameObject panel = UiHelpers.FindOrCreatePanel(canvas.transform, "BrowseLevelsPanel", new Vector2(640f, 520f));
-            TMP_InputField search = UiHelpers.FindOrCreateInput(panel.transform, "BrowseSearchInput", new Vector2(0f, 200f));
+            GameObject panel = UiHelpers.FindOrCreatePanel(canvas.transform, "BrowseLevelsPanel", new Vector2(680f, 580f));
+            TMP_InputField search = UiHelpers.FindOrCreateInput(panel.transform, "BrowseSearchInput", new Vector2(0f, 220f));
+            RectTransform searchRt = search.GetComponent<RectTransform>();
+            if (searchRt != null) searchRt.sizeDelta = new Vector2(580f, 44f);
+
             GameObject scroll = UiHelpers.FindOrCreateChild(panel.transform, "BrowseScroll");
-            RectTransform content = UiHelpers.FindOrCreateGrid(scroll.transform, "BrowseContent");
+            RectTransform scrollRt = scroll.GetComponent<RectTransform>();
+            scrollRt.anchoredPosition = new Vector2(0f, 15f);
+            scrollRt.sizeDelta = new Vector2(580f, 340f);
+
+            // Clean up old Mask if present, use RectMask2D
+            Mask oldMask = scroll.GetComponent<Mask>();
+            if (oldMask != null) Object.DestroyImmediate(oldMask);
+            if (scroll.GetComponent<RectMask2D>() == null) scroll.AddComponent<RectMask2D>();
+
+            GameObject contentObj = UiHelpers.FindOrCreateChild(scroll.transform, "BrowseContent");
+            RectTransform content = contentObj.GetComponent<RectTransform>();
+            GridLayoutGroup oldGrid = contentObj.GetComponent<GridLayoutGroup>();
+            if (oldGrid != null) Object.DestroyImmediate(oldGrid);
+
+            VerticalLayoutGroup vlg = contentObj.GetComponent<VerticalLayoutGroup>() ?? contentObj.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 8f;
+            vlg.padding = new RectOffset(8, 8, 8, 8);
+            vlg.childAlignment = TextAnchor.UpperCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+
+            ContentSizeFitter csf = contentObj.GetComponent<ContentSizeFitter>() ?? contentObj.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = Vector2.zero;
+            content.offsetMax = Vector2.zero;
+
             ScrollRect scrollRect = scroll.GetComponent<ScrollRect>() ?? scroll.AddComponent<ScrollRect>();
             scrollRect.content = content;
-            scrollRect.viewport = scroll.GetComponent<RectTransform>();
+            scrollRect.viewport = scrollRt;
             scrollRect.vertical = true;
+            scrollRect.horizontal = false;
+
             GameObject entryTemplate = UiHelpers.FindOrCreateChild(content, "BrowseEntryTemplate");
-            UiHelpers.FindOrCreateLabel(entryTemplate.transform, "Title", "Level", new Vector2(0f, 10f));
-            UiHelpers.FindOrCreateLabel(entryTemplate.transform, "Author", "by author", new Vector2(0f, -20f));
+            RectTransform entryRt = entryTemplate.GetComponent<RectTransform>();
+            entryRt.sizeDelta = new Vector2(0f, 76f);
+            LayoutElement entryLe = entryTemplate.GetComponent<LayoutElement>() ?? entryTemplate.AddComponent<LayoutElement>();
+            entryLe.minHeight = 76f;
+            entryLe.preferredHeight = 76f;
+            entryLe.flexibleHeight = 0f;
+
+            TextMeshProUGUI title = UiHelpers.FindOrCreateLabel(entryTemplate.transform, "Title", "Level", Vector2.zero);
+            title.fontStyle = FontStyles.Bold;
+            title.fontSize = 18f;
+            title.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+            RectTransform titleRt = title.rectTransform;
+            titleRt.anchorMin = new Vector2(0f, 0.45f);
+            titleRt.anchorMax = new Vector2(1f, 0.95f);
+            titleRt.offsetMin = new Vector2(20f, 0f);
+            titleRt.offsetMax = new Vector2(-20f, 0f);
+
+            TextMeshProUGUI author = UiHelpers.FindOrCreateLabel(entryTemplate.transform, "Author", "by author", Vector2.zero);
+            author.fontSize = 13.5f;
+            author.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
+            RectTransform authorRt = author.rectTransform;
+            authorRt.anchorMin = new Vector2(0f, 0.08f);
+            authorRt.anchorMax = new Vector2(1f, 0.45f);
+            authorRt.offsetMin = new Vector2(20f, 0f);
+            authorRt.offsetMax = new Vector2(-20f, 0f);
+
             entryTemplate.SetActive(false);
-            Button play = UiHelpers.FindOrCreateButton(panel.transform, "BrowsePlayButton", "Play", new Vector2(-100f, -190f));
-            Button copy = UiHelpers.FindOrCreateButton(panel.transform, "BrowseCopyButton", "Copy", new Vector2(100f, -190f));
-            Button deleteFromServers = UiHelpers.FindOrCreateButton(panel.transform, "BrowseDeleteFromServersButton", "Delete From Servers", new Vector2(0f, -235f));
+
+            Button play = UiHelpers.FindOrCreateButton(panel.transform, "BrowsePlayButton", "Play", new Vector2(-120f, -200f));
+            play.GetComponent<RectTransform>().sizeDelta = new Vector2(160f, 44f);
+            Button copy = UiHelpers.FindOrCreateButton(panel.transform, "BrowseCopyButton", "Copy", new Vector2(120f, -200f));
+            copy.GetComponent<RectTransform>().sizeDelta = new Vector2(160f, 44f);
+            Button deleteFromServers = UiHelpers.FindOrCreateButton(panel.transform, "BrowseDeleteFromServersButton", "Delete From Servers", new Vector2(0f, -245f));
             deleteFromServers.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 36f);
             play.gameObject.SetActive(false);
             copy.gameObject.SetActive(false);
             deleteFromServers.gameObject.SetActive(false);
+
             GameObject deleteConfirmPanel = UiHelpers.FindOrCreatePanel(panel.transform, "BrowseDeleteConfirmPanel", new Vector2(420f, 180f));
             deleteConfirmPanel.transform.SetAsLastSibling();
             TextMeshProUGUI deleteConfirmLabel = UiHelpers.FindOrCreateLabel(deleteConfirmPanel.transform, "BrowseDeleteConfirmLabel", "Delete this level from public servers?", new Vector2(0f, 24f));
@@ -356,12 +421,14 @@ namespace KaplaoGames.Editor
             Button deleteConfirm = UiHelpers.FindOrCreateButton(deleteConfirmPanel.transform, "BrowseDeleteConfirmButton", "Delete permanently", new Vector2(-90f, -40f));
             Button deleteCancel = UiHelpers.FindOrCreateButton(deleteConfirmPanel.transform, "BrowseDeleteCancelButton", "Cancel", new Vector2(90f, -40f));
             deleteConfirmPanel.SetActive(false);
+
             GameObject progress = UiHelpers.FindOrCreateChild(panel.transform, "BrowseProgressRoot");
             Slider bar = progress.GetComponent<Slider>() ?? progress.AddComponent<Slider>();
             TextMeshProUGUI pct = UiHelpers.FindOrCreateLabel(progress.transform, "BrowseProgressLabel", "0%", Vector2.zero);
             progress.SetActive(false);
+
             Button back = UiHelpers.FindOrCreateButton(panel.transform, "BrowseBackButton", "Back", new Vector2(0f, -280f));
-            TextMeshProUGUI status = UiHelpers.FindOrCreateLabel(panel.transform, "BrowseStatusLabel", string.Empty, new Vector2(0f, -160f));
+            TextMeshProUGUI status = UiHelpers.FindOrCreateLabel(panel.transform, "BrowseStatusLabel", string.Empty, new Vector2(0f, -165f));
             panel.SetActive(false);
 
             KaplaoBrowseLevelsUi ui = canvas.GetComponent<KaplaoBrowseLevelsUi>() ??

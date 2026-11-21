@@ -1013,19 +1013,54 @@ namespace KaplaoGames.UI
             UiFlyInChildren flyIn = FindFirstObjectByType<UiFlyInChildren>();
             flyIn?.SnapAllToRest();
 
-            SetPanelActive(mainPanel, false);
-            SetPanelActive(nicknamePanel, false);
-            SetPanelActive(singlePlayerPanel, false);
-            SetPanelActive(networkPanel, false);
-            SetPanelActive(createWorldNamePanel, false);
-            SetPanelActive(settingsPanel, false);
+            GameObject[] allPanels = new[]
+            {
+                mainPanel,
+                nicknamePanel,
+                singlePlayerPanel,
+                networkPanel,
+                createWorldNamePanel,
+                settingsPanel
+            };
+
+            for (int i = 0; i < allPanels.Length; i++)
+            {
+                GameObject p = allPanels[i];
+                if (p == null) continue;
+
+                bool shouldBeVisible = false;
+                if (visiblePanels != null)
+                {
+                    for (int j = 0; j < visiblePanels.Length; j++)
+                    {
+                        if (visiblePanels[j] == p)
+                        {
+                            shouldBeVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (shouldBeVisible)
+                {
+                    if (!p.activeSelf)
+                    {
+                        PanelAnimStyle animStyle = (p == singlePlayerPanel || p == networkPanel)
+                            ? PanelAnimStyle.SlideFromBottom
+                            : PanelAnimStyle.PopScale;
+                        KaplaoUiAnimator.ShowPanel(p, animStyle, 0.22f);
+                    }
+                }
+                else
+                {
+                    if (p.activeSelf)
+                    {
+                        KaplaoUiAnimator.HidePanel(p, PanelAnimStyle.Fade, 0.14f);
+                    }
+                }
+            }
+
             HideDeleteWorldConfirm();
-
-            if (visiblePanels == null)
-                return;
-
-            for (int i = 0; i < visiblePanels.Length; i++)
-                SetPanelActive(visiblePanels[i], true);
         }
 
         static void SetPanelActive(GameObject panel, bool active)
@@ -1045,7 +1080,7 @@ namespace KaplaoGames.UI
             ShowOnlyPanels(mainPanel);
         }
 
-        void ShowSettingsPanel()
+        public void ShowSettingsPanel()
         {
             // Cancel any active sign-in flow when reopening settings
             // (e.g., user closed the browser window and wants to try again)
@@ -1256,13 +1291,13 @@ namespace KaplaoGames.UI
             if (string.IsNullOrWhiteSpace(selectedWorldName) || deleteWorldConfirmPanel == null)
                 return;
 
-            deleteWorldConfirmPanel.SetActive(true);
+            KaplaoUiAnimator.ShowPanel(deleteWorldConfirmPanel, PanelAnimStyle.PopScale, 0.2f);
         }
 
         void HideDeleteWorldConfirm()
         {
-            if (deleteWorldConfirmPanel != null)
-                deleteWorldConfirmPanel.SetActive(false);
+            if (deleteWorldConfirmPanel != null && deleteWorldConfirmPanel.activeSelf)
+                KaplaoUiAnimator.HidePanel(deleteWorldConfirmPanel, PanelAnimStyle.Fade, 0.14f);
         }
 
         void OnConfirmDeleteWorldClicked()
@@ -1322,7 +1357,11 @@ namespace KaplaoGames.UI
                 WorldSaveService.RecordWorldVisited(WorldSession.ActiveWorldName);
             Debug.Log(
                 $"[MainMenuUI] Starting single player host for world '{WorldSession.ActiveWorldName}' port={PlayerSession.Port} transport={(PlayerSession.UseTcpTransport ? "TCP" : "KCP")}.");
-            networkManager.StartSinglePlayerHost();
+
+            KaplaoSceneTransition.TransitionTo("Loading world...", () =>
+            {
+                networkManager.StartSinglePlayerHost();
+            });
         }
 
         void RefreshWorldList()
@@ -1335,6 +1374,9 @@ namespace KaplaoGames.UI
 
             for (int i = 0; i < worlds.Count; i++)
                 CreateWorldEntry(worlds[i]);
+
+            if (worldListContent != null)
+                KaplaoUiAnimator.AnimateListStagger(worldListContent, 0.025f, 0.2f);
         }
 
         void ClearWorldListUi()
@@ -1374,6 +1416,8 @@ namespace KaplaoGames.UI
             entry.SetActive(true);
             worldEntryObjects.Add(entry);
 
+            KaplaoUiStyler.StyleCardRow(entry, forceReplaceSprite: true);
+
             WorldEntryView view = entry.GetComponent<WorldEntryView>();
             if (view == null)
                 view = entry.AddComponent<WorldEntryView>();
@@ -1395,6 +1439,15 @@ namespace KaplaoGames.UI
             if (title != null)
             {
                 title.text = item.Name;
+                title.fontStyle = FontStyles.Bold;
+                title.fontSize = 19f;
+                title.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+                if (title.GetComponent<Shadow>() == null)
+                {
+                    Shadow sh = title.gameObject.AddComponent<Shadow>();
+                    sh.effectColor = new Color(0f, 0f, 0f, 0.45f);
+                    sh.effectDistance = new Vector2(1f, -1f);
+                }
                 view.Title = title;
             }
 
@@ -1408,7 +1461,7 @@ namespace KaplaoGames.UI
                 GameObject subObj = new GameObject("Subtitle", typeof(RectTransform));
                 subObj.transform.SetParent(title.transform.parent, false);
                 subtitle = subObj.AddComponent<TextMeshProUGUI>();
-                subtitle.fontSize = 13f;
+                subtitle.fontSize = 13.5f;
                 subtitle.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f); // #94A3B8
                 subtitle.raycastTarget = false;
 
@@ -1429,13 +1482,47 @@ namespace KaplaoGames.UI
             if (subtitle != null)
             {
                 subtitle.text = WorldEntryView.FormatLastPlayed(item.LastPlayedUtcTicks);
+                subtitle.fontSize = 13.5f;
+                subtitle.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
                 view.Subtitle = subtitle;
+            }
+
+            Transform accentTrans = entry.transform.Find("SelectionAccentBar");
+            if (accentTrans == null)
+            {
+                GameObject accentObj = new GameObject("SelectionAccentBar", typeof(RectTransform), typeof(Image));
+                accentObj.transform.SetParent(entry.transform, false);
+                accentObj.transform.SetAsFirstSibling();
+                Image barImg = accentObj.GetComponent<Image>();
+                barImg.sprite = KaplaoUiSprites.RoundedRect(4);
+                barImg.type = Image.Type.Sliced;
+                barImg.color = KaplaoUiTheme.Current.Palette.PrimaryNeon;
+                barImg.raycastTarget = false;
+                RectTransform rt = accentObj.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0f, 0.12f);
+                rt.anchorMax = new Vector2(0f, 0.88f);
+                rt.pivot = new Vector2(0f, 0.5f);
+                rt.anchoredPosition = new Vector2(4f, 0f);
+                rt.sizeDelta = new Vector2(4f, 0f);
+                view.SelectionAccentBar = barImg;
+                accentObj.SetActive(false);
+            }
+            else
+            {
+                view.SelectionAccentBar = accentTrans.GetComponent<Image>();
             }
 
             view.Background = entry.GetComponent<Image>() ?? entry.GetComponentInChildren<Image>();
             Transform borderTrans = entry.transform.Find("UI_Border");
             if (borderTrans != null)
                 view.Border = borderTrans.GetComponent<Image>();
+
+            view.ButtonJuice = entry.GetComponent<UiButtonLeanScale>();
+            view.OnDoubleClicked = (w) =>
+            {
+                SelectWorld(w, entry);
+                OnWorldPlayClicked();
+            };
 
             view.SetSelected(string.Equals(selectedWorldName, item.Name, StringComparison.OrdinalIgnoreCase));
 
@@ -1483,7 +1570,12 @@ namespace KaplaoGames.UI
         void SetWorldActionsVisible(bool visible)
         {
             if (worldActionsBar != null)
-                worldActionsBar.SetActive(visible);
+            {
+                if (visible)
+                    KaplaoUiAnimator.ShowPanel(worldActionsBar, PanelAnimStyle.SlideFromBottom, 0.18f);
+                else
+                    KaplaoUiAnimator.HidePanel(worldActionsBar, PanelAnimStyle.Fade, 0.12f);
+            }
 
             if (worldPlayButton != null)
                 worldPlayButton.interactable = visible;
@@ -1618,6 +1710,9 @@ namespace KaplaoGames.UI
                 CreateLanServerEntry(response);
 
             SetNetworkStatus(BuildServerCountStatus());
+
+            if (serverListContent != null)
+                KaplaoUiAnimator.AnimateListStagger(serverListContent, 0.025f, 0.2f);
         }
 
         string BuildServerCountStatus()
@@ -1643,9 +1738,14 @@ namespace KaplaoGames.UI
             GameObject uiEntry = Instantiate(serverEntryTemplate, serverListContent);
             uiEntry.SetActive(true);
 
+            KaplaoUiStyler.StyleCardRow(uiEntry, forceReplaceSprite: true);
+
             TextMeshProUGUI text = uiEntry.GetComponentInChildren<TextMeshProUGUI>();
             if (text != null)
-                text.text = $"{entry.name}\n{entry.address}";
+            {
+                text.text = $"<color=#38BDF8>[PUBLIC]</color> <b>{entry.name}</b>\n<color=#94A3B8>{entry.address}</color>";
+                text.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+            }
 
             Button button = uiEntry.GetComponent<Button>();
             if (button == null)
@@ -1665,6 +1765,8 @@ namespace KaplaoGames.UI
             GameObject entry = Instantiate(serverEntryTemplate, serverListContent);
             entry.SetActive(true);
 
+            KaplaoUiStyler.StyleCardRow(entry, forceReplaceSprite: true);
+
             TextMeshProUGUI text = entry.GetComponentInChildren<TextMeshProUGUI>();
             string serverName = string.IsNullOrWhiteSpace(response.serverName)
                 ? "Unknown Server"
@@ -1673,7 +1775,10 @@ namespace KaplaoGames.UI
                 ? $"{response.uri.Host}:{response.uri.Port}"
                 : string.Empty;
             if (text != null)
-                text.text = $"{serverName}\n{address}";
+            {
+                text.text = $"<color=#10B981>[LAN]</color> <b>{serverName}</b>\n<color=#94A3B8>{address}</color>";
+                text.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+            }
 
             Button button = entry.GetComponent<Button>();
             if (button == null)
@@ -1694,7 +1799,10 @@ namespace KaplaoGames.UI
             networkDiscovery?.StopDiscovery();
             NetworkTransportConfig.Instance?.ApplyFromSession();
             SetNetworkStatus($"Connecting to {serverName} ({host}:{port})...");
-            networkManager.StartDirectClient(host, port);
+            KaplaoSceneTransition.TransitionTo($"Connecting to {serverName}...", () =>
+            {
+                networkManager.StartDirectClient(host, port);
+            });
         }
 
         void ConnectToLanServer(KaplaoServerResponse response)
@@ -1702,7 +1810,10 @@ namespace KaplaoGames.UI
             networkDiscovery?.StopDiscovery();
             NetworkTransportConfig.Instance?.ApplyFromSession();
             SetNetworkStatus($"Connecting to {response.serverName}...");
-            networkManager.StartLanClient(response.uri);
+            KaplaoSceneTransition.TransitionTo($"Connecting to {response.serverName}...", () =>
+            {
+                networkManager.StartLanClient(response.uri);
+            });
         }
 
         static string MakeServerKey(string host, ushort port)
@@ -1735,7 +1846,10 @@ namespace KaplaoGames.UI
             networkDiscovery?.StopDiscovery();
             NetworkTransportConfig.Instance?.ApplyFromSession();
             SetNetworkStatus($"Connecting to {host}:{port} ({(PlayerSession.UseTcpTransport ? "TCP" : "KCP")})...");
-            networkManager.StartDirectClient(host, port);
+            KaplaoSceneTransition.TransitionTo($"Connecting to {host}:{port}...", () =>
+            {
+                networkManager.StartDirectClient(host, port);
+            });
         }
     }
 }

@@ -1,11 +1,14 @@
 using Mirror;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using KaplaoGames.UI.Theme;
 
 namespace KaplaoGames.UI
 {
     /// <summary>
-    /// Shows network round-trip time in the top-right corner for Kaplao and Runner.
+    /// Network & performance HUD displaying smoothed FPS and round-trip ping time
+    /// with color thresholds (green / yellow / red) and dark pill styling.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("Kaplao/UI/Network Ping Display")]
@@ -15,6 +18,9 @@ namespace KaplaoGames.UI
         [SerializeField] float refreshInterval = 0.25f;
 
         float nextRefreshTime;
+        int frameCount;
+        float timeAccumulator;
+        int currentFps = 60;
 
         void Awake()
         {
@@ -23,27 +29,39 @@ namespace KaplaoGames.UI
 
         void Update()
         {
-            if (pingLabel == null)
-                return;
+            frameCount++;
+            timeAccumulator += Time.unscaledDeltaTime;
 
             if (Time.unscaledTime < nextRefreshTime)
                 return;
 
+            if (timeAccumulator > 0f)
+            {
+                currentFps = Mathf.RoundToInt(frameCount / timeAccumulator);
+            }
+            frameCount = 0;
+            timeAccumulator = 0f;
             nextRefreshTime = Time.unscaledTime + refreshInterval;
-            pingLabel.text = BuildPingText();
+
+            if (pingLabel != null)
+                pingLabel.text = BuildPerfText(currentFps);
         }
 
-        static string BuildPingText()
+        static string BuildPerfText(int fps)
         {
+            string fpsColor = fps >= 55 ? "#10B981" : (fps >= 30 ? "#FBBF24" : "#EF4444");
+            string fpsPart = $"<color=#94A3B8>FPS</color> <color={fpsColor}>{fps}</color>";
+
             if (!NetworkClient.active || !NetworkClient.isConnected)
-                return "Ping: -- ms";
+                return fpsPart;
 
             double rttSeconds = NetworkTime.rtt;
             if (rttSeconds <= 0.0 || double.IsNaN(rttSeconds) || double.IsInfinity(rttSeconds))
-                return "Ping: -- ms";
+                return $"{fpsPart}  <color=#94A3B8>PING</color> <color=#94A3B8>--</color>";
 
             int pingMs = Mathf.Max(0, Mathf.RoundToInt((float)(rttSeconds * 1000.0)));
-            return $"Ping: {pingMs} ms";
+            string pingColor = pingMs < 60 ? "#10B981" : (pingMs < 120 ? "#FBBF24" : "#EF4444");
+            return $"{fpsPart}  <color=#94A3B8>PING</color> <color={pingColor}>{pingMs}ms</color>";
         }
 
         void EnsureLabel()
@@ -69,8 +87,18 @@ namespace KaplaoGames.UI
                 rootRect.anchorMax = new Vector2(1f, 1f);
                 rootRect.pivot = new Vector2(1f, 1f);
                 rootRect.anchoredPosition = new Vector2(-16f, -16f);
-                rootRect.sizeDelta = new Vector2(160f, 32f);
+                rootRect.sizeDelta = new Vector2(210f, 30f);
                 root = rootObject.transform;
+            }
+
+            Image bg = root.GetComponent<Image>();
+            if (bg == null)
+            {
+                bg = root.gameObject.AddComponent<Image>();
+                bg.sprite = KaplaoUiSprites.Pill();
+                bg.type = Image.Type.Sliced;
+                bg.color = new Color(0.06f, 0.09f, 0.16f, 0.65f);
+                bg.raycastTarget = false;
             }
 
             Transform labelTransform = root.Find("PingLabel");
@@ -88,19 +116,20 @@ namespace KaplaoGames.UI
             RectTransform labelRect = labelObject.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
+            labelRect.offsetMin = new Vector2(10f, 0f);
+            labelRect.offsetMax = new Vector2(-10f, 0f);
 
             pingLabel = labelObject.GetComponent<TextMeshProUGUI>();
             if (pingLabel == null)
                 pingLabel = labelObject.AddComponent<TextMeshProUGUI>();
 
-            pingLabel.alignment = TextAlignmentOptions.TopRight;
-            pingLabel.fontSize = 18f;
+            pingLabel.alignment = TextAlignmentOptions.Center;
+            pingLabel.fontSize = 13.5f;
+            pingLabel.fontStyle = FontStyles.Bold;
             pingLabel.color = Color.white;
             pingLabel.raycastTarget = false;
             pingLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            pingLabel.text = "Ping: -- ms";
+            pingLabel.text = "<color=#94A3B8>FPS</color> 60";
         }
     }
 }

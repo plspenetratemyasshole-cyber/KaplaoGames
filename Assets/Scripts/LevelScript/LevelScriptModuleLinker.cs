@@ -153,6 +153,7 @@ namespace KaplaoGames.LevelScript
 
             for (int i = 0; i < module.EventListeners.Count; i++)
             {
+                module.EventListeners[i].SourcePath = modulePath;
                 linked.EventListeners.Add(module.EventListeners[i]);
             }
 
@@ -173,6 +174,7 @@ namespace KaplaoGames.LevelScript
                 if (!TryGetDeclaration(node, out string name, out bool isPublic))
                     continue;
 
+                SetDeclarationSourcePath(node, modulePath);
                 RegisterSymbol(linked, name, modulePath, isPublic, LevelScriptSymbolKind.Variable);
 
                 // Imported modules only contribute declarations to init (not their other top-level statements).
@@ -181,6 +183,20 @@ namespace KaplaoGames.LevelScript
                 {
                     linked.InitDeclarations.Add(node);
                 }
+            }
+        }
+
+        static void SetDeclarationSourcePath(LevelScriptNode node, string path)
+        {
+            switch (node)
+            {
+                case IntDeclarationNode d: d.SourcePath = path; break;
+                case BoolDeclarationNode d: d.SourcePath = path; break;
+                case FloatDeclarationNode d: d.SourcePath = path; break;
+                case StringDeclarationNode d: d.SourcePath = path; break;
+                case GameObjectDeclarationNode d: d.SourcePath = path; break;
+                case ComponentDeclarationNode d: d.SourcePath = path; break;
+                case ListDeclarationNode d: d.SourcePath = path; break;
             }
         }
 
@@ -228,6 +244,14 @@ namespace KaplaoGames.LevelScript
                     isPublic = d.IsPublic;
                     return true;
                 case GameObjectDeclarationNode d:
+                    name = d.Name;
+                    isPublic = d.IsPublic;
+                    return true;
+                case ComponentDeclarationNode d:
+                    name = d.Name;
+                    isPublic = d.IsPublic;
+                    return true;
+                case ListDeclarationNode d:
                     name = d.Name;
                     isPublic = d.IsPublic;
                     return true;

@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using KaplaoGames.Shared;
+using KaplaoGames.UI.Animation;
+using KaplaoGames.UI.Theme;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -100,7 +102,7 @@ namespace KaplaoGames.UI
         void OpenPanel()
         {
             if (panelRoot == null) return;
-            panelRoot.SetActive(true);
+            KaplaoUiAnimator.ShowPanel(panelRoot, PanelAnimStyle.PopScale, 0.24f);
             HideDeleteConfirm();
             RefreshModeratorAccess();
             RefreshSearch();
@@ -109,7 +111,8 @@ namespace KaplaoGames.UI
         void ClosePanel()
         {
             HideDeleteConfirm();
-            if (panelRoot != null) panelRoot.SetActive(false);
+            if (panelRoot != null)
+                KaplaoUiAnimator.HidePanel(panelRoot, PanelAnimStyle.Fade, 0.16f);
         }
 
         void RefreshModeratorAccess()
@@ -199,6 +202,7 @@ namespace KaplaoGames.UI
             {
                 GameObject clone = Instantiate(entryTemplate, listContent);
                 clone.SetActive(true);
+                KaplaoUiStyler.StyleCardRow(clone, forceReplaceSprite: true);
                 entryObjects.Add(clone);
             }
 
@@ -209,10 +213,48 @@ namespace KaplaoGames.UI
                 if (!active) continue;
 
                 PublicLevelEntry entry = loadedEntries[i];
-                TextMeshProUGUI title = entryObjects[i].transform.Find("Title")?.GetComponent<TextMeshProUGUI>();
-                TextMeshProUGUI author = entryObjects[i].transform.Find("Author")?.GetComponent<TextMeshProUGUI>();
-                if (title != null) title.text = entry.title;
-                if (author != null) author.text = "by " + entry.author_nick;
+                Transform t = entryObjects[i].transform;
+                TextMeshProUGUI title = t.Find("Title")?.GetComponent<TextMeshProUGUI>();
+                TextMeshProUGUI author = t.Find("Author")?.GetComponent<TextMeshProUGUI>();
+                if (title != null)
+                {
+                    title.text = entry.title;
+                    title.fontStyle = FontStyles.Bold;
+                    title.fontSize = 18f;
+                    title.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+                    if (title.GetComponent<Shadow>() == null)
+                    {
+                        Shadow sh = title.gameObject.AddComponent<Shadow>();
+                        sh.effectColor = new Color(0f, 0f, 0f, 0.45f);
+                        sh.effectDistance = new Vector2(1f, -1f);
+                    }
+                }
+                if (author != null)
+                {
+                    author.text = "by " + entry.author_nick;
+                    author.fontSize = 13.5f;
+                    author.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
+                }
+
+                Transform accentTrans = t.Find("SelectionAccentBar");
+                if (accentTrans == null)
+                {
+                    GameObject barObj = new GameObject("SelectionAccentBar", typeof(RectTransform), typeof(Image));
+                    barObj.transform.SetParent(t, false);
+                    barObj.transform.SetAsFirstSibling();
+                    Image barImg = barObj.GetComponent<Image>();
+                    barImg.sprite = KaplaoUiSprites.RoundedRect(4);
+                    barImg.type = Image.Type.Sliced;
+                    barImg.color = KaplaoUiTheme.Current.Palette.PrimaryNeon;
+                    barImg.raycastTarget = false;
+                    RectTransform rt = barObj.GetComponent<RectTransform>();
+                    rt.anchorMin = new Vector2(0f, 0.12f);
+                    rt.anchorMax = new Vector2(0f, 0.88f);
+                    rt.pivot = new Vector2(0f, 0.5f);
+                    rt.anchoredPosition = new Vector2(4f, 0f);
+                    rt.sizeDelta = new Vector2(4f, 0f);
+                    barObj.SetActive(false);
+                }
 
                 Button button = entryObjects[i].GetComponent<Button>() ?? entryObjects[i].AddComponent<Button>();
                 PublicLevelEntry captured = entry;
@@ -221,6 +263,9 @@ namespace KaplaoGames.UI
             }
 
             HighlightSelectedEntry();
+
+            if (listContent != null)
+                KaplaoUiAnimator.AnimateListStagger(listContent, 0.025f, 0.2f);
         }
 
         void ClearEntries()
@@ -235,6 +280,11 @@ namespace KaplaoGames.UI
             HideDeleteConfirm();
             UpdateActionButtonsVisible();
             HighlightSelectedEntry();
+
+            if (playButton != null && playButton.gameObject.activeSelf)
+                KaplaoUiAnimator.PopScale(playButton.gameObject, 0.18f);
+            if (copyButton != null && copyButton.gameObject.activeSelf)
+                KaplaoUiAnimator.PopScale(copyButton.gameObject, 0.18f);
         }
 
         void HighlightSelectedEntry()
@@ -248,19 +298,32 @@ namespace KaplaoGames.UI
                 bool isSelected = selected != null && selected.id == loadedEntries[i].id;
 
                 Image bg = obj.GetComponent<Image>() ?? obj.GetComponentInChildren<Image>();
+                Color targetBg = isSelected
+                    ? new Color(0x1E / 255f, 0x3A / 255f, 0x5F / 255f, 0.98f)
+                    : new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 0.95f);
                 if (bg != null)
-                {
-                    bg.color = isSelected
-                        ? new Color(0x1D / 255f, 0x3A / 255f, 0x5F / 255f, 0.98f)
-                        : new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 0.95f);
-                }
+                    bg.color = targetBg;
+
+                Color targetBorder = isSelected
+                    ? new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 0.95f)
+                    : new Color(0x2B / 255f, 0x3B / 255f, 0x5C / 255f, 0.55f);
 
                 Transform borderTrans = obj.transform.Find("UI_Border");
                 if (borderTrans != null && borderTrans.TryGetComponent(out Image border))
                 {
-                    border.color = isSelected
-                        ? new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 0.95f)
-                        : new Color(0x2B / 255f, 0x3B / 255f, 0x5C / 255f, 0.55f);
+                    border.color = targetBorder;
+                }
+
+                Transform accentTrans = obj.transform.Find("SelectionAccentBar");
+                if (accentTrans != null)
+                {
+                    accentTrans.gameObject.SetActive(isSelected);
+                }
+
+                UiButtonLeanScale juice = obj.GetComponent<UiButtonLeanScale>();
+                if (juice != null)
+                {
+                    juice.SetBaseColors(targetBg, targetBorder);
                 }
             }
         }
@@ -294,13 +357,13 @@ namespace KaplaoGames.UI
                     $"Permanently delete \"{selected.title}\" from public servers?\nThis cannot be undone.";
             }
 
-            deleteConfirmPanel.SetActive(true);
+            KaplaoUiAnimator.ShowPanel(deleteConfirmPanel, PanelAnimStyle.PopScale, 0.2f);
         }
 
         void HideDeleteConfirm()
         {
-            if (deleteConfirmPanel != null)
-                deleteConfirmPanel.SetActive(false);
+            if (deleteConfirmPanel != null && deleteConfirmPanel.activeSelf)
+                KaplaoUiAnimator.HidePanel(deleteConfirmPanel, PanelAnimStyle.Fade, 0.14f);
         }
 
         void ConfirmDeleteSelected()

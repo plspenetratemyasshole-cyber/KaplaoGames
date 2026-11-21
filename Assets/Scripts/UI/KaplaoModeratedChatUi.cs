@@ -4,6 +4,7 @@ using KaplaoGames.Client;
 using KaplaoGames.Network;
 using KaplaoGames.Server;
 using KaplaoGames.Shared;
+using KaplaoGames.UI.Theme;
 using Mirror;
 using TMPro;
 using UnityEngine;
@@ -77,6 +78,17 @@ namespace KaplaoGames.UI
 
         void Awake()
         {
+            if (chatRoot != null)
+            {
+                Image chatBg = chatRoot.GetComponent<Image>();
+                if (chatBg != null)
+                {
+                    chatBg.sprite = KaplaoUiSprites.RoundedRect(12);
+                    chatBg.type = Image.Type.Sliced;
+                    chatBg.color = new Color(0.06f, 0.09f, 0.15f, 0.72f);
+                }
+            }
+
             if (chatScrollRect != null)
             {
                 Mask scrollMask = chatScrollRect.GetComponent<Mask>();
@@ -560,6 +572,16 @@ namespace KaplaoGames.UI
                 flexibleWidth: true);
 
             chatLineObjects.Add(lineObj);
+
+            CanvasGroup lineCg = lineObj.AddComponent<CanvasGroup>();
+            lineCg.alpha = 0f;
+            LeanTween.value(lineObj, 0f, 1f, 0.15f)
+                .setIgnoreTimeScale(true)
+                .setOnUpdate((float a) => { if (lineCg != null) lineCg.alpha = a; });
+            lineObj.transform.localScale = new Vector3(0.96f, 0.96f, 1f);
+            LeanTween.scale(lineObj, Vector3.one, 0.15f)
+                .setEaseOutQuad()
+                .setIgnoreTimeScale(true);
 
             const int maxLines = 60;
             if (chatLineObjects.Count > maxLines)

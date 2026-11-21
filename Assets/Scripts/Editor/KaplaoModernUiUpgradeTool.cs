@@ -19,6 +19,7 @@ namespace KaplaoGames.Editor
     /// Idempotent Upgrade Tool for MainMenu and SampleScene UI.
     /// Polishes all UI panels to the modern Deep Slate + Electric Cyan theme,
     /// sets up LeanTween animations, fixes masks and layouts, and preserves Inspector references.
+    /// Correct execution order: Base StyleHierarchy FIRST -> Specific variants & custom panels SECOND.
     /// </summary>
     public static class KaplaoModernUiUpgradeTool
     {
@@ -52,11 +53,30 @@ namespace KaplaoGames.Editor
 
             EnsureRuntimeSkin(canvas);
             EnsureToast(canvas);
+            EnsureMenuAtmosphere(canvas);
 
+            Transform mainPanel = canvas.transform.Find("MainPanel");
+            if (mainPanel != null)
+                EnsureProfileBadge(mainPanel);
+
+            // 1. BASE STYLING FIRST (force replace procedural sprites on standard elements)
+            KaplaoUiStyler.StyleHierarchy(canvas.transform, forceReplaceSprites: true);
+
+            // 2. SPECIFIC VARIANTS & REBUILD
             PolishMainMenuPanels(canvas);
-            KaplaoUiStyler.StyleHierarchy(canvas.transform);
 
-            MainMenuSceneUiBinder.BindMainMenuUi();
+            // 3. ATTACH PANEL ANIMATORS
+            AttachPanelAnimator(canvas.transform.Find("SinglePlayerPanel"), PanelAnimStyle.SlideFromBottom);
+            AttachPanelAnimator(canvas.transform.Find("NetworkPanel"), PanelAnimStyle.SlideFromBottom);
+            AttachPanelAnimator(canvas.transform.Find("SettingsPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("NicknamePanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("CreateWorldNamePanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("DeleteWorldConfirmPanel/DialogBox") ?? canvas.transform.Find("DeleteWorldConfirmPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("BrowseLevelsPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("BrowseLevelsPanel/BrowseDeleteConfirmPanel"), PanelAnimStyle.PopScale);
+
+            // 4. BIND UI REFERENCES
+            MainMenuSceneUiBinder.BindMainMenuUi(canvas, scene);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
@@ -79,7 +99,12 @@ namespace KaplaoGames.Editor
 
             EnsureRuntimeSkin(canvas);
             EnsureToast(canvas);
+            EnsureHudComponents(canvas);
 
+            // 1. BASE STYLING FIRST (force replace procedural sprites on standard elements)
+            KaplaoUiStyler.StyleHierarchy(canvas.transform, forceReplaceSprites: true);
+
+            // 2. SPECIFIC VARIANTS & REBUILD
             PolishSampleScenePauseMenu(canvas);
             PolishSampleSceneModeration(canvas);
             PolishSampleSceneChat(canvas);
@@ -87,9 +112,35 @@ namespace KaplaoGames.Editor
             PolishSampleSceneCodeMode(canvas);
             PolishSampleSceneHud(canvas);
 
-            KaplaoUiStyler.StyleHierarchy(canvas.transform);
+            // 3. ATTACH PANEL ANIMATORS
+            AttachPanelAnimator(canvas.transform.Find("PauseMenuRoot/PauseMenuPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("PauseMenuRoot/SaveSuccessPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("PauseMenuRoot/ExitWithoutSavePanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("PauseMenuRoot/OpenToLanPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("PauseMenuRoot/PublishLevelPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("RunnerPauseMenuRoot/RunnerPauseMenuPanel"), PanelAnimStyle.PopScale);
 
-            SampleSceneUiBinder.BindSampleSceneUi();
+            Transform createMode = canvas.transform.Find("CreateModeUI");
+            if (createMode != null)
+            {
+                AttachPanelAnimator(createMode.Find("SelectionToolbar"), PanelAnimStyle.SlideFromBottom);
+                AttachPanelAnimator(createMode.Find("SettingsPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("CreateSettingsPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("SetGroupPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("TileColorPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("ParticleEditorPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("KeyframeEditorPanel"), PanelAnimStyle.PopScale);
+                AttachPanelAnimator(createMode.Find("ExecutorEditorPanel"), PanelAnimStyle.PopScale);
+            }
+
+            AttachPanelAnimator(canvas.transform.Find("HostModerationPanel") ?? canvas.transform.Find("PausePlayerListPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("BannedPlayersPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("ModeratorModerationPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("DocumentationPanel"), PanelAnimStyle.PopScale);
+            AttachPanelAnimator(canvas.transform.Find("CantChangeModePanel"), PanelAnimStyle.PopScale);
+
+            // 4. BIND UI REFERENCES
+            SampleSceneUiBinder.BindSampleSceneUi(canvas, scene);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
@@ -112,6 +163,62 @@ namespace KaplaoGames.Editor
             GameObject root = new GameObject("KaplaoUiToastRoot", typeof(RectTransform));
             root.transform.SetParent(canvas.transform, false);
             root.AddComponent<KaplaoUiToast>();
+        }
+
+        static void EnsureMenuAtmosphere(Canvas canvas)
+        {
+            if (canvas == null) return;
+            Transform existing = canvas.transform.Find("MenuAtmosphereLayer");
+            if (existing == null)
+            {
+                GameObject go = new GameObject("MenuAtmosphereLayer", typeof(RectTransform));
+                go.transform.SetParent(canvas.transform, false);
+                go.transform.SetAsFirstSibling();
+                RectTransform rt = go.GetComponent<RectTransform>();
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                go.AddComponent<KaplaoMenuBackgroundFx>();
+            }
+        }
+
+        static void EnsureProfileBadge(Transform mainPanel)
+        {
+            if (mainPanel == null) return;
+            Transform existing = mainPanel.Find("ProfileBadge");
+            if (existing == null)
+            {
+                GameObject badgeObj = new GameObject("ProfileBadge", typeof(RectTransform));
+                badgeObj.transform.SetParent(mainPanel, false);
+                badgeObj.AddComponent<KaplaoProfileBadgeUi>();
+            }
+        }
+
+        static void EnsureHudComponents(Canvas canvas)
+        {
+            if (canvas == null) return;
+
+            NetworkPingDisplay ping = canvas.GetComponentInChildren<NetworkPingDisplay>(true);
+            if (ping == null)
+            {
+                canvas.gameObject.AddComponent<NetworkPingDisplay>();
+            }
+
+            KaplaoModeBannerHud banner = canvas.GetComponentInChildren<KaplaoModeBannerHud>(true);
+            if (banner == null)
+            {
+                canvas.gameObject.AddComponent<KaplaoModeBannerHud>();
+            }
+        }
+
+        static void AttachPanelAnimator(Transform t, PanelAnimStyle style)
+        {
+            if (t == null) return;
+            KaplaoPanelAnimator anim = t.GetComponent<KaplaoPanelAnimator>();
+            if (anim == null)
+                anim = t.gameObject.AddComponent<KaplaoPanelAnimator>();
+            anim.Style = style;
         }
 
         #region MainMenu Polish
@@ -183,7 +290,7 @@ namespace KaplaoGames.Editor
                     if (entryTemplate.GetComponent<WorldEntryView>() == null)
                         entryTemplate.gameObject.AddComponent<WorldEntryView>();
 
-                    KaplaoUiStyler.StyleCardRow(entryTemplate.gameObject);
+                    KaplaoUiStyler.StyleCardRow(entryTemplate.gameObject, forceReplaceSprite: true);
 
                     Transform title = entryTemplate.Find("Title");
                     if (title != null)
@@ -197,10 +304,16 @@ namespace KaplaoGames.Editor
                         TextMeshProUGUI tmp = title.GetComponent<TextMeshProUGUI>();
                         if (tmp != null)
                         {
-                            tmp.fontSize = 18f;
+                            tmp.fontSize = 19f;
                             tmp.fontStyle = FontStyles.Bold;
-                            tmp.color = KaplaoUiTheme.Current.TextPrimary;
+                            tmp.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
                             tmp.alignment = TextAlignmentOptions.MidlineLeft;
+                            if (tmp.GetComponent<Shadow>() == null)
+                            {
+                                Shadow sh = tmp.gameObject.AddComponent<Shadow>();
+                                sh.effectColor = new Color(0f, 0f, 0f, 0.45f);
+                                sh.effectDistance = new Vector2(1f, -1f);
+                            }
                         }
                     }
 
@@ -221,9 +334,30 @@ namespace KaplaoGames.Editor
                     TextMeshProUGUI subTmp = subtitle.GetComponent<TextMeshProUGUI>();
                     if (subTmp != null)
                     {
-                        subTmp.fontSize = 13f;
-                        subTmp.color = KaplaoUiTheme.Current.TextSecondary;
+                        subTmp.fontSize = 13.5f;
+                        subTmp.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
                         subTmp.alignment = TextAlignmentOptions.MidlineLeft;
+                    }
+
+                    // SelectionAccentBar
+                    Transform accentTrans = entryTemplate.Find("SelectionAccentBar");
+                    if (accentTrans == null)
+                    {
+                        GameObject barObj = new GameObject("SelectionAccentBar", typeof(RectTransform), typeof(Image));
+                        barObj.transform.SetParent(entryTemplate, false);
+                        barObj.transform.SetAsFirstSibling();
+                        Image barImg = barObj.GetComponent<Image>();
+                        barImg.sprite = KaplaoUiSprites.RoundedRect(4);
+                        barImg.type = Image.Type.Sliced;
+                        barImg.color = KaplaoUiTheme.Current.Palette.PrimaryNeon;
+                        barImg.raycastTarget = false;
+                        RectTransform rt = barObj.GetComponent<RectTransform>();
+                        rt.anchorMin = new Vector2(0f, 0.12f);
+                        rt.anchorMax = new Vector2(0f, 0.88f);
+                        rt.pivot = new Vector2(0f, 0.5f);
+                        rt.anchoredPosition = new Vector2(4f, 0f);
+                        rt.sizeDelta = new Vector2(4f, 0f);
+                        barObj.SetActive(false);
                     }
                 }
 
@@ -336,21 +470,83 @@ namespace KaplaoGames.Editor
             Transform browsePanel = root.Find("BrowseLevelsPanel");
             if (browsePanel != null)
             {
+                RectTransform bpRt = browsePanel.GetComponent<RectTransform>();
+                bpRt.sizeDelta = new Vector2(680f, 580f);
                 KaplaoUiStyler.StylePanel(browsePanel.gameObject, true, true);
+
+                Transform search = browsePanel.Find("BrowseSearchInput");
+                if (search != null)
+                {
+                    RectTransform srt = search.GetComponent<RectTransform>();
+                    srt.anchoredPosition = new Vector2(0f, 220f);
+                    srt.sizeDelta = new Vector2(580f, 44f);
+                }
 
                 Transform browseScroll = browsePanel.Find("BrowseScroll");
                 if (browseScroll != null)
                 {
+                    RectTransform bsRt = browseScroll.GetComponent<RectTransform>();
+                    bsRt.anchoredPosition = new Vector2(0f, 15f);
+                    bsRt.sizeDelta = new Vector2(580f, 340f);
                     EnsureRectMask2D(browseScroll.gameObject);
+
                     Transform content = browseScroll.Find("BrowseContent");
                     if (content != null)
                     {
+                        GridLayoutGroup oldGrid = content.GetComponent<GridLayoutGroup>();
+                        if (oldGrid != null) UnityEngine.Object.DestroyImmediate(oldGrid);
+
+                        VerticalLayoutGroup vlg = content.GetComponent<VerticalLayoutGroup>() ?? content.gameObject.AddComponent<VerticalLayoutGroup>();
+                        vlg.spacing = 8f;
+                        vlg.padding = new RectOffset(8, 8, 8, 8);
+                        vlg.childAlignment = TextAnchor.UpperCenter;
+                        vlg.childControlWidth = true;
+                        vlg.childControlHeight = false;
+                        vlg.childForceExpandWidth = true;
+                        vlg.childForceExpandHeight = false;
+
                         ContentSizeFitter csf = content.GetComponent<ContentSizeFitter>() ?? content.gameObject.AddComponent<ContentSizeFitter>();
                         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                        csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+                        RectTransform cRt = content.GetComponent<RectTransform>();
+                        cRt.anchorMin = new Vector2(0f, 1f);
+                        cRt.anchorMax = new Vector2(1f, 1f);
+                        cRt.pivot = new Vector2(0.5f, 1f);
+                        cRt.offsetMin = Vector2.zero;
+                        cRt.offsetMax = Vector2.zero;
+
+                        Transform entryTemplate = content.Find("BrowseEntryTemplate");
+                        if (entryTemplate != null)
+                        {
+                            RectTransform entryRt = entryTemplate.GetComponent<RectTransform>();
+                            entryRt.sizeDelta = new Vector2(0f, 76f);
+                            LayoutElement entryLe = entryTemplate.GetComponent<LayoutElement>() ?? entryTemplate.gameObject.AddComponent<LayoutElement>();
+                            entryLe.minHeight = 76f;
+                            entryLe.preferredHeight = 76f;
+                            entryLe.flexibleHeight = 0f;
+
+                            KaplaoUiStyler.StyleCardRow(entryTemplate.gameObject, forceReplaceSprite: true);
+
+                            Transform title = entryTemplate.Find("Title");
+                            if (title != null && title.TryGetComponent(out TextMeshProUGUI titleTmp))
+                            {
+                                titleTmp.fontStyle = FontStyles.Bold;
+                                titleTmp.fontSize = 18f;
+                                titleTmp.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+                            }
+
+                            Transform author = entryTemplate.Find("Author");
+                            if (author != null && author.TryGetComponent(out TextMeshProUGUI authorTmp))
+                            {
+                                authorTmp.fontSize = 13.5f;
+                                authorTmp.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
+                            }
+                        }
                     }
                 }
 
-                StyleButtonIfExists(browsePanel, "BrowsePlayButton", KaplaoButtonVariant.Primary);
+                StyleButtonIfExists(browsePanel, "BrowsePlayButton", KaplaoButtonVariant.Success);
                 StyleButtonIfExists(browsePanel, "BrowseCopyButton", KaplaoButtonVariant.Secondary);
                 StyleButtonIfExists(browsePanel, "BrowseDeleteFromServersButton", KaplaoButtonVariant.Danger);
                 StyleButtonIfExists(browsePanel, "BrowseBackButton", KaplaoButtonVariant.Ghost);

@@ -8,10 +8,12 @@ namespace KaplaoGames.UI.Animation
     public enum PanelAnimStyle
     {
         PopScale,
-        SlideFromRight,
-        SlideFromLeft,
         SlideFromBottom,
-        Fade
+        SlideFromTop,
+        SlideFromLeft,
+        SlideFromRight,
+        Fade,
+        FadeOnly = Fade
     }
 
     /// <summary>
@@ -102,6 +104,20 @@ namespace KaplaoGames.UI.Animation
                     {
                         rect.localScale = Vector3.one;
                         rect.anchoredPosition3D = restPos + new Vector3(0f, -28f, 0f);
+                        LeanTween.move(rect, restPos, duration)
+                            .setIgnoreTimeScale(true)
+                            .setEase(LeanTweenType.easeOutCubic);
+                    }
+                    LeanTween.alphaCanvas(group, 1f, duration * 0.8f)
+                        .setIgnoreTimeScale(true)
+                        .setEase(LeanTweenType.easeOutQuad);
+                    break;
+
+                case PanelAnimStyle.SlideFromTop:
+                    if (rect != null)
+                    {
+                        rect.localScale = Vector3.one;
+                        rect.anchoredPosition3D = restPos + new Vector3(0f, 28f, 0f);
                         LeanTween.move(rect, restPos, duration)
                             .setIgnoreTimeScale(true)
                             .setEase(LeanTweenType.easeOutCubic);
@@ -237,6 +253,22 @@ namespace KaplaoGames.UI.Animation
                             .setEase(LeanTweenType.easeOutBack);
                     }
                 });
+        }
+
+        public static void ShakeError(GameObject target)
+        {
+            if (target != null && target.TryGetComponent(out RectTransform rt))
+                ShakeError(rt);
+        }
+
+        public static void PopScale(GameObject target, float duration = 0.2f)
+        {
+            if (target == null) return;
+            LeanTween.cancel(target);
+            target.transform.localScale = Vector3.one * 0.85f;
+            LeanTween.scale(target, Vector3.one, duration)
+                .setIgnoreTimeScale(true)
+                .setEase(LeanTweenType.easeOutBack);
         }
 
         public static void ShakeError(RectTransform target)

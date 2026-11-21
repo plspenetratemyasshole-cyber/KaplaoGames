@@ -1,3 +1,4 @@
+using KaplaoGames.UI.Animation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -64,7 +65,10 @@ namespace KaplaoGames.UI
                 messageText.text = string.IsNullOrWhiteSpace(message) ? DefaultMessage : message;
 
             if (panelRoot != null)
-                panelRoot.SetActive(true);
+            {
+                KaplaoUiAnimator.ShowPanel(panelRoot, PanelAnimStyle.PopScale, 0.18f);
+                KaplaoUiAnimator.ShakeError(panelRoot);
+            }
 
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
@@ -72,8 +76,8 @@ namespace KaplaoGames.UI
 
         public void Hide()
         {
-            if (panelRoot != null)
-                panelRoot.SetActive(false);
+            if (panelRoot != null && panelRoot.activeSelf)
+                KaplaoUiAnimator.HidePanel(panelRoot, PanelAnimStyle.Fade, 0.14f);
         }
 
         void EnsureMessageText()

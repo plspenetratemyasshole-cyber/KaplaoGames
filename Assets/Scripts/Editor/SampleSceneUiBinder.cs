@@ -27,6 +27,13 @@ namespace KaplaoGames.Editor
                 return;
             }
 
+            BindSampleSceneUi(canvas, scene);
+        }
+
+        public static void BindSampleSceneUi(Canvas canvas, Scene scene)
+        {
+            if (canvas == null) return;
+
             var report = new StringBuilder();
             report.AppendLine("[Kaplao] Sample Scene UI bind:");
 
@@ -35,7 +42,8 @@ namespace KaplaoGames.Editor
             BindGameSessionUi(canvas, report);
             BindWorldLoadBootstrap(report);
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(scene);
             Debug.Log(report.ToString());
         }
 

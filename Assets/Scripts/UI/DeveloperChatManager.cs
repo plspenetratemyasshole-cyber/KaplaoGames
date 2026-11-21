@@ -417,19 +417,30 @@ namespace KaplaoGames.UI
                     if (msg.isFromAdmin)
                     {
                         string adminName = !string.IsNullOrEmpty(msg.adminNickname) ? msg.adminNickname : "Developer";
-                        textComponent.text = $"<color=#4A90E2><b>{adminName} (Dev):</b></color>\n{msg.message}";
+                        textComponent.text = $"<color=#38BDF8><b>{adminName} (Dev):</b></color>\n{msg.message}";
                     }
                     else
                     {
                         // Show player's own message
                         string playerName = !string.IsNullOrEmpty(msg.senderNickname) ? msg.senderNickname : "You";
-                        textComponent.text = $"<color=#666><b>{playerName}:</b></color>\n{msg.message}";
+                        textComponent.text = $"<color=#94A3B8><b>{playerName}:</b></color>\n{msg.message}";
                     }
+                    textComponent.color = Color.white;
                     Debug.Log($"[DeveloperChat] Set text: {textComponent.text}");
                 }
                 else
                 {
                     Debug.LogError($"[DeveloperChat] No TMP_Text component found in message object!");
+                }
+
+                Image bubbleImg = msgObj.GetComponent<Image>();
+                if (bubbleImg != null)
+                {
+                    bubbleImg.sprite = Theme.KaplaoUiSprites.RoundedRect(10);
+                    bubbleImg.type = Image.Type.Sliced;
+                    bubbleImg.color = msg.isFromAdmin
+                        ? new Color(0x13 / 255f, 0x27 / 255f, 0x42 / 255f, 0.92f)
+                        : new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 0.92f);
                 }
             }
 

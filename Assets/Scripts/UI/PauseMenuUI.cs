@@ -2,6 +2,7 @@ using KaplaoGames.Client;
 using KaplaoGames.Network;
 using KaplaoGames.Server;
 using KaplaoGames.Shared;
+using KaplaoGames.UI.Animation;
 using Mirror;
 using UnityEngine;
 using UnityEngine.UI;
@@ -391,9 +392,11 @@ namespace KaplaoGames.UI
             if (!WorldSaveService.TrySaveActiveWorldFromGrid(out string error))
             {
                 Debug.LogWarning($"[PauseMenuUI] Save failed: {error}");
+                KaplaoUiToast.ShowError($"Save failed: {error}");
                 return;
             }
 
+            KaplaoUiToast.ShowSuccess("World saved!");
             ShowOverlay(saveSuccessPanel);
         }
 
@@ -469,10 +472,13 @@ namespace KaplaoGames.UI
             if (networkManager == null)
                 return;
 
-            if (NetworkServer.active && NetworkClient.isConnected)
-                networkManager.StopHost();
-            else if (NetworkClient.isConnected)
-                networkManager.StopClient();
+            KaplaoGames.UI.Animation.KaplaoSceneTransition.TransitionTo("Returning to Main Menu...", () =>
+            {
+                if (NetworkServer.active && NetworkClient.isConnected)
+                    networkManager.StopHost();
+                else if (NetworkClient.isConnected)
+                    networkManager.StopClient();
+            });
         }
     }
 }

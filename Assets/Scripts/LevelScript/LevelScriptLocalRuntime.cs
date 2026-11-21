@@ -29,6 +29,9 @@ namespace KaplaoGames.LevelScript
 
         // Local Camera State
         Transform cameraFollowTarget;
+        Vector3 initialCamPos;
+        float initialCamOrthoSize;
+        bool initialCamRecorded;
         Coroutine cameraShakeRoutine;
         Coroutine cameraZoomRoutine;
         Coroutine cameraPanRoutine;
@@ -38,6 +41,14 @@ namespace KaplaoGames.LevelScript
         GameObject runtimeBannerOverlay;
         GameObject runtimeTimerOverlay;
         GameObject runtimeFadeOverlay;
+
+        // State tracking for rollback on Stop
+        readonly Dictionary<Transform, Vector3> initialPositions = new();
+        readonly Dictionary<Transform, Quaternion> initialRotations = new();
+        readonly Dictionary<Transform, Vector3> initialScales = new();
+        readonly Dictionary<Renderer, bool> initialRendererVisibility = new();
+        readonly Dictionary<SpriteRenderer, Color> initialSpriteColors = new();
+        readonly Dictionary<Collider2D, bool> initialColliderStates = new();
 
         public bool IsRunning => scriptActive;
 
@@ -109,6 +120,7 @@ namespace KaplaoGames.LevelScript
 
                     if (LevelScriptModuleLinker.TryLink(node.RelativePath, out linked, out _))
                     {
+                        LevelScriptSemanticAnalyzer.Analyze(linked, node.Content ?? string.Empty);
                         program = linked.Entry ?? new LevelScriptProgram();
                         foreach (var kvp in linked.Functions)
                             functionRegistry[kvp.Key] = kvp.Value;
@@ -118,10 +130,37 @@ namespace KaplaoGames.LevelScript
                             if (linked.EventListeners[e].Target == ScriptEventTarget.ServerEvent)
                                 serverEventListeners.Add(linked.EventListeners[e]);
                         }
+
+                        // Initialize global declarations from imported modules
+                        if (linked.InitDeclarations.Count > 0)
+                        {
+                            var initCtx = CreateContext(writesProgramGlobals: true, modulePath: node.RelativePath);
+                            for (int d = 0; d < linked.InitDeclarations.Count; d++)
+                            {
+                                var initRoutine = ExecuteNode(linked.InitDeclarations[d], initCtx);
+                                while (initRoutine != null && initRoutine.MoveNext()) { }
+                            }
+                        }
                     }
                     else
                     {
                         program = LevelScriptParser.Parse(node.Content ?? string.Empty, node.RelativePath);
+                        linked = new LevelScriptLinkedProgram { Entry = program };
+                        linked.ModulesInInitOrder.Add(program);
+                        for (int f = 0; f < program.Functions.Count; f++)
+                        {
+                            var fn = program.Functions[f];
+                            linked.Functions[fn.Name] = fn;
+                            linked.Symbols[fn.Name] = new LevelScriptSymbolInfo
+                            {
+                                Name = fn.Name,
+                                ModulePath = program.SourcePath,
+                                IsPublic = fn.IsPublic,
+                                Kind = LevelScriptSymbolKind.Function
+                            };
+                        }
+                        LevelScriptSemanticAnalyzer.Analyze(linked, node.Content ?? string.Empty);
+
                         for (int f = 0; f < program.Functions.Count; f++)
                             functionRegistry[program.Functions[f].Name] = program.Functions[f];
 
@@ -137,11 +176,20 @@ namespace KaplaoGames.LevelScript
                 catch (Exception ex)
                 {
                     Debug.LogWarning($"[LevelScriptLocalRuntime] Failed to load local script '{node.RelativePath}': {ex.Message}");
+                    KaplaoGames.Client.KaplaoCodeModeUi.Instance?.AppendOutput($"[{node.RelativePath}] {ex.Message}", KaplaoGames.Client.OutputLogType.Error);
                 }
             }
 
             if (localPrograms.Count == 0)
                 return;
+
+            Camera cam = Camera.main ?? FindFirstObjectByType<Camera>();
+            if (cam != null)
+            {
+                initialCamPos = cam.transform.position;
+                initialCamOrthoSize = cam.orthographicSize;
+                initialCamRecorded = true;
+            }
 
             scriptActive = true;
 
@@ -183,6 +231,56 @@ namespace KaplaoGames.LevelScript
             if (runtimeBannerOverlay != null) { Destroy(runtimeBannerOverlay); runtimeBannerOverlay = null; }
             if (runtimeTimerOverlay != null) { Destroy(runtimeTimerOverlay); runtimeTimerOverlay = null; }
             if (runtimeFadeOverlay != null) { Destroy(runtimeFadeOverlay); runtimeFadeOverlay = null; }
+
+            // Rollback visual & transform states
+            foreach (var kvp in initialPositions)
+            {
+                if (kvp.Key != null) kvp.Key.position = kvp.Value;
+            }
+            initialPositions.Clear();
+
+            foreach (var kvp in initialRotations)
+            {
+                if (kvp.Key != null) kvp.Key.rotation = kvp.Value;
+            }
+            initialRotations.Clear();
+
+            foreach (var kvp in initialScales)
+            {
+                if (kvp.Key != null) kvp.Key.localScale = kvp.Value;
+            }
+            initialScales.Clear();
+
+            foreach (var kvp in initialRendererVisibility)
+            {
+                if (kvp.Key != null) kvp.Key.enabled = kvp.Value;
+            }
+            initialRendererVisibility.Clear();
+
+            foreach (var kvp in initialSpriteColors)
+            {
+                if (kvp.Key != null) kvp.Key.color = kvp.Value;
+            }
+            initialSpriteColors.Clear();
+
+            foreach (var kvp in initialColliderStates)
+            {
+                if (kvp.Key != null) kvp.Key.enabled = kvp.Value;
+            }
+            initialColliderStates.Clear();
+            LevelScriptObjectUtility.ClearSceneObjectRegistry();
+
+            if (initialCamRecorded)
+            {
+                Camera activeCam = Camera.main ?? FindFirstObjectByType<Camera>();
+                if (activeCam != null)
+                {
+                    activeCam.transform.position = initialCamPos;
+                    activeCam.orthographicSize = initialCamOrthoSize;
+                }
+            }
+
+            KaplaoGames.Client.ParallaxBackground.Instance?.ResetBackground();
         }
 
         public void DispatchServerEvent(string eventName, string jsonArgs)
@@ -190,22 +288,24 @@ namespace KaplaoGames.LevelScript
             if (!scriptActive || string.IsNullOrEmpty(eventName))
                 return;
 
-            ScriptNetworkEventUtility.TryDeserializePayload(jsonArgs, out _, out ScriptNetworkEventArg[] args);
-            args ??= Array.Empty<ScriptNetworkEventArg>();
+            if (!ScriptNetworkEventUtility.TryDeserializePayload(jsonArgs, out _, out ScriptNetworkEventArg[] args))
+            {
+                args = Array.Empty<ScriptNetworkEventArg>();
+            }
 
             for (int i = 0; i < serverEventListeners.Count; i++)
             {
                 EventListenerNode listener = serverEventListeners[i];
                 if (string.Equals(listener.EventName, eventName, StringComparison.OrdinalIgnoreCase))
                 {
-                    runningTasks.Add(StartCoroutine(RunServerEventBody(listener, args)));
+                    runningTasks.Add(StartCoroutine(RunServerEventListener(listener, args)));
                 }
             }
         }
 
-        IEnumerator RunServerEventBody(EventListenerNode listener, ScriptNetworkEventArg[] args)
+        IEnumerator RunServerEventListener(EventListenerNode listener, ScriptNetworkEventArg[] args)
         {
-            var context = CreateContext(writesProgramGlobals: true);
+            LevelScriptExecutionContext context = CreateContext(writesProgramGlobals: false, modulePath: listener.SourcePath);
             context.LocalPlayerRef = GetLocalPlayerRef();
 
             for (int i = 0; i < listener.ParameterNames.Count; i++)
@@ -243,6 +343,13 @@ namespace KaplaoGames.LevelScript
             yield return RunBodyNodes(body, context);
         }
 
+        void ReportScriptError(string message, string modulePath = null)
+        {
+            string formatted = !string.IsNullOrEmpty(modulePath) ? $"[{modulePath}] {message}" : message;
+            Debug.LogError($"[LevelScriptLocalRuntime] {formatted}");
+            KaplaoGames.Client.KaplaoCodeModeUi.Instance?.AppendOutput(formatted, KaplaoGames.Client.OutputLogType.Error);
+        }
+
         IEnumerator RunBodyNodes(List<LevelScriptNode> body, LevelScriptExecutionContext context)
         {
             if (body == null || body.Count == 0)
@@ -260,14 +367,28 @@ namespace KaplaoGames.LevelScript
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[LevelScriptLocalRuntime] Error executing local node: {ex.Message}");
+                    ReportScriptError($"Runtime error: {ex.Message}", context.CurrentModulePath);
                     yield break;
                 }
 
                 if (routine != null)
                 {
-                    while (routine.MoveNext())
+                    while (true)
                     {
+                        bool hasMore;
+                        try
+                        {
+                            hasMore = routine.MoveNext();
+                        }
+                        catch (Exception ex)
+                        {
+                            ReportScriptError($"Runtime error: {ex.Message}", context.CurrentModulePath);
+                            yield break;
+                        }
+
+                        if (!hasMore)
+                            break;
+
                         if (!scriptActive || context.HasReturn || context.HasBreak || context.HasContinue)
                             yield break;
 
@@ -288,7 +409,22 @@ namespace KaplaoGames.LevelScript
 
                 case ReturnNode ret:
                     context.HasReturn = true;
-                    if (ret.IntValue != null) context.ReturnValue = ret.IntValue.Evaluate(context);
+                    if (ret.Value != null)
+                    {
+                        ScriptValue v = ScriptNetworkEventUtility.EvaluateToScriptValue(ret.Value, context);
+                        switch (v.Kind)
+                        {
+                            case ScriptValueKind.Int: context.ReturnValue = v.IntValue; break;
+                            case ScriptValueKind.Float: context.ReturnValue = v.FloatValue; break;
+                            case ScriptValueKind.Bool: context.ReturnValue = v.BoolValue; break;
+                            case ScriptValueKind.String: context.ReturnValue = v.StringValue; break;
+                            case ScriptValueKind.GameObject: context.ReturnValue = v.GameObjectValue; break;
+                            case ScriptValueKind.Component: context.ReturnValue = v.ComponentValue; break;
+                            case ScriptValueKind.List: context.ReturnValue = v.ListValue; break;
+                            default: context.ReturnValue = null; break;
+                        }
+                    }
+                    else if (ret.IntValue != null) context.ReturnValue = ret.IntValue.Evaluate(context);
                     else if (ret.FloatValue != null) context.ReturnValue = ret.FloatValue.Evaluate(context);
                     else if (ret.BoolValue != null) context.ReturnValue = ret.BoolValue.Evaluate(context);
                     else if (ret.StringValue != null) context.ReturnValue = ret.StringValue.Evaluate(context);
@@ -304,8 +440,18 @@ namespace KaplaoGames.LevelScript
                     yield break;
 
                 case WhileNode whileNode:
+                    int whileIterations = 0;
                     while (scriptActive && whileNode.Condition != null && whileNode.Condition.Evaluate(context))
                     {
+                        whileIterations++;
+                        if (whileIterations % 5000 == 0)
+                            yield return null; // Anti-freeze watchdog
+                        if (whileIterations > 200000)
+                        {
+                            ReportScriptError("Infinite loop detected: while loop exceeded 200,000 iterations without waiting.", context.CurrentModulePath);
+                            yield break;
+                        }
+
                         context.PushScope();
                         yield return RunBodyNodes(whileNode.Body, context);
                         context.PopScope();
@@ -315,32 +461,57 @@ namespace KaplaoGames.LevelScript
                             context.HasBreak = false;
                             break;
                         }
-                        context.HasContinue = false;
-                        yield return null;
+                        if (context.HasContinue)
+                        {
+                            context.HasContinue = false;
+                            continue;
+                        }
                     }
                     yield break;
 
                 case ForNode forNode:
-                    if (forNode.Init != null)
-                        yield return ExecuteNode(forNode.Init, context);
-
-                    while (scriptActive && (forNode.Condition == null || forNode.Condition.Evaluate(context)))
+                    bool previousWritesGlobals = context.WritesProgramGlobals;
+                    context.WritesProgramGlobals = false;
+                    context.PushScope();
+                    try
                     {
-                        context.PushScope();
-                        yield return RunBodyNodes(forNode.Body, context);
-                        context.PopScope();
+                        if (forNode.Init != null)
+                            yield return ExecuteNode(forNode.Init, context);
 
-                        if (context.HasReturn || context.HasBreak)
+                        int forIterations = 0;
+                        while (scriptActive && (forNode.Condition == null || forNode.Condition.Evaluate(context)))
                         {
-                            context.HasBreak = false;
-                            break;
+                            forIterations++;
+                            if (forIterations % 5000 == 0)
+                                yield return null; // Anti-freeze watchdog
+                            if (forIterations > 200000)
+                            {
+                                ReportScriptError("Infinite loop detected: for loop exceeded 200,000 iterations without waiting.", context.CurrentModulePath);
+                                yield break;
+                            }
+
+                            context.PushScope();
+                            yield return RunBodyNodes(forNode.Body, context);
+                            context.PopScope();
+
+                            if (context.HasReturn || context.HasBreak)
+                            {
+                                context.HasBreak = false;
+                                break;
+                            }
+                            if (context.HasContinue)
+                            {
+                                context.HasContinue = false;
+                            }
+
+                            if (forNode.Increment != null)
+                                yield return ExecuteNode(forNode.Increment, context);
                         }
-                        context.HasContinue = false;
-
-                        if (forNode.Increment != null)
-                            yield return ExecuteNode(forNode.Increment, context);
-
-                        yield return null;
+                    }
+                    finally
+                    {
+                        context.PopScope();
+                        context.WritesProgramGlobals = previousWritesGlobals;
                     }
                     yield break;
 
@@ -349,8 +520,14 @@ namespace KaplaoGames.LevelScript
                     if (ifNode.Condition != null && ifNode.Condition.Evaluate(context))
                     {
                         context.PushScope();
-                        yield return RunBodyNodes(ifNode.ThenBody, context);
-                        context.PopScope();
+                        try
+                        {
+                            yield return RunBodyNodes(ifNode.ThenBody, context);
+                        }
+                        finally
+                        {
+                            context.PopScope();
+                        }
                         executed = true;
                     }
                     else if (ifNode.ElseIfClauses.Count > 0)
@@ -360,19 +537,31 @@ namespace KaplaoGames.LevelScript
                             if (ifNode.ElseIfClauses[e].Condition.Evaluate(context))
                             {
                                 context.PushScope();
-                                yield return RunBodyNodes(ifNode.ElseIfClauses[e].Body, context);
-                                context.PopScope();
+                                try
+                                {
+                                    yield return RunBodyNodes(ifNode.ElseIfClauses[e].Body, context);
+                                }
+                                finally
+                                {
+                                    context.PopScope();
+                                }
                                 executed = true;
                                 break;
                             }
                         }
                     }
 
-                    if (!executed && ifNode.ElseBody.Count > 0)
+                    if (!executed && ifNode.ElseBody != null && ifNode.ElseBody.Count > 0)
                     {
                         context.PushScope();
-                        yield return RunBodyNodes(ifNode.ElseBody, context);
-                        context.PopScope();
+                        try
+                        {
+                            yield return RunBodyNodes(ifNode.ElseBody, context);
+                        }
+                        finally
+                        {
+                            context.PopScope();
+                        }
                     }
                     yield break;
 
@@ -390,11 +579,10 @@ namespace KaplaoGames.LevelScript
                         args[a] = ScriptNetworkEventUtility.EvaluateArgument(sendToServer.Arguments[a], context);
                     string json = ScriptNetworkEventUtility.SerializePayload(evtName, args);
 
-                    KaplaoCursorClient cursor = KaplaoLocalBindingUtility.ResolveLocalCursorClient();
-                    if (cursor != null)
+                    if (NetworkClient.active && NetworkClient.localPlayer != null &&
+                        NetworkClient.localPlayer.TryGetComponent(out NetworkPlayer netPlayer))
                     {
-                        KaplaoCursorClient.EnsureClientReadyForCommands();
-                        cursor.CmdSendScriptEventToServer(evtName, json);
+                        netPlayer.CmdSendScriptEventToServer(evtName, json);
                     }
                     else if (LevelScriptRuntime.Instance != null && LevelScriptRuntime.Instance.IsRunning)
                     {
@@ -409,30 +597,107 @@ namespace KaplaoGames.LevelScript
                     yield break;
 
                 case IntDeclarationNode decl:
-                    context.DeclareInt(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : 0);
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        int val = context.ReturnValue switch
+                        {
+                            int iv => iv,
+                            float fv => (int)fv,
+                            _ => 0
+                        };
+                        context.DeclareInt(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareInt(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : 0);
+                    }
                     yield break;
 
                 case BoolDeclarationNode decl:
-                    context.DeclareBool(decl.Name, decl.Value != null && decl.Value.Evaluate(context));
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        bool val = context.ReturnValue is bool bv && bv;
+                        context.DeclareBool(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareBool(decl.Name, decl.Value != null && decl.Value.Evaluate(context));
+                    }
                     yield break;
 
                 case FloatDeclarationNode decl:
-                    context.DeclareFloat(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : 0f);
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        float val = context.ReturnValue switch
+                        {
+                            float fv => fv,
+                            int iv => (float)iv,
+                            _ => 0f
+                        };
+                        context.DeclareFloat(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareFloat(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : 0f);
+                    }
                     yield break;
 
                 case StringDeclarationNode decl:
-                    context.DeclareString(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : string.Empty);
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        string val = context.ReturnValue != null ? context.ReturnValue.ToString() : string.Empty;
+                        context.DeclareString(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareString(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : string.Empty);
+                    }
                     yield break;
 
                 case GameObjectDeclarationNode decl:
-                    context.DeclareGameObject(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : ScriptGameObjectRef.Null);
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        ScriptGameObjectRef val = context.ReturnValue is ScriptGameObjectRef gr ? gr : ScriptGameObjectRef.Null;
+                        context.DeclareGameObject(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareGameObject(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : ScriptGameObjectRef.Null);
+                    }
+                    yield break;
+
+                case ComponentDeclarationNode decl:
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        ScriptComponentRef val = context.ReturnValue is ScriptComponentRef cr ? cr : ScriptComponentRef.Null;
+                        context.DeclareComponent(decl.Name, val);
+                    }
+                    else
+                    {
+                        context.DeclareComponent(decl.Name, decl.Value != null ? decl.Value.Evaluate(context) : ScriptComponentRef.Null);
+                    }
                     yield break;
 
                 case ListDeclarationNode decl:
-                    var initList = new List<ScriptValue>();
-                    for (int li = 0; li < decl.InitialItems.Count; li++)
-                        initList.Add(ScriptNetworkEventUtility.EvaluateToScriptValue(decl.InitialItems[li], context));
-                    context.DeclareList(decl.Name, initList);
+                    if (decl.CallValue != null)
+                    {
+                        yield return ExecuteNode(decl.CallValue, context);
+                        List<ScriptValue> listVal = context.ReturnValue is List<ScriptValue> lv ? lv : new List<ScriptValue>();
+                        context.DeclareList(decl.Name, listVal);
+                    }
+                    else
+                    {
+                        var initList = new List<ScriptValue>();
+                        for (int li = 0; li < decl.InitialItems.Count; li++)
+                            initList.Add(ScriptNetworkEventUtility.EvaluateToScriptValue(decl.InitialItems[li], context));
+                        context.DeclareList(decl.Name, initList);
+                    }
                     yield break;
 
                 case ListAddNode listAdd:
@@ -464,53 +729,144 @@ namespace KaplaoGames.LevelScript
                     yield break;
 
                 case IntAssignmentNode assign:
-                    context.SetInt(assign.Name, assign.Value.Evaluate(context));
+                    if (assign.CallValue != null)
+                    {
+                        yield return ExecuteNode(assign.CallValue, context);
+                        int val = context.ReturnValue switch
+                        {
+                            int iv => iv,
+                            float fv => (int)fv,
+                            _ => 0
+                        };
+                        context.SetInt(assign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetInt(assign.Name, assign.Value.Evaluate(context));
+                    }
                     yield break;
 
                 case BoolAssignmentNode assign:
-                    context.SetBool(assign.Name, assign.Value.Evaluate(context));
+                    if (assign.CallValue != null)
+                    {
+                        yield return ExecuteNode(assign.CallValue, context);
+                        bool val = context.ReturnValue is bool bv && bv;
+                        context.SetBool(assign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetBool(assign.Name, assign.Value.Evaluate(context));
+                    }
                     yield break;
 
                 case FloatAssignmentNode assign:
-                    context.SetFloat(assign.Name, assign.Value.Evaluate(context));
+                    if (assign.CallValue != null)
+                    {
+                        yield return ExecuteNode(assign.CallValue, context);
+                        float val = context.ReturnValue switch
+                        {
+                            float fv => fv,
+                            int iv => (float)iv,
+                            _ => 0f
+                        };
+                        context.SetFloat(assign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetFloat(assign.Name, assign.Value.Evaluate(context));
+                    }
                     yield break;
 
                 case StringAssignmentNode assign:
-                    context.SetString(assign.Name, assign.Value.Evaluate(context));
+                    if (assign.CallValue != null)
+                    {
+                        yield return ExecuteNode(assign.CallValue, context);
+                        string val = context.ReturnValue != null ? context.ReturnValue.ToString() : string.Empty;
+                        context.SetString(assign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetString(assign.Name, assign.Value.Evaluate(context));
+                    }
+                    yield break;
+
+                case GameObjectAssignmentNode goAssign:
+                    if (goAssign.CallValue != null)
+                    {
+                        yield return ExecuteNode(goAssign.CallValue, context);
+                        ScriptGameObjectRef val = context.ReturnValue is ScriptGameObjectRef gr ? gr : ScriptGameObjectRef.Null;
+                        context.SetGameObject(goAssign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetGameObject(goAssign.Name, goAssign.Value != null ? goAssign.Value.Evaluate(context) : ScriptGameObjectRef.Null);
+                    }
+                    yield break;
+
+                case ListAssignmentNode listAssign:
+                    if (listAssign.CallValue != null)
+                    {
+                        yield return ExecuteNode(listAssign.CallValue, context);
+                        List<ScriptValue> val = context.ReturnValue is List<ScriptValue> lv ? lv : new List<ScriptValue>();
+                        context.SetList(listAssign.Name, val);
+                    }
+                    yield break;
+
+                case ComponentAssignmentNode compAssign:
+                    if (compAssign.CallValue != null)
+                    {
+                        yield return ExecuteNode(compAssign.CallValue, context);
+                        ScriptComponentRef val = context.ReturnValue is ScriptComponentRef cr ? cr : ScriptComponentRef.Null;
+                        context.SetComponent(compAssign.Name, val);
+                    }
+                    else
+                    {
+                        context.SetComponent(compAssign.Name, compAssign.Value != null ? compAssign.Value.Evaluate(context) : ScriptComponentRef.Null);
+                    }
+                    yield break;
+
+                case ComponentPropertyAssignmentNode cpAssign:
+                    ApplyComponentProperty(cpAssign, context);
+                    yield break;
+
+                case ComponentMethodCallNode cmCall:
+                    ApplyComponentMethod(cmCall, context);
+                    yield break;
+
+                case ComponentVariableMethodCallNode cvmCall:
+                    ApplyComponentVariableMethod(cvmCall, context);
                     yield break;
 
                 case FunctionCallNode call:
-                    if (functionRegistry.TryGetValue(call.Name, out FunctionDefinitionNode def))
+                    if (!functionRegistry.TryGetValue(call.Name, out FunctionDefinitionNode def))
+                        throw new InvalidOperationException($"Unknown function '{call.Name}'.");
+
+                    string defPath = def.SourcePath ?? string.Empty;
+                    bool isAccessible = def.IsPublic || string.Equals(defPath, context.CurrentModulePath, StringComparison.OrdinalIgnoreCase);
+                    if (!isAccessible)
+                        throw new InvalidOperationException($"Function '{call.Name}' in '{defPath}' is private and cannot be called from '{context.CurrentModulePath}'.");
+
+                    if (call.Arguments.Count != def.Parameters.Count)
+                        throw new InvalidOperationException($"Function '{call.Name}' expects {def.Parameters.Count} arguments, but received {call.Arguments.Count}.");
+
+                    if (context.CallStackDepth >= LevelScriptExecutionContext.MaxCallStackDepth)
                     {
-                        if (context.CallStackDepth >= LevelScriptExecutionContext.MaxCallStackDepth)
-                        {
-                            Debug.LogError($"[LevelScriptLocalRuntime] Stack overflow: function call depth exceeded {LevelScriptExecutionContext.MaxCallStackDepth} in '{call.Name}'.");
-                            yield break;
-                        }
-                        LevelScriptExecutionContext fnContext = CreateContext(false, def.SourcePath);
-                        fnContext.CallStackDepth = context.CallStackDepth + 1;
-                        fnContext.PushScope();
-                        for (int p = 0; p < def.Parameters.Count; p++)
-                        {
-                            string pName = def.Parameters[p].Name;
-                            if (p < call.Arguments.Count)
-                            {
-                                ScriptArgument arg = call.Arguments[p];
-                                switch (def.Parameters[p].Kind)
-                                {
-                                    case ScriptValueKind.Int: fnContext.DeclareInt(pName, arg.IntValue != null ? arg.IntValue.Evaluate(context) : 0); break;
-                                    case ScriptValueKind.Float: fnContext.DeclareFloat(pName, arg.FloatValue != null ? arg.FloatValue.Evaluate(context) : 0f); break;
-                                    case ScriptValueKind.Bool: fnContext.DeclareBool(pName, arg.BoolValue != null && arg.BoolValue.Evaluate(context)); break;
-                                    case ScriptValueKind.String: fnContext.DeclareString(pName, arg.StringValue != null ? arg.StringValue.Evaluate(context) : string.Empty); break;
-                                    case ScriptValueKind.GameObject: fnContext.DeclareGameObject(pName, arg.GameObjectValue != null ? arg.GameObjectValue.Evaluate(context) : ScriptGameObjectRef.Null); break;
-                                }
-                            }
-                        }
-                        yield return RunBodyNodes(def.Body, fnContext);
-                        fnContext.PopScope();
-                        if (fnContext.HasReturn)
-                            context.ReturnValue = fnContext.ReturnValue;
+                        ReportScriptError($"Stack overflow: function call depth exceeded {LevelScriptExecutionContext.MaxCallStackDepth} in '{call.Name}'.", context.CurrentModulePath);
+                        yield break;
                     }
+
+                    LevelScriptExecutionContext fnContext = CreateContext(false, def.SourcePath);
+                    fnContext.CallStackDepth = context.CallStackDepth + 1;
+                    fnContext.PushScope();
+                    for (int p = 0; p < def.Parameters.Count; p++)
+                    {
+                        BindFunctionArgument(fnContext, def.Parameters[p], call.Arguments[p], call.Name);
+                    }
+
+                    yield return RunBodyNodes(def.Body, fnContext);
+                    fnContext.PopScope();
+                    if (fnContext.HasReturn)
+                        context.ReturnValue = fnContext.ReturnValue;
                     yield break;
 
                 case PlaySoundNode playSound:
@@ -566,7 +922,169 @@ namespace KaplaoGames.LevelScript
                 case MoveNode move:
                     ExecuteLocalMove(move, context);
                     yield break;
+
+                case GotoNode gotoNode:
+                    ExecuteLocalGoto(gotoNode, context);
+                    yield break;
+
+                case ScaleToNode scaleNode:
+                    ExecuteLocalScaleTo(scaleNode, context);
+                    yield break;
+
+                case RotateNode rotNode:
+                    ExecuteLocalRotate(rotNode, context);
+                    yield break;
+
+                case VisibilityNode visNode:
+                    ExecuteLocalVisibility(visNode, context);
+                    yield break;
+
+                case TransparencyNode transNode:
+                    ExecuteLocalTransparency(transNode, context);
+                    yield break;
+
+                case HitboxNode hbNode:
+                    ExecuteLocalHitbox(hbNode, context);
+                    yield break;
+
+                case SetColorNode colNode:
+                    ExecuteLocalSetColor(colNode, context);
+                    yield break;
             }
+        }
+
+        static void BindFunctionArgument(
+            LevelScriptExecutionContext context,
+            FunctionParameter parameter,
+            ScriptArgument argument,
+            string functionName)
+        {
+            ScriptValue val = ScriptNetworkEventUtility.EvaluateToScriptValue(argument, context);
+
+            // Support implicit Int -> Float conversion
+            if (parameter.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int)
+            {
+                val = ScriptValue.FromFloat(val.IntValue);
+            }
+
+            if (parameter.Kind != val.Kind)
+            {
+                throw new InvalidOperationException(
+                    $"Function '{functionName}' argument '{parameter.Name}' expects {parameter.Kind}, got {val.Kind}.");
+            }
+
+            context.Declare(parameter.Name, val);
+        }
+
+        static void ApplyComponentProperty(ComponentPropertyAssignmentNode node, LevelScriptExecutionContext context)
+        {
+            if (!string.IsNullOrEmpty(node.ComponentVariableName))
+            {
+                ScriptComponentRef componentRef = context.GetComponent(node.ComponentVariableName);
+                ApplyComponentPropertyToComponent(componentRef, node, context);
+                return;
+            }
+
+            if (node.Targets != null)
+            {
+                List<ScriptGameObjectRef> targets = node.Targets.Evaluate(context);
+                for (int i = 0; i < targets.Count; i++)
+                    ApplyComponentPropertyToRef(targets[i], node, context);
+                return;
+            }
+
+            ScriptGameObjectRef reference = context.GetGameObject(node.ObjectName);
+            ApplyComponentPropertyToRef(reference, node, context);
+        }
+
+        static void ApplyComponentPropertyToComponent(
+            ScriptComponentRef componentRef,
+            ComponentPropertyAssignmentNode node,
+            LevelScriptExecutionContext context)
+        {
+            switch (node.ValueKind)
+            {
+                case ScriptValueKind.Bool:
+                    LevelScriptObjectUtility.SetComponentBool(
+                        componentRef.GameObject,
+                        componentRef.ComponentName,
+                        node.PropertyName,
+                        node.BoolValue != null && node.BoolValue.Evaluate(context));
+                    return;
+                case ScriptValueKind.Int:
+                    LevelScriptObjectUtility.SetComponentInt(
+                        componentRef.GameObject,
+                        componentRef.ComponentName,
+                        node.PropertyName,
+                        node.IntValue != null ? node.IntValue.Evaluate(context) : 0);
+                    return;
+                default:
+                    LevelScriptObjectUtility.SetComponentFloat(
+                        componentRef.GameObject,
+                        componentRef.ComponentName,
+                        node.PropertyName,
+                        node.FloatValue != null ? node.FloatValue.Evaluate(context) : 0f);
+                    return;
+            }
+        }
+
+        static void ApplyComponentPropertyToRef(
+            ScriptGameObjectRef reference,
+            ComponentPropertyAssignmentNode node,
+            LevelScriptExecutionContext context)
+        {
+            switch (node.ValueKind)
+            {
+                case ScriptValueKind.Bool:
+                    LevelScriptObjectUtility.SetComponentBool(
+                        reference,
+                        node.ComponentName,
+                        node.PropertyName,
+                        node.BoolValue != null && node.BoolValue.Evaluate(context));
+                    return;
+                case ScriptValueKind.Int:
+                    LevelScriptObjectUtility.SetComponentInt(
+                        reference,
+                        node.ComponentName,
+                        node.PropertyName,
+                        node.IntValue != null ? node.IntValue.Evaluate(context) : 0);
+                    return;
+                default:
+                    LevelScriptObjectUtility.SetComponentFloat(
+                        reference,
+                        node.ComponentName,
+                        node.PropertyName,
+                        node.FloatValue != null ? node.FloatValue.Evaluate(context) : 0f);
+                    return;
+            }
+        }
+
+        static void ApplyComponentMethod(ComponentMethodCallNode node, LevelScriptExecutionContext context)
+        {
+            ScriptGameObjectRef reference = context.GetGameObject(node.ObjectName);
+            var arguments = new List<float>(node.Arguments.Count);
+            for (int i = 0; i < node.Arguments.Count; i++)
+                arguments.Add(node.Arguments[i].Evaluate(context));
+
+            LevelScriptObjectUtility.CallComponentMethod(
+                reference,
+                node.ComponentName,
+                node.MethodName,
+                arguments);
+        }
+
+        static void ApplyComponentVariableMethod(ComponentVariableMethodCallNode node, LevelScriptExecutionContext context)
+        {
+            ScriptComponentRef componentRef = context.GetComponent(node.ComponentVariableName);
+            var arguments = new List<float>(node.Arguments.Count);
+            for (int i = 0; i < node.Arguments.Count; i++)
+                arguments.Add(node.Arguments[i].Evaluate(context));
+
+            LevelScriptObjectUtility.CallComponentMethod(
+                componentRef.GameObject,
+                componentRef.ComponentName,
+                node.MethodName,
+                arguments);
         }
 
         void ExecutePrint(PrintNode printNode, LevelScriptExecutionContext context)
@@ -591,6 +1109,42 @@ namespace KaplaoGames.LevelScript
             return string.Join(" ", parts);
         }
 
+        void TrackInitialPosition(Transform tr)
+        {
+            if (tr != null && !initialPositions.ContainsKey(tr))
+                initialPositions[tr] = tr.position;
+        }
+
+        void TrackInitialRotation(Transform tr)
+        {
+            if (tr != null && !initialRotations.ContainsKey(tr))
+                initialRotations[tr] = tr.rotation;
+        }
+
+        void TrackInitialScale(Transform tr)
+        {
+            if (tr != null && !initialScales.ContainsKey(tr))
+                initialScales[tr] = tr.localScale;
+        }
+
+        void TrackInitialRendererVisibility(Renderer r)
+        {
+            if (r != null && !initialRendererVisibility.ContainsKey(r))
+                initialRendererVisibility[r] = r.enabled;
+        }
+
+        void TrackInitialSpriteColor(SpriteRenderer sr)
+        {
+            if (sr != null && !initialSpriteColors.ContainsKey(sr))
+                initialSpriteColors[sr] = sr.color;
+        }
+
+        void TrackInitialColliderState(Collider2D c)
+        {
+            if (c != null && !initialColliderStates.ContainsKey(c))
+                initialColliderStates[c] = c.enabled;
+        }
+
         void ExecuteLocalMove(MoveNode move, LevelScriptExecutionContext context)
         {
             if (move == null || move.Targets == null) return;
@@ -604,9 +1158,224 @@ namespace KaplaoGames.LevelScript
             {
                 if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
                 {
+                    TrackInitialPosition(tr);
                     StartCoroutine(AnimateLocalTransform(tr, tr.position + new Vector3(dx, dy, 0f), dur, ease));
                 }
             }
+        }
+
+        void ExecuteLocalGoto(GotoNode gotoNode, LevelScriptExecutionContext context)
+        {
+            if (gotoNode == null || gotoNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = gotoNode.Targets.Evaluate(context);
+            float x = gotoNode.X != null ? gotoNode.X.Evaluate(context) : 0f;
+            float y = gotoNode.Y != null ? gotoNode.Y.Evaluate(context) : 0f;
+            float dur = gotoNode.Duration != null ? gotoNode.Duration.Evaluate(context) : 0f;
+            string ease = gotoNode.Ease != null ? gotoNode.Ease.Evaluate(context) : "linear";
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    TrackInitialPosition(tr);
+                    StartCoroutine(AnimateLocalTransform(tr, new Vector3(x, y, tr.position.z), dur, ease));
+                }
+            }
+        }
+
+        void ExecuteLocalScaleTo(ScaleToNode scaleNode, LevelScriptExecutionContext context)
+        {
+            if (scaleNode == null || scaleNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = scaleNode.Targets.Evaluate(context);
+            float sx = scaleNode.ScaleX != null ? scaleNode.ScaleX.Evaluate(context) : 1f;
+            float sy = scaleNode.ScaleY != null ? scaleNode.ScaleY.Evaluate(context) : 1f;
+            float dur = scaleNode.Duration != null ? scaleNode.Duration.Evaluate(context) : 0f;
+            string ease = scaleNode.Ease != null ? scaleNode.Ease.Evaluate(context) : "linear";
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    TrackInitialScale(tr);
+                    StartCoroutine(AnimateLocalScale(tr, new Vector3(sx, sy, tr.localScale.z), dur, ease));
+                }
+            }
+        }
+
+        void ExecuteLocalRotate(RotateNode rotateNode, LevelScriptExecutionContext context)
+        {
+            if (rotateNode == null || rotateNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = rotateNode.Targets.Evaluate(context);
+            float degrees = rotateNode.Degrees != null ? rotateNode.Degrees.Evaluate(context) : 0f;
+            float dur = rotateNode.Duration != null ? rotateNode.Duration.Evaluate(context) : 0f;
+            string ease = rotateNode.Ease != null ? rotateNode.Ease.Evaluate(context) : "linear";
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    TrackInitialRotation(tr);
+                    Quaternion targetRot = tr.rotation * Quaternion.Euler(0f, 0f, degrees);
+                    StartCoroutine(AnimateLocalRotation(tr, targetRot, dur, ease));
+                }
+            }
+        }
+
+        void ExecuteLocalVisibility(VisibilityNode visNode, LevelScriptExecutionContext context)
+        {
+            if (visNode == null || visNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = visNode.Targets.Evaluate(context);
+            bool visible = visNode.Visible != null && visNode.Visible.Evaluate(context);
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    var renderers = tr.GetComponentsInChildren<Renderer>(true);
+                    for (int r = 0; r < renderers.Length; r++)
+                    {
+                        TrackInitialRendererVisibility(renderers[r]);
+                        renderers[r].enabled = visible;
+                    }
+                }
+            }
+        }
+
+        void ExecuteLocalTransparency(TransparencyNode transNode, LevelScriptExecutionContext context)
+        {
+            if (transNode == null || transNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = transNode.Targets.Evaluate(context);
+            float alpha = transNode.Value != null ? Mathf.Clamp01(transNode.Value.Evaluate(context)) : 1f;
+            float dur = transNode.Duration != null ? transNode.Duration.Evaluate(context) : 0f;
+            string ease = transNode.Ease != null ? transNode.Ease.Evaluate(context) : "linear";
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    var srs = tr.GetComponentsInChildren<SpriteRenderer>(true);
+                    for (int s = 0; s < srs.Length; s++)
+                    {
+                        TrackInitialSpriteColor(srs[s]);
+                        Color targetCol = new Color(srs[s].color.r, srs[s].color.g, srs[s].color.b, alpha);
+                        StartCoroutine(AnimateLocalColor(srs[s], targetCol, dur, ease));
+                    }
+                }
+            }
+        }
+
+        void ExecuteLocalHitbox(HitboxNode hbNode, LevelScriptExecutionContext context)
+        {
+            if (hbNode == null || hbNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = hbNode.Targets.Evaluate(context);
+            bool enabled = hbNode.Enabled != null && hbNode.Enabled.Evaluate(context);
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    var colliders = tr.GetComponentsInChildren<Collider2D>(true);
+                    for (int c = 0; c < colliders.Length; c++)
+                    {
+                        TrackInitialColliderState(colliders[c]);
+                        colliders[c].enabled = enabled;
+                    }
+                }
+            }
+        }
+
+        void ExecuteLocalSetColor(SetColorNode colNode, LevelScriptExecutionContext context)
+        {
+            if (colNode == null || colNode.Targets == null) return;
+            List<ScriptGameObjectRef> targets = colNode.Targets.Evaluate(context);
+            string hex = colNode.HexColor != null ? colNode.HexColor.Evaluate(context) : "#FFFFFF";
+            if (!ColorUtility.TryParseHtmlString(hex.StartsWith("#") ? hex : "#" + hex, out Color col))
+                col = Color.white;
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (LevelScriptObjectUtility.TryResolveTransform(targets[i], out Transform tr) && tr != null)
+                {
+                    var srs = tr.GetComponentsInChildren<SpriteRenderer>(true);
+                    for (int s = 0; s < srs.Length; s++)
+                    {
+                        TrackInitialSpriteColor(srs[s]);
+                        srs[s].color = new Color(col.r, col.g, col.b, srs[s].color.a);
+                    }
+                }
+            }
+        }
+
+        IEnumerator AnimateLocalScale(Transform tr, Vector3 targetScale, float duration, string ease)
+        {
+            if (tr == null) yield break;
+            if (duration <= 0.001f)
+            {
+                tr.localScale = targetScale;
+                yield break;
+            }
+
+            LevelEase parsedEase = LevelEase.Linear;
+            LevelEaseUtility.TryParse(ease, out parsedEase);
+            Vector3 startScale = tr.localScale;
+            float elapsed = 0f;
+
+            while (elapsed < duration && tr != null && scriptActive)
+            {
+                elapsed += Time.deltaTime;
+                float t = LevelEaseUtility.Evaluate(parsedEase, Mathf.Clamp01(elapsed / duration));
+                tr.localScale = Vector3.Lerp(startScale, targetScale, t);
+                yield return null;
+            }
+            if (tr != null && scriptActive) tr.localScale = targetScale;
+        }
+
+        IEnumerator AnimateLocalRotation(Transform tr, Quaternion targetRot, float duration, string ease)
+        {
+            if (tr == null) yield break;
+            if (duration <= 0.001f)
+            {
+                tr.rotation = targetRot;
+                yield break;
+            }
+
+            LevelEase parsedEase = LevelEase.Linear;
+            LevelEaseUtility.TryParse(ease, out parsedEase);
+            Quaternion startRot = tr.rotation;
+            float elapsed = 0f;
+
+            while (elapsed < duration && tr != null && scriptActive)
+            {
+                elapsed += Time.deltaTime;
+                float t = LevelEaseUtility.Evaluate(parsedEase, Mathf.Clamp01(elapsed / duration));
+                tr.rotation = Quaternion.Slerp(startRot, targetRot, t);
+                yield return null;
+            }
+            if (tr != null && scriptActive) tr.rotation = targetRot;
+        }
+
+        IEnumerator AnimateLocalColor(SpriteRenderer sr, Color targetColor, float duration, string ease)
+        {
+            if (sr == null) yield break;
+            if (duration <= 0.001f)
+            {
+                sr.color = targetColor;
+                yield break;
+            }
+
+            LevelEase parsedEase = LevelEase.Linear;
+            LevelEaseUtility.TryParse(ease, out parsedEase);
+            Color startColor = sr.color;
+            float elapsed = 0f;
+
+            while (elapsed < duration && sr != null && scriptActive)
+            {
+                elapsed += Time.deltaTime;
+                float t = LevelEaseUtility.Evaluate(parsedEase, Mathf.Clamp01(elapsed / duration));
+                sr.color = Color.Lerp(startColor, targetColor, t);
+                yield return null;
+            }
+            if (sr != null && scriptActive) sr.color = targetColor;
         }
 
         IEnumerator AnimateLocalTransform(Transform tr, Vector3 targetPos, float duration, string ease)
@@ -631,7 +1400,7 @@ namespace KaplaoGames.LevelScript
                 yield return null;
             }
 
-            if (tr != null)
+            if (tr != null && scriptActive)
                 tr.position = targetPos;
         }
 
@@ -711,17 +1480,26 @@ namespace KaplaoGames.LevelScript
         {
             Camera cam = Camera.main ?? FindFirstObjectByType<Camera>();
             if (cam == null || duration <= 0f) yield break;
-            Vector3 originalPos = cam.transform.position;
+            Vector3 lastOffset = Vector3.zero;
             float elapsed = 0f;
-            while (elapsed < duration && scriptActive)
+            try
             {
-                elapsed += Time.deltaTime;
-                Vector2 offset = UnityEngine.Random.insideUnitCircle * intensity;
-                cam.transform.position = new Vector3(originalPos.x + offset.x, originalPos.y + offset.y, originalPos.z);
-                yield return null;
+                while (elapsed < duration && scriptActive)
+                {
+                    elapsed += Time.deltaTime;
+                    cam.transform.position -= lastOffset;
+                    Vector2 circle = UnityEngine.Random.insideUnitCircle * intensity;
+                    lastOffset = new Vector3(circle.x, circle.y, 0f);
+                    cam.transform.position += lastOffset;
+                    yield return null;
+                }
             }
-            cam.transform.position = originalPos;
-            cameraShakeRoutine = null;
+            finally
+            {
+                if (cam != null)
+                    cam.transform.position -= lastOffset;
+                cameraShakeRoutine = null;
+            }
         }
 
         IEnumerator ZoomCameraRoutine(float targetSize, float duration, string ease)

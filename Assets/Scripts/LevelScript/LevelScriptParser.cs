@@ -10,25 +10,43 @@ namespace KaplaoGames.LevelScript
         public int Line { get; }
         public int Column { get; }
         public int StartIndex { get; }
+        public string FilePath { get; }
 
-        public LevelScriptParseException(string message)
-            : base(message)
+        public LevelScriptParseException(string message, string filePath = null)
+            : base(FormatMessage(1, 1, message, filePath, false))
         {
             Line = 1;
             Column = 1;
             StartIndex = -1;
+            FilePath = filePath ?? string.Empty;
         }
 
-        public LevelScriptParseException(int line, int column, int startIndex, string message)
-            : base(FormatMessage(line, column, message))
+        public LevelScriptParseException(int line, int column, int startIndex, string message, string filePath = null)
+            : base(FormatMessage(line, column, message, filePath, true))
         {
             Line = line;
             Column = column;
             StartIndex = startIndex;
+            FilePath = filePath ?? string.Empty;
         }
 
-        static string FormatMessage(int line, int column, string message) =>
-            $"Line {line}, column {column}: {message}";
+        static string FormatMessage(int line, int column, string message, string filePath, bool hasLocation)
+        {
+            bool isImported = !string.IsNullOrEmpty(filePath) &&
+                              !string.Equals(filePath, "main.ks", StringComparison.OrdinalIgnoreCase) &&
+                              !string.Equals(filePath, "main.lks", StringComparison.OrdinalIgnoreCase);
+
+            if (isImported)
+            {
+                if (hasLocation)
+                    return $"[{filePath}] Line {line}, column {column}: {message}";
+                return $"[{filePath}] {message}";
+            }
+
+            if (hasLocation)
+                return $"Line {line}, column {column}: {message}";
+            return message;
+        }
     }
 
     public static class LevelScriptParser
@@ -142,7 +160,26 @@ namespace KaplaoGames.LevelScript
             public int Length => string.IsNullOrEmpty(Text) ? 0 : Text.Length;
         }
 
-        static string parseSource = string.Empty;
+        private sealed class ParserState
+        {
+            public readonly string source;
+            public readonly string sourcePath;
+            public readonly List<Token> tokens;
+            public int index;
+
+            public ParserState(string source, string sourcePath)
+            {
+                this.source = source ?? string.Empty;
+                this.sourcePath = sourcePath ?? string.Empty;
+                this.tokens = Tokenize(this.source);
+                this.index = 0;
+            }
+        }
+
+        [ThreadStatic]
+        static Stack<ParserState> stateStack;
+
+        static ParserState CurrentState => stateStack != null && stateStack.Count > 0 ? stateStack.Peek() : null;
 
         public static bool TryValidate(string source, out LevelScriptDiagnostic diagnostic)
         {
@@ -164,13 +201,19 @@ namespace KaplaoGames.LevelScript
 
         public static LevelScriptProgram Parse(string source, string sourcePath = null)
         {
-            parseSource = source ?? string.Empty;
             if (string.IsNullOrWhiteSpace(source))
                 return new LevelScriptProgram { SourcePath = sourcePath ?? string.Empty };
 
-            List<Token> tokens = Tokenize(source);
-            int index = 0;
-            var program = new LevelScriptProgram { SourcePath = sourcePath ?? string.Empty };
+            if (stateStack == null)
+                stateStack = new Stack<ParserState>();
+
+            var state = new ParserState(source, sourcePath);
+            stateStack.Push(state);
+            try
+            {
+                List<Token> tokens = state.tokens;
+                ref int index = ref state.index;
+                var program = new LevelScriptProgram { SourcePath = sourcePath ?? string.Empty };
 
             while (Peek(tokens, index).Type != TokenType.End)
             {
@@ -267,6 +310,12 @@ namespace KaplaoGames.LevelScript
             }
 
             return program;
+            }
+            finally
+            {
+                if (stateStack != null && stateStack.Count > 0)
+                    stateStack.Pop();
+            }
         }
 
         static UsingDirectiveNode ParseUsing(List<Token> tokens, ref int index)
@@ -321,16 +370,31 @@ namespace KaplaoGames.LevelScript
             string sourcePath)
         {
             TokenType type = Peek(tokens, index).Type;
-            LevelScriptNode node = type switch
+            LevelScriptNode node;
+
+            if (type == TokenType.List)
             {
-                TokenType.Int => ParseIntDeclaration(tokens, ref index, true),
-                TokenType.Bool => ParseBoolDeclaration(tokens, ref index, true),
-                TokenType.Float => ParseFloatDeclaration(tokens, ref index, true),
-                TokenType.String => ParseStringDeclaration(tokens, ref index, true),
-                TokenType.GameObject => ParseGameObjectDeclaration(tokens, ref index, true),
-                TokenType.Component => ParseComponentDeclaration(tokens, ref index, true),
-                _ => throw Error(tokens, index, "public/private must precede a function or variable declaration.")
-            };
+                index++;
+                node = ParseListDeclaration(tokens, ref index, true);
+            }
+            else if (index + 2 < tokens.Count && tokens[index + 1].Type == TokenType.LeftBracket && tokens[index + 2].Type == TokenType.RightBracket)
+            {
+                index += 3;
+                node = ParseListDeclaration(tokens, ref index, true);
+            }
+            else
+            {
+                node = type switch
+                {
+                    TokenType.Int => ParseIntDeclaration(tokens, ref index, true),
+                    TokenType.Bool => ParseBoolDeclaration(tokens, ref index, true),
+                    TokenType.Float => ParseFloatDeclaration(tokens, ref index, true),
+                    TokenType.String => ParseStringDeclaration(tokens, ref index, true),
+                    TokenType.GameObject => ParseGameObjectDeclaration(tokens, ref index, true),
+                    TokenType.Component => ParseComponentDeclaration(tokens, ref index, true),
+                    _ => throw Error(tokens, index, "public/private must precede a function, variable, or list declaration.")
+                };
+            }
 
             SetDeclarationVisibility(node, isPublic, sourcePath);
             return node;
@@ -361,6 +425,10 @@ namespace KaplaoGames.LevelScript
                     d.SourcePath = sourcePath ?? string.Empty;
                     break;
                 case ComponentDeclarationNode d:
+                    d.IsPublic = isPublic;
+                    d.SourcePath = sourcePath ?? string.Empty;
+                    break;
+                case ListDeclarationNode d:
                     d.IsPublic = isPublic;
                     d.SourcePath = sourcePath ?? string.Empty;
                     break;
@@ -395,19 +463,34 @@ namespace KaplaoGames.LevelScript
 
         static FunctionParameter ParseFunctionParameter(List<Token> tokens, ref int index)
         {
-            ScriptValueKind kind = Peek(tokens, index).Type switch
+            TokenType pType = Peek(tokens, index).Type;
+            ScriptValueKind kind;
+            if (pType == TokenType.List)
             {
-                TokenType.Int => ScriptValueKind.Int,
-                TokenType.Bool => ScriptValueKind.Bool,
-                TokenType.Float => ScriptValueKind.Float,
-                TokenType.String => ScriptValueKind.String,
-                TokenType.GameObject => ScriptValueKind.GameObject,
-                TokenType.Component => ScriptValueKind.Component,
-                _ => throw Error(tokens, index,
-                    "Function parameters must use int, bool, float, string, GameObject, or Component types.")
-            };
+                kind = ScriptValueKind.List;
+                index++;
+            }
+            else if (index + 2 < tokens.Count && tokens[index + 1].Type == TokenType.LeftBracket && tokens[index + 2].Type == TokenType.RightBracket)
+            {
+                kind = ScriptValueKind.List;
+                index += 3;
+            }
+            else
+            {
+                kind = pType switch
+                {
+                    TokenType.Int => ScriptValueKind.Int,
+                    TokenType.Bool => ScriptValueKind.Bool,
+                    TokenType.Float => ScriptValueKind.Float,
+                    TokenType.String => ScriptValueKind.String,
+                    TokenType.GameObject => ScriptValueKind.GameObject,
+                    TokenType.Component => ScriptValueKind.Component,
+                    _ => throw Error(tokens, index,
+                        "Function parameters must use int, bool, float, string, GameObject, Component, or List types.")
+                };
+                index++;
+            }
 
-            index++;
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             return new FunctionParameter { Kind = kind, Name = nameToken.Text };
         }
@@ -592,7 +675,7 @@ namespace KaplaoGames.LevelScript
             }
 
             if (Peek(tokens, index).Type == TokenType.Identifier &&
-                Peek(tokens, index).Text == "FindNearestPlayer")
+                string.Equals(Peek(tokens, index).Text, "FindNearestPlayer", StringComparison.OrdinalIgnoreCase))
             {
                 return ParseFindNearestPlayerExpression(tokens, ref index);
             }
@@ -601,7 +684,7 @@ namespace KaplaoGames.LevelScript
                 return ParseInstanceCallExpression(tokens, ref index);
 
             if (Peek(tokens, index).Type == TokenType.Identifier &&
-                Peek(tokens, index).Text == "instance")
+                string.Equals(Peek(tokens, index).Text, "instance", StringComparison.OrdinalIgnoreCase))
             {
                 return ParseInstanceCallExpression(tokens, ref index);
             }
@@ -618,8 +701,17 @@ namespace KaplaoGames.LevelScript
                 return new LocalPlayerExpression();
             
             // Check for "player" keyword which represents all players in array context
-            if (nameToken.Text == "player")
+            if (string.Equals(nameToken.Text, "player", StringComparison.OrdinalIgnoreCase))
                 return new AllPlayersArrayItemExpression();
+
+            // List indexing: objs[i]
+            if (Peek(tokens, index).Type == TokenType.LeftBracket)
+            {
+                index++;
+                IntExpression idxExpr = ParseIntExpression(tokens, ref index);
+                Expect(tokens, ref index, TokenType.RightBracket);
+                return new ListItemGameObjectExpression { ListName = nameToken.Text, Index = idxExpr };
+            }
             
             // Check if this is a GetComponent call
             if (Peek(tokens, index).Type == TokenType.Dot &&
@@ -947,6 +1039,8 @@ namespace KaplaoGames.LevelScript
                 case TokenType.List:
                     index++;
                     return ParseListDeclaration(tokens, ref index, true);
+                case TokenType.Component:
+                    return ParseComponentDeclaration(tokens, ref index, true);
                 case TokenType.Int:
                 case TokenType.Bool:
                 case TokenType.Float:
@@ -1028,34 +1122,16 @@ namespace KaplaoGames.LevelScript
                 return new ReturnNode();
             }
 
-            Token next = Peek(tokens, index);
-            if (next.Type == TokenType.StringLiteral)
+            ScriptArgument arg = ParseCallArgument(tokens, ref index);
+            ConsumeIf(tokens, ref index, TokenType.Semicolon);
+            return new ReturnNode
             {
-                StringExpression sExpr = ParseStringExpression(tokens, ref index);
-                ConsumeIf(tokens, ref index, TokenType.Semicolon);
-                return new ReturnNode { StringValue = sExpr };
-            }
-            if (next.Type == TokenType.True || next.Type == TokenType.False)
-            {
-                BoolExpression bExpr = ParseBoolExpression(tokens, ref index);
-                ConsumeIf(tokens, ref index, TokenType.Semicolon);
-                return new ReturnNode { BoolValue = bExpr };
-            }
-
-            int saved = index;
-            try
-            {
-                IntExpression iExpr = ParseIntExpression(tokens, ref index);
-                ConsumeIf(tokens, ref index, TokenType.Semicolon);
-                return new ReturnNode { IntValue = iExpr };
-            }
-            catch (LevelScriptParseException)
-            {
-                index = saved;
-                FloatExpression fExpr = ParseFloatExpression(tokens, ref index);
-                ConsumeIf(tokens, ref index, TokenType.Semicolon);
-                return new ReturnNode { FloatValue = fExpr };
-            }
+                Value = arg,
+                IntValue = arg.IntValue,
+                FloatValue = arg.FloatValue,
+                BoolValue = arg.BoolValue,
+                StringValue = arg.StringValue
+            };
         }
 
         static BreakNode ParseBreak(List<Token> tokens, ref int index)
@@ -1159,11 +1235,40 @@ namespace KaplaoGames.LevelScript
             return loop;
         }
 
+        static bool IsUserFunctionCall(List<Token> tokens, int index)
+        {
+            if (index + 1 < tokens.Count &&
+                tokens[index].Type == TokenType.Identifier &&
+                tokens[index + 1].Type == TokenType.LeftParen &&
+                !IsBuiltinFunction(tokens[index].Text))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        static bool IsBuiltinFunction(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return string.Equals(name, "random", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(name, "FindNearestPlayer", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(name, "instance", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(name, "hasTile", StringComparison.OrdinalIgnoreCase) ||
+                   TryMapMathFunction(name, out _, out _);
+        }
+
         static IntDeclarationNode ParseIntDeclaration(List<Token> tokens, ref int index, bool requireSemicolon)
         {
             Expect(tokens, ref index, TokenType.Int);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new IntDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             IntExpression value = ParseIntExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1176,6 +1281,13 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.Bool);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new BoolDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             BoolExpression value = ParseBoolExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1188,6 +1300,13 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.Float);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new FloatDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             FloatExpression value = ParseFloatExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1200,6 +1319,13 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.String);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new StringDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             StringExpression value = ParseStringExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1212,6 +1338,13 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.GameObject);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new GameObjectDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             GameObjectExpression value = ParseGameObjectExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1225,15 +1358,23 @@ namespace KaplaoGames.LevelScript
             var node = new ListDeclarationNode { Name = nameToken.Text };
             if (ConsumeIf(tokens, ref index, TokenType.Equal))
             {
-                Expect(tokens, ref index, TokenType.LeftBracket);
-                if (Peek(tokens, index).Type != TokenType.RightBracket)
+                if (IsUserFunctionCall(tokens, index))
                 {
-                    do
-                    {
-                        node.InitialItems.Add(ParseCallArgument(tokens, ref index));
-                    } while (ConsumeIf(tokens, ref index, TokenType.Comma));
+                    Token fnToken = tokens[index];
+                    node.CallValue = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
                 }
-                Expect(tokens, ref index, TokenType.RightBracket);
+                else
+                {
+                    Expect(tokens, ref index, TokenType.LeftBracket);
+                    if (Peek(tokens, index).Type != TokenType.RightBracket)
+                    {
+                        do
+                        {
+                            node.InitialItems.Add(ParseCallArgument(tokens, ref index));
+                        } while (ConsumeIf(tokens, ref index, TokenType.Comma));
+                    }
+                    Expect(tokens, ref index, TokenType.RightBracket);
+                }
             }
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1245,6 +1386,13 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.Component);
             Token nameToken = Expect(tokens, ref index, TokenType.Identifier);
             Expect(tokens, ref index, TokenType.Equal);
+            if (IsUserFunctionCall(tokens, index))
+            {
+                Token fnToken = tokens[index];
+                FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                if (requireSemicolon) ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                return new ComponentDeclarationNode { Name = nameToken.Text, CallValue = call };
+            }
             ComponentExpression value = ParseComponentExpression(tokens, ref index);
             if (requireSemicolon)
                 ConsumeIf(tokens, ref index, TokenType.Semicolon);
@@ -1317,7 +1465,9 @@ namespace KaplaoGames.LevelScript
         }
 
         static bool IsComponentPropertyName(string name) =>
-            name == "Particle" || name == "Rigidbody2D" || name == "Player";
+            string.Equals(name, "Particle", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Rigidbody2D", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Player", StringComparison.OrdinalIgnoreCase);
 
         static LevelScriptNode ParseGameObjectArrayComponentStatement(List<Token> tokens, ref int index, bool requireSemicolon)
         {
@@ -1378,18 +1528,21 @@ namespace KaplaoGames.LevelScript
                 PropertyName = propertyPath
             };
 
-            if (componentToken.Text == "Particle" && propertyPath == "enabled")
+            if (string.Equals(componentToken.Text, "Particle", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(propertyPath, "enabled", StringComparison.OrdinalIgnoreCase))
             {
                 assignment.ValueKind = ScriptValueKind.Bool;
                 assignment.BoolValue = ParseBoolExpression(tokens, ref index);
             }
-            else if (componentToken.Text == "Particle" && propertyPath == "Emission.Value")
+            else if (string.Equals(componentToken.Text, "Particle", StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(propertyPath, "Emission.Value", StringComparison.OrdinalIgnoreCase))
             {
                 assignment.ValueKind = ScriptValueKind.Int;
                 assignment.IntValue = ParseIntExpression(tokens, ref index);
             }
-            else if (componentToken.Text == "Player" &&
-                     (propertyPath == "spawnPointX" || propertyPath == "spawnPointY"))
+            else if (string.Equals(componentToken.Text, "Player", StringComparison.OrdinalIgnoreCase) &&
+                     (string.Equals(propertyPath, "spawnPointX", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(propertyPath, "spawnPointY", StringComparison.OrdinalIgnoreCase)))
             {
                 assignment.ValueKind = ScriptValueKind.Float;
                 assignment.FloatValue = ParseFloatExpression(tokens, ref index);
@@ -2165,8 +2318,57 @@ namespace KaplaoGames.LevelScript
         static ScriptArgument ParseCallArgument(List<Token> tokens, ref int index)
         {
             Token token = Peek(tokens, index);
-            if (token.Type == TokenType.Group ||
-                (token.Type == TokenType.Identifier && (token.Text == "FindNearestPlayer" || token.Text == "self" || token.Text == "localPlayer")))
+
+            // 1. nil, localPlayer, Scene.*, Group(...), FindNearestPlayer(...), instance(...) -> GameObject
+            if (token.Type == TokenType.Nil)
+            {
+                index++;
+                return new ScriptArgument
+                {
+                    Kind = ScriptValueKind.GameObject,
+                    GameObjectValue = new GameObjectNilExpression()
+                };
+            }
+
+            if (token.Type == TokenType.LocalPlayer)
+            {
+                if (index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.Dot)
+                {
+                    index += 2;
+                    Token member = ExpectMemberToken(tokens, ref index);
+                    string mText = member.Text;
+                    if (string.Equals(mText, "name", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new ScriptArgument
+                        {
+                            Kind = ScriptValueKind.String,
+                            StringValue = new PlayerMemberStringExpression { PlayerName = "localPlayer" }
+                        };
+                    }
+                    if (string.Equals(mText, "x", StringComparison.OrdinalIgnoreCase) || string.Equals(mText, "y", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PlayerMember m = string.Equals(mText, "x", StringComparison.OrdinalIgnoreCase) ? PlayerMember.X : PlayerMember.Y;
+                        return new ScriptArgument
+                        {
+                            Kind = ScriptValueKind.Float,
+                            FloatValue = new PlayerMemberFloatExpression { PlayerName = "localPlayer", Member = m }
+                        };
+                    }
+                    throw Error(member, $"Unsupported property '{mText}' on localPlayer.");
+                }
+
+                index++;
+                return new ScriptArgument
+                {
+                    Kind = ScriptValueKind.GameObject,
+                    GameObjectValue = new LocalPlayerExpression()
+                };
+            }
+
+            if (token.Type == TokenType.Scene ||
+                token.Type == TokenType.Group ||
+                (token.Type == TokenType.Identifier && (string.Equals(token.Text, "FindNearestPlayer", StringComparison.OrdinalIgnoreCase) ||
+                                                        string.Equals(token.Text, "instance", StringComparison.OrdinalIgnoreCase))))
             {
                 return new ScriptArgument
                 {
@@ -2175,6 +2377,7 @@ namespace KaplaoGames.LevelScript
                 };
             }
 
+            // 2. String literal or string expression
             if (token.Type == TokenType.StringLiteral)
             {
                 return new ScriptArgument
@@ -2184,6 +2387,7 @@ namespace KaplaoGames.LevelScript
                 };
             }
 
+            // 3. Boolean literals or unary not
             if (token.Type == TokenType.True || token.Type == TokenType.False || token.Type == TokenType.Bang)
             {
                 return new ScriptArgument
@@ -2193,8 +2397,58 @@ namespace KaplaoGames.LevelScript
                 };
             }
 
-            if (token.Type == TokenType.Number && token.Text.Contains('.'))
+            // 4. Negative number or minus sign: -5, -(x + 1), etc.
+            if (token.Type == TokenType.Minus)
             {
+                FloatExpression fExpr = ParseFloatExpression(tokens, ref index);
+                if (fExpr is FloatLiteralExpression fLit && Math.Abs(fLit.Value - (int)fLit.Value) < 0.00001f && !tokens[index - 1].Text.Contains('.'))
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Int,
+                        IntValue = new IntLiteralExpression { Value = (int)fLit.Value }
+                    };
+                }
+                return new ScriptArgument
+                {
+                    Kind = ScriptValueKind.Float,
+                    FloatValue = fExpr
+                };
+            }
+
+            // Number: float or int
+            if (token.Type == TokenType.Number)
+            {
+                if (token.Text.Contains('.'))
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Float,
+                        FloatValue = ParseFloatExpression(tokens, ref index)
+                    };
+                }
+
+                int saved = index;
+                // If followed by arithmetic operator (+ - * / %)
+                if (index + 1 < tokens.Count && tokens[index + 1].Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent)
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Int,
+                        IntValue = ParseIntExpression(tokens, ref index)
+                    };
+                }
+
+                index++;
+                if (int.TryParse(token.Text, out int intVal))
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Int,
+                        IntValue = new IntLiteralExpression { Value = intVal }
+                    };
+                }
+                index = saved;
                 return new ScriptArgument
                 {
                     Kind = ScriptValueKind.Float,
@@ -2202,24 +2456,17 @@ namespace KaplaoGames.LevelScript
                 };
             }
 
-            if (token.Type == TokenType.Number)
-            {
-                return new ScriptArgument
-                {
-                    Kind = ScriptValueKind.Int,
-                    IntValue = ParseIntExpression(tokens, ref index)
-                };
-            }
-
+            // Parenthesized expression: could be arithmetic (counter + 1), or boolean (a && b)
             if (token.Type == TokenType.LeftParen)
             {
                 int saved = index;
                 try
                 {
+                    FloatExpression fExpr = ParseFloatExpression(tokens, ref index);
                     return new ScriptArgument
                     {
-                        Kind = ScriptValueKind.Int,
-                        IntValue = ParseIntExpression(tokens, ref index)
+                        Kind = ScriptValueKind.Float,
+                        FloatValue = fExpr
                     };
                 }
                 catch
@@ -2233,17 +2480,41 @@ namespace KaplaoGames.LevelScript
                 }
             }
 
+            // 5. Identifier: could be player.name, player.x, doors.count, counter + 1, score, or items[i]
             if (token.Type == TokenType.Identifier)
             {
                 string idName = token.Text;
                 int startIdx = token.StartIndex;
-                index++;
 
-                if (Peek(tokens, index).Type == TokenType.LeftBracket)
+                // Check for built-in math functions: abs(-3), min(a, b), etc.
+                if (TryMapMathFunction(idName, out _, out _) || string.Equals(idName, "random", StringComparison.OrdinalIgnoreCase))
                 {
-                    index++;
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Float,
+                        FloatValue = ParseFloatExpression(tokens, ref index)
+                    };
+                }
+
+                // Lookahead: items[i]
+                if (index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.LeftBracket)
+                {
+                    // Check if it's part of an arithmetic expression: items[i] + 1
+                    int saved = index;
+                    index += 2; // consume id and [
                     IntExpression idxExpr = ParseIntExpression(tokens, ref index);
                     Expect(tokens, ref index, TokenType.RightBracket);
+
+                    if (index < tokens.Count && tokens[index].Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent)
+                    {
+                        index = saved;
+                        return new ScriptArgument
+                        {
+                            Kind = ScriptValueKind.Float,
+                            FloatValue = ParseFloatExpression(tokens, ref index)
+                        };
+                    }
+
                     return new ScriptArgument
                     {
                         IdentifierName = idName,
@@ -2252,38 +2523,88 @@ namespace KaplaoGames.LevelScript
                     };
                 }
 
-                if (Peek(tokens, index).Type == TokenType.Dot)
+                // Lookahead: dot access (.name, .x, .y, .count, .length)
+                if (index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.Dot)
                 {
-                    index++;
+                    index += 2; // consume id and .
                     Token member = ExpectMemberToken(tokens, ref index);
                     string mText = member.Text;
-                    if (mText == "count" || mText == "length")
+                    if (string.Equals(mText, "name", StringComparison.OrdinalIgnoreCase))
                     {
+                        return new ScriptArgument
+                        {
+                            Kind = ScriptValueKind.String,
+                            StringValue = new PlayerMemberStringExpression { PlayerName = idName }
+                        };
+                    }
+                    if (string.Equals(mText, "count", StringComparison.OrdinalIgnoreCase) || string.Equals(mText, "length", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (index < tokens.Count && tokens[index].Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent)
+                        {
+                            index -= 3;
+                            return new ScriptArgument
+                            {
+                                Kind = ScriptValueKind.Float,
+                                FloatValue = ParseFloatExpression(tokens, ref index)
+                            };
+                        }
                         return new ScriptArgument
                         {
                             Kind = ScriptValueKind.Int,
                             IntValue = new ListCountExpression { ListName = idName }
                         };
                     }
-                    if (mText == "x" || mText == "y")
+                    if (string.Equals(mText, "x", StringComparison.OrdinalIgnoreCase) || string.Equals(mText, "y", StringComparison.OrdinalIgnoreCase))
                     {
+                        PlayerMember m = string.Equals(mText, "x", StringComparison.OrdinalIgnoreCase) ? PlayerMember.X : PlayerMember.Y;
+                        if (index < tokens.Count && tokens[index].Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent)
+                        {
+                            index -= 3;
+                            return new ScriptArgument
+                            {
+                                Kind = ScriptValueKind.Float,
+                                FloatValue = ParseFloatExpression(tokens, ref index)
+                            };
+                        }
                         return new ScriptArgument
                         {
                             Kind = ScriptValueKind.Float,
-                            FloatValue = new PlayerMemberFloatExpression
-                            {
-                                PlayerName = idName,
-                                Member = mText == "x" ? PlayerMember.X : PlayerMember.Y
-                            }
+                            FloatValue = new PlayerMemberFloatExpression { PlayerName = idName, Member = m }
                         };
                     }
                     throw Error(member, $"Unsupported property '{mText}' on '{idName}'.");
                 }
 
-                return new ScriptArgument { IdentifierName = idName, SourceIndex = startIdx };
+                // Check if part of an arithmetic expression: counter + 1, counter * 2
+                if (index + 1 < tokens.Count && tokens[index + 1].Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent)
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Float,
+                        FloatValue = ParseFloatExpression(tokens, ref index)
+                    };
+                }
+
+                // Check if part of a comparison expression: a > 5, a == b
+                if (index + 1 < tokens.Count && IsComparisonToken(tokens[index + 1].Type))
+                {
+                    return new ScriptArgument
+                    {
+                        Kind = ScriptValueKind.Bool,
+                        BoolValue = ParseBoolExpression(tokens, ref index)
+                    };
+                }
+
+                // Standalone identifier: variable of any runtime type
+                index++;
+                return new ScriptArgument
+                {
+                    IdentifierName = idName,
+                    SourceIndex = startIdx
+                };
             }
 
-            throw Error(token,$"Unexpected argument '{token.Text}'.");
+            throw Error(token, $"Unexpected argument '{token.Text}'.");
         }
 
         static LevelScriptNode ParseAssignmentOrIncrement(List<Token> tokens, ref int index, bool requireSemicolon, Token nameToken = default)
@@ -2299,10 +2620,11 @@ namespace KaplaoGames.LevelScript
                 Token methodToken = ExpectMemberToken(tokens, ref index);
                 
                 // Check for AddComponent<Type>() or RemoveComponent<Type>()
-                if ((methodToken.Text == "AddComponent" || methodToken.Text == "RemoveComponent") &&
+                if ((string.Equals(methodToken.Text, "AddComponent", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(methodToken.Text, "RemoveComponent", StringComparison.OrdinalIgnoreCase)) &&
                     Peek(tokens, index).Type == TokenType.Less)
                 {
-                    bool isAdd = methodToken.Text == "AddComponent";
+                    bool isAdd = string.Equals(methodToken.Text, "AddComponent", StringComparison.OrdinalIgnoreCase);
                     Expect(tokens, ref index, TokenType.Less);
                     Token componentTypeToken = Expect(tokens, ref index, TokenType.Identifier);
                     Expect(tokens, ref index, TokenType.Greater);
@@ -2373,19 +2695,15 @@ namespace KaplaoGames.LevelScript
                 }
                 else
                 {
-                    // Only one dot: could be Component.Method() or Component.Property = value
-                    // Check if it's a method call
-                    if (Peek(tokens, index).Type == TokenType.Dot &&
-                        Peek(tokens, index + 2).Type == TokenType.LeftParen)
+                    // Only one dot: could be Component.Method(args) or Component.Property = value
+                    if (Peek(tokens, index).Type == TokenType.LeftParen)
                     {
-                        index++; // consume dot
-                        Token methodNameToken = ExpectMemberToken(tokens, ref index);
                         Expect(tokens, ref index, TokenType.LeftParen);
                         
                         var node = new ComponentVariableMethodCallNode
                         {
                             ComponentVariableName = nameToken.Text,
-                            MethodName = methodNameToken.Text
+                            MethodName = methodToken.Text
                         };
 
                         if (Peek(tokens, index).Type != TokenType.RightParen)
@@ -2414,6 +2732,17 @@ namespace KaplaoGames.LevelScript
             {
                 index++;
                 Token rhsToken = Peek(tokens, index);
+
+                // User function call: x = calcOffset(...)
+                if (IsUserFunctionCall(tokens, index))
+                {
+                    Token fnToken = tokens[index];
+                    FunctionCallNode call = ParseFunctionCall(tokens, ref index, fnToken.Text, fnToken.StartIndex, false);
+                    if (requireSemicolon)
+                        ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                    return new FloatAssignmentNode { Name = nameToken.Text, CallValue = call };
+                }
+
                 if (rhsToken.Type == TokenType.StringLiteral)
                 {
                     StringExpression stringValue = ParseStringExpression(tokens, ref index);
@@ -2432,13 +2761,39 @@ namespace KaplaoGames.LevelScript
                     return new BoolAssignmentNode { Name = nameToken.Text, Value = boolValue };
                 }
 
-                if (rhsToken.Type == TokenType.GetComponent || rhsToken.Type == TokenType.Scene)
+                if (rhsToken.Type == TokenType.GetComponent)
                 {
                     ComponentExpression componentValue = ParseComponentExpression(tokens, ref index);
                     if (requireSemicolon)
                         ConsumeIf(tokens, ref index, TokenType.Semicolon);
 
                     return new ComponentAssignmentNode { Name = nameToken.Text, Value = componentValue };
+                }
+
+                if (rhsToken.Type == TokenType.LeftBracket)
+                {
+                    index++;
+                    var listAssign = new ListAssignmentNode { Name = nameToken.Text };
+                    if (Peek(tokens, index).Type != TokenType.RightBracket)
+                    {
+                        do
+                        {
+                            listAssign.InitialItems.Add(ParseCallArgument(tokens, ref index));
+                        } while (ConsumeIf(tokens, ref index, TokenType.Comma));
+                    }
+                    Expect(tokens, ref index, TokenType.RightBracket);
+                    if (requireSemicolon)
+                        ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                    return listAssign;
+                }
+
+                // Check for GameObject expressions: nil, localPlayer, Scene.*, FindNearestPlayer, instance, or objs[0]
+                if (IsGameObjectToken(tokens, index))
+                {
+                    GameObjectExpression goValue = ParseGameObjectExpression(tokens, ref index);
+                    if (requireSemicolon)
+                        ConsumeIf(tokens, ref index, TokenType.Semicolon);
+                    return new GameObjectAssignmentNode { Name = nameToken.Text, Value = goValue };
                 }
 
                 int saved = index;
@@ -2488,6 +2843,19 @@ namespace KaplaoGames.LevelScript
                         ConsumeIf(tokens, ref index, TokenType.Semicolon);
 
                     return new StringAssignmentNode { Name = nameToken.Text, Value = stringValue };
+                }
+                catch (LevelScriptParseException)
+                {
+                    index = saved;
+                }
+
+                try
+                {
+                    GameObjectExpression goValue = ParseGameObjectExpression(tokens, ref index);
+                    if (requireSemicolon)
+                        ConsumeIf(tokens, ref index, TokenType.Semicolon);
+
+                    return new GameObjectAssignmentNode { Name = nameToken.Text, Value = goValue };
                 }
                 catch (LevelScriptParseException)
                 {
@@ -2667,105 +3035,231 @@ namespace KaplaoGames.LevelScript
             return ParseBoolPrimary(tokens, ref index);
         }
 
+        static bool IsGameObjectToken(List<Token> tokens, int index)
+        {
+            if (index >= tokens.Count) return false;
+            TokenType t = tokens[index].Type;
+            if (t == TokenType.Nil) return true;
+            if (t == TokenType.LocalPlayer)
+            {
+                return !(index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.Dot);
+            }
+            if (t is TokenType.Scene or TokenType.Group) return true;
+            if (t == TokenType.Identifier)
+            {
+                string text = tokens[index].Text;
+                if (string.Equals(text, "nil", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(text, "localPlayer", StringComparison.OrdinalIgnoreCase))
+                {
+                    return !(index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.Dot);
+                }
+                if (string.Equals(text, "FindNearestPlayer", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(text, "instance", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         static BoolExpression ParseBoolPrimary(List<Token> tokens, ref int index)
         {
             Token token = Peek(tokens, index);
+
+            // 1. true / false literals
             if (token.Type == TokenType.True)
             {
                 index++;
+                if (Peek(tokens, index).Type is TokenType.EqualEqual or TokenType.BangEqual)
+                {
+                    ComparisonOperator op = ReadComparisonOperator(tokens, ref index);
+                    BoolExpression right = ParseBoolPrimary(tokens, ref index);
+                    return new BoolComparisonExpression
+                    {
+                        Left = new BoolLiteralExpression { Value = true },
+                        Right = right,
+                        Operator = op
+                    };
+                }
                 return new BoolLiteralExpression { Value = true };
             }
 
             if (token.Type == TokenType.False)
             {
                 index++;
+                if (Peek(tokens, index).Type is TokenType.EqualEqual or TokenType.BangEqual)
+                {
+                    ComparisonOperator op = ReadComparisonOperator(tokens, ref index);
+                    BoolExpression right = ParseBoolPrimary(tokens, ref index);
+                    return new BoolComparisonExpression
+                    {
+                        Left = new BoolLiteralExpression { Value = false },
+                        Right = right,
+                        Operator = op
+                    };
+                }
                 return new BoolLiteralExpression { Value = false };
             }
 
-            if (token.Type == TokenType.LeftParen)
+            // 1b. hasTile(...) and World.hasTile(...)
+            if (token.Type == TokenType.Identifier && token.Text.Equals("hasTile", StringComparison.OrdinalIgnoreCase) &&
+                index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.LeftParen)
             {
-                index++;
-                BoolExpression nested = ParseBoolExpression(tokens, ref index);
+                index += 2;
+                IntExpression x = ParseIntArg(tokens, ref index, "x");
+                Expect(tokens, ref index, TokenType.Comma);
+                IntExpression y = ParseIntArg(tokens, ref index, "y");
                 Expect(tokens, ref index, TokenType.RightParen);
-                return nested;
+                return new HasTileExpression { X = x, Y = y };
             }
 
-            if (token.Type == TokenType.StringLiteral)
-                return ParseStringComparison(tokens, ref index);
-
-            if (token.Type == TokenType.Identifier)
+            if (token.Type == TokenType.Identifier && token.Text.Equals("World", StringComparison.OrdinalIgnoreCase) &&
+                index + 3 < tokens.Count && tokens[index + 1].Type == TokenType.Dot &&
+                tokens[index + 2].Text.Equals("hasTile", StringComparison.OrdinalIgnoreCase) &&
+                tokens[index + 3].Type == TokenType.LeftParen)
             {
-                if (token.Text.Equals("hasTile", StringComparison.OrdinalIgnoreCase) &&
-                    index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.LeftParen)
-                {
-                    index += 2;
-                    IntExpression x = ParseIntArg(tokens, ref index, "x");
-                    Expect(tokens, ref index, TokenType.Comma);
-                    IntExpression y = ParseIntArg(tokens, ref index, "y");
-                    Expect(tokens, ref index, TokenType.RightParen);
-                    return new HasTileExpression { X = x, Y = y };
-                }
+                index += 4;
+                IntExpression x = ParseIntArg(tokens, ref index, "x");
+                Expect(tokens, ref index, TokenType.Comma);
+                IntExpression y = ParseIntArg(tokens, ref index, "y");
+                Expect(tokens, ref index, TokenType.RightParen);
+                return new HasTileExpression { X = x, Y = y };
+            }
 
-                if (token.Text.Equals("World", StringComparison.OrdinalIgnoreCase) &&
-                    index + 3 < tokens.Count && tokens[index + 1].Type == TokenType.Dot &&
-                    tokens[index + 2].Text.Equals("hasTile", StringComparison.OrdinalIgnoreCase) &&
-                    tokens[index + 3].Type == TokenType.LeftParen)
-                {
-                    index += 4;
-                    IntExpression x = ParseIntArg(tokens, ref index, "x");
-                    Expect(tokens, ref index, TokenType.Comma);
-                    IntExpression y = ParseIntArg(tokens, ref index, "y");
-                    Expect(tokens, ref index, TokenType.RightParen);
-                    return new HasTileExpression { X = x, Y = y };
-                }
-
+            // 2. Parentheses: (a && b) vs ((x + 1) == 5)
+            if (token.Type == TokenType.LeftParen)
+            {
                 int saved = index;
                 index++;
-                Token next = Peek(tokens, index);
-                index = saved;
-
-                if (next.Type is TokenType.EqualEqual or TokenType.BangEqual)
+                try
                 {
-                    int rhsIndex = index + 2;
-                    if (rhsIndex < tokens.Count &&
-                        (tokens[rhsIndex].Type == TokenType.Nil ||
-                         (tokens[rhsIndex].Type == TokenType.Identifier && tokens[rhsIndex].Text == "nil")))
+                    BoolExpression nested = ParseBoolExpression(tokens, ref index);
+                    Expect(tokens, ref index, TokenType.RightParen);
+                    Token afterParen = Peek(tokens, index);
+                    if (afterParen.Type is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent ||
+                        IsComparisonToken(afterParen.Type))
                     {
+                        index = saved;
+                    }
+                    else
+                    {
+                        return nested;
+                    }
+                }
+                catch
+                {
+                    index = saved;
+                }
+            }
+
+            // 3. Unary not: !expr
+            if (token.Type == TokenType.Bang)
+            {
+                index++;
+                return new BoolNotExpression { Operand = ParseBoolPrimary(tokens, ref index) };
+            }
+
+            // 4. Standalone list indexing bool: if (flags[0])
+            if (token.Type == TokenType.Identifier && index + 1 < tokens.Count && tokens[index + 1].Type == TokenType.LeftBracket)
+            {
+                int saved = index;
+                string listName = token.Text;
+                index += 2; // consume id and [
+                try
+                {
+                    IntExpression idxExpr = ParseIntExpression(tokens, ref index);
+                    Expect(tokens, ref index, TokenType.RightBracket);
+                    Token afterBracket = Peek(tokens, index);
+                    if (!IsComparisonToken(afterBracket.Type) &&
+                        afterBracket.Type is not (TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent))
+                    {
+                        return new ListItemBoolExpression { ListName = listName, Index = idxExpr };
+                    }
+                }
+                catch
+                {
+                }
+                index = saved;
+            }
+
+            // 5. Comparisons:
+            // Check if this looks like a GameObject comparison: nil, localPlayer, Scene.*, FindNearestPlayer, instance
+            if (IsGameObjectToken(tokens, index))
+            {
+                return ParseGameObjectComparison(tokens, ref index);
+            }
+
+            // Check if this looks like a String comparison: starts with string literal
+            if (token.Type == TokenType.StringLiteral)
+            {
+                return ParseStringComparison(tokens, ref index);
+            }
+
+            // Check if this is an identifier with .name (string comparison)
+            if (token.Type == TokenType.Identifier && index + 2 < tokens.Count &&
+                tokens[index + 1].Type == TokenType.Dot &&
+                string.Equals(tokens[index + 2].Text, "name", StringComparison.OrdinalIgnoreCase))
+            {
+                return ParseStringComparison(tokens, ref index);
+            }
+
+            // Try Float / Numeric comparison: covers x == -1, player.x > 50, doors.count > 0, arr[0] == 5, x + 1 == 5
+            int savedNumeric = index;
+            try
+            {
+                FloatExpression left = ParseFloatExpression(tokens, ref index);
+                if (IsComparisonToken(Peek(tokens, index).Type))
+                {
+                    ComparisonOperator op = ReadComparisonOperator(tokens, ref index);
+                    if (IsGameObjectToken(tokens, index))
+                    {
+                        index = savedNumeric;
                         return ParseGameObjectComparison(tokens, ref index);
                     }
 
-                    return ParseStringComparison(tokens, ref index);
+                    FloatExpression right = ParseFloatExpression(tokens, ref index);
+                    return new FloatComparisonExpression
+                    {
+                        Left = left,
+                        Right = right,
+                        Operator = op
+                    };
                 }
+            }
+            catch
+            {
+            }
+            index = savedNumeric;
 
-                if (next.Type is TokenType.Less or TokenType.LessOrEqual or TokenType.Greater or TokenType.GreaterOrEqual or TokenType.EqualEqual or TokenType.BangEqual)
-                    return ParseNumericComparison(tokens, ref index);
+            // Try Dynamic Equality for == / !=: covers a == b, flag == true, etc.
+            int savedDyn = index;
+            try
+            {
+                ScriptArgument leftArg = ParseCallArgument(tokens, ref index);
+                if (Peek(tokens, index).Type is TokenType.EqualEqual or TokenType.BangEqual)
+                {
+                    bool negate = Peek(tokens, index).Type == TokenType.BangEqual;
+                    index++;
+                    ScriptArgument rightArg = ParseCallArgument(tokens, ref index);
+                    return new DynamicEqualityExpression
+                    {
+                        Left = leftArg,
+                        Right = rightArg,
+                        Negate = negate
+                    };
+                }
+            }
+            catch
+            {
+            }
+            index = savedDyn;
 
+            // Single identifier: standalone boolean variable
+            if (token.Type == TokenType.Identifier)
+            {
                 index++;
                 return new BoolVariableExpression { Name = token.Text, SourceIndex = token.StartIndex };
             }
 
-            if (token.Type == TokenType.Number)
-            {
-                if (token.Text.Contains('.'))
-                    return ParseFloatComparison(tokens, ref index);
-
-                return ParseComparison(tokens, ref index);
-            }
-
-            if (token.Type == TokenType.Minus)
-            {
-                int saved = index;
-                index++;
-                if (Peek(tokens, index).Type == TokenType.Number)
-                {
-                    index = saved;
-                    return ParseFloatComparison(tokens, ref index);
-                }
-
-                index = saved;
-            }
-
-            return ParseNumericComparison(tokens, ref index);
+            throw Error(token, $"Expected boolean expression, got '{token.Text}'.");
         }
 
         static BoolExpression ParseNumericComparison(List<Token> tokens, ref int index)
@@ -3052,6 +3546,15 @@ namespace KaplaoGames.LevelScript
             if (token.Type == TokenType.Minus)
             {
                 index++;
+                if (Peek(tokens, index).Type == TokenType.Number)
+                {
+                    Token numToken = Peek(tokens, index);
+                    index++;
+                    if (!float.TryParse(numToken.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float numVal))
+                        throw Error(numToken, $"Expected float value, got '{numToken.Text}'.");
+                    return new FloatLiteralExpression { Value = -numVal };
+                }
+
                 return new FloatBinaryExpression
                 {
                     Left = new FloatLiteralExpression { Value = 0f },
@@ -3106,10 +3609,40 @@ namespace KaplaoGames.LevelScript
                 };
             }
 
+            if (token.Type == TokenType.LocalPlayer)
+            {
+                index++;
+                if (Peek(tokens, index).Type == TokenType.Dot)
+                {
+                    index++;
+                    PlayerMember member = ParseMemberAxis(tokens, ref index);
+                    return new PlayerMemberFloatExpression
+                    {
+                        PlayerName = "localPlayer",
+                        Member = member
+                    };
+                }
+                throw Error(token, "localPlayer must be followed by .x or .y when used as float.");
+            }
+
             if (token.Type == TokenType.Identifier)
             {
                 string name = token.Text;
                 index++;
+
+                if (Peek(tokens, index).Type == TokenType.Dot && index + 1 < tokens.Count)
+                {
+                    string prop = tokens[index + 1].Text;
+                    if (string.Equals(prop, "count", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(prop, "length", StringComparison.OrdinalIgnoreCase))
+                    {
+                        index += 2;
+                        return new FloatFromIntExpression
+                        {
+                            Value = new ListCountExpression { ListName = name }
+                        };
+                    }
+                }
 
                 if (Peek(tokens, index).Type == TokenType.LeftBracket)
                 {
@@ -3122,7 +3655,7 @@ namespace KaplaoGames.LevelScript
                 if (Peek(tokens, index).Type == TokenType.LeftParen)
                 {
                     index++;
-                    if (name == "random")
+                    if (string.Equals(name, "random", StringComparison.OrdinalIgnoreCase))
                     {
                         FloatExpression min = ParseFloatExpression(tokens, ref index);
                         Expect(tokens, ref index, TokenType.Comma);
@@ -3200,6 +3733,52 @@ namespace KaplaoGames.LevelScript
                 return new StringLiteralExpression { Value = token.Text };
             }
 
+            if (token.Type == TokenType.Minus)
+            {
+                index++;
+                Token numToken = Expect(tokens, ref index, TokenType.Number);
+                return new StringLiteralExpression { Value = "-" + numToken.Text };
+            }
+
+            if (token.Type == TokenType.True)
+            {
+                index++;
+                return new StringLiteralExpression { Value = "true" };
+            }
+
+            if (token.Type == TokenType.False)
+            {
+                index++;
+                return new StringLiteralExpression { Value = "false" };
+            }
+
+            if (token.Type == TokenType.LocalPlayer)
+            {
+                index++;
+                if (Peek(tokens, index).Type == TokenType.Dot)
+                {
+                    index++;
+                    Token memberToken = Expect(tokens, ref index, TokenType.Identifier);
+                    string mText = memberToken.Text.ToLowerInvariant();
+                    if (mText == "name")
+                        return new PlayerMemberStringExpression { PlayerName = "localPlayer" };
+                    if (mText == "x" || mText == "y")
+                    {
+                        return new StringConvertExpression
+                        {
+                            FloatExpr = new PlayerMemberFloatExpression
+                            {
+                                PlayerName = "localPlayer",
+                                Member = mText == "x" ? PlayerMember.X : PlayerMember.Y
+                            }
+                        };
+                    }
+                    throw Error(memberToken, $"Unsupported property '{memberToken.Text}' on localPlayer in string expression.");
+                }
+
+                return new PlayerMemberStringExpression { PlayerName = "localPlayer" };
+            }
+
             if (token.Type == TokenType.Identifier)
             {
                 string name = token.Text;
@@ -3217,10 +3796,29 @@ namespace KaplaoGames.LevelScript
                 {
                     index++;
                     Token memberToken = Expect(tokens, ref index, TokenType.Identifier);
-                    if (memberToken.Text != "name")
-                        throw Error(memberToken, $"Unknown player member '{memberToken.Text}'. Use name.");
+                    string mText = memberToken.Text.ToLowerInvariant();
+                    if (mText == "name")
+                        return new PlayerMemberStringExpression { PlayerName = name };
+                    if (mText == "x" || mText == "y")
+                    {
+                        return new StringConvertExpression
+                        {
+                            FloatExpr = new PlayerMemberFloatExpression
+                            {
+                                PlayerName = name,
+                                Member = mText == "x" ? PlayerMember.X : PlayerMember.Y
+                            }
+                        };
+                    }
+                    if (mText == "count" || mText == "length")
+                    {
+                        return new StringConvertExpression
+                        {
+                            IntExpr = new ListCountExpression { ListName = name }
+                        };
+                    }
 
-                    return new PlayerMemberStringExpression { PlayerName = name };
+                    throw Error(memberToken, $"Unknown member '{memberToken.Text}' on '{name}'. Use x, y, name, count, or length.");
                 }
 
                 return new StringConvertExpression { VariableName = name };
@@ -3228,10 +3826,39 @@ namespace KaplaoGames.LevelScript
 
             if (token.Type == TokenType.LeftParen)
             {
+                int saved = index;
                 index++;
-                StringExpression nested = ParseStringExpression(tokens, ref index);
-                Expect(tokens, ref index, TokenType.RightParen);
-                return nested;
+                // Try parsing as float/numeric expression first, e.g. (counter * 2.5) or (x + 1)
+                try
+                {
+                    FloatExpression floatExpr = ParseFloatExpression(tokens, ref index);
+                    if (Peek(tokens, index).Type == TokenType.RightParen)
+                    {
+                        index++;
+                        return new StringConvertExpression { FloatExpr = floatExpr };
+                    }
+                }
+                catch
+                {
+                }
+
+                // Fall back to StringExpression
+                index = saved + 1;
+                try
+                {
+                    StringExpression nested = ParseStringExpression(tokens, ref index);
+                    if (Peek(tokens, index).Type == TokenType.RightParen)
+                    {
+                        index++;
+                        return nested;
+                    }
+                }
+                catch
+                {
+                }
+
+                index = saved;
+                throw Error(token, $"Failed to parse parenthesized expression in string concatenation.");
             }
 
             throw Error(token,$"Expected string expression, got '{token.Text}'.");
@@ -3240,7 +3867,7 @@ namespace KaplaoGames.LevelScript
         static PlayerMember ParseMemberAxis(List<Token> tokens, ref int index)
         {
             Token memberToken = Expect(tokens, ref index, TokenType.Identifier);
-            return memberToken.Text switch
+            return memberToken.Text.ToLowerInvariant() switch
             {
                 "x" => PlayerMember.X,
                 "y" => PlayerMember.Y,
@@ -3389,9 +4016,9 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.LeftParen);
             GameObjectArrayExpression targets = ParseGameObjectArrayArg(tokens, ref index);
             Expect(tokens, ref index, TokenType.Comma);
-            FloatExpression x = ParseFloatArg(tokens, ref index, "x");
+            FloatExpression x = ParseFloatArg(tokens, ref index, "x", allowNegative: true);
             Expect(tokens, ref index, TokenType.Comma);
-            FloatExpression y = ParseFloatArg(tokens, ref index, "y");
+            FloatExpression y = ParseFloatArg(tokens, ref index, "y", allowNegative: true);
             Expect(tokens, ref index, TokenType.Comma);
             FloatExpression duration = ParseFloatArg(tokens, ref index, "time");
             Expect(tokens, ref index, TokenType.Comma);
@@ -3479,9 +4106,9 @@ namespace KaplaoGames.LevelScript
         {
             Expect(tokens, ref index, TokenType.PlaySound);
             Expect(tokens, ref index, TokenType.LeftParen);
-            FloatExpression x = ParseFloatArg(tokens, ref index, "x");
+            FloatExpression x = ParseFloatArg(tokens, ref index, "x", allowNegative: true);
             Expect(tokens, ref index, TokenType.Comma);
-            FloatExpression y = ParseFloatArg(tokens, ref index, "y");
+            FloatExpression y = ParseFloatArg(tokens, ref index, "y", allowNegative: true);
             Expect(tokens, ref index, TokenType.Comma);
             StringExpression soundName = ParseStringArg(tokens, ref index, "name");
             Expect(tokens, ref index, TokenType.Comma);
@@ -3504,9 +4131,9 @@ namespace KaplaoGames.LevelScript
             Expect(tokens, ref index, TokenType.LeftParen);
             GameObjectExpression player = ParseGameObjectExpression(tokens, ref index);
             Expect(tokens, ref index, TokenType.Comma);
-            FloatExpression x = ParseFloatArg(tokens, ref index, "x");
+            FloatExpression x = ParseFloatArg(tokens, ref index, "x", allowNegative: true);
             Expect(tokens, ref index, TokenType.Comma);
-            FloatExpression y = ParseFloatArg(tokens, ref index, "y");
+            FloatExpression y = ParseFloatArg(tokens, ref index, "y", allowNegative: true);
             Expect(tokens, ref index, TokenType.RightParen);
             ConsumeIf(tokens, ref index, TokenType.Semicolon);
 
@@ -3670,8 +4297,12 @@ namespace KaplaoGames.LevelScript
             type >= TokenType.Spawn && type <= TokenType.Continue &&
             type != TokenType.LeftBracket && type != TokenType.RightBracket;
 
-        static Token Peek(List<Token> tokens, int index) =>
-            (index >= 0 && index < tokens.Count) ? tokens[index] : new Token(TokenType.End, string.Empty, parseSource != null ? parseSource.Length : 0);
+        static Token Peek(List<Token> tokens, int index)
+        {
+            var state = CurrentState;
+            int srcLen = state?.source != null ? state.source.Length : 0;
+            return (index >= 0 && index < tokens.Count) ? tokens[index] : new Token(TokenType.End, string.Empty, srcLen);
+        }
 
         static bool ConsumeIf(List<Token> tokens, ref int index, TokenType type)
         {
@@ -3706,8 +4337,11 @@ namespace KaplaoGames.LevelScript
 
         static LevelScriptParseException ErrorAt(int index, string message)
         {
-            IndexToLineColumn(parseSource, index, out int line, out int column);
-            return new LevelScriptParseException(line, column, index, message);
+            var state = CurrentState;
+            string src = state?.source ?? string.Empty;
+            string path = state?.sourcePath ?? string.Empty;
+            IndexToLineColumn(src, index, out int line, out int column);
+            return new LevelScriptParseException(line, column, index, message, path);
         }
 
         static LevelScriptParseException Error(List<Token> tokens, int index, string message)
@@ -3729,7 +4363,6 @@ namespace KaplaoGames.LevelScript
 
         static List<Token> Tokenize(string source)
         {
-            parseSource = source ?? string.Empty;
             var tokens = new List<Token>();
             int i = 0;
 
@@ -3969,7 +4602,7 @@ namespace KaplaoGames.LevelScript
                     continue;
                 }
 
-                if (char.IsLetter(c))
+                if (char.IsLetter(c) || c == '_')
                 {
                     int start = i;
                     i++;

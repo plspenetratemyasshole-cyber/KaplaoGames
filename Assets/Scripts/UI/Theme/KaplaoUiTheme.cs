@@ -23,6 +23,9 @@ namespace KaplaoGames.UI.Theme
         public const string ResourcePath = "KaplaoUiTheme";
         static KaplaoUiTheme cached;
 
+        public KaplaoUiTheme Palette => this;
+        public Color PrimaryNeon => AccentCyan;
+
         [Header("Surfaces & Backgrounds")]
         public Color BackdropDim = new Color(0x05 / 255f, 0x08 / 255f, 0x11 / 255f, 0.72f);
         public Color SurfacePrimary = new Color(0x0F / 255f, 0x15 / 255f, 0x24 / 255f, 0.94f);

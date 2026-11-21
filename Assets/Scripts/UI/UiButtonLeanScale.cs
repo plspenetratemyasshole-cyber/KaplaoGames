@@ -1,12 +1,14 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using KaplaoGames.UI.Theme;
 
 namespace KaplaoGames.UI
 {
     /// <summary>
-    /// LeanTween hover / press scale & border glow for UI buttons. Add to any Button GameObject.
-    /// All tweens call .setIgnoreTimeScale(true).
+    /// Live Button Juice (inspired by RTSokak's UIButtonJuice).
+    /// Frame-rate independent exponential Lerp in Update for smooth scaling,
+    /// background color highlight, and neon border glow.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("Kaplao/UI/Button Lean Scale")]
@@ -14,27 +16,50 @@ namespace KaplaoGames.UI
         IPointerEnterHandler,
         IPointerExitHandler,
         IPointerDownHandler,
-        IPointerUpHandler
+        IPointerUpHandler,
+        IPointerClickHandler
     {
+        [Header("Scale Settings")]
         [SerializeField] RectTransform target;
+        [SerializeField] float hoverScale = 1.045f;
+        [SerializeField] float pressScale = 0.95f;
+        [SerializeField] float responseSpeed = 18f;
+
+        [Header("Graphics")]
+        [SerializeField] Graphic targetGraphic;
         [SerializeField] Graphic borderGraphic;
-        [SerializeField] float hoverScale = 1.05f;
-        [SerializeField] float pressScale = 0.94f;
-        [SerializeField] float tweenDuration = 0.12f;
-        [SerializeField] LeanTweenType ease = LeanTweenType.easeOutQuad;
-        [SerializeField] LeanTweenType releaseEase = LeanTweenType.easeOutBack;
 
         Selectable selectable;
         Vector3 baseScale = Vector3.one;
-        Color normalBorderColor;
-        bool hasBorder;
+        Color baseBgColor = Color.white;
+        Color baseBorderColor = Color.clear;
+
+        float currentScale = 1f;
+        float targetScale = 1f;
+
+        Color currentBgColor = Color.white;
+        Color targetBgColor = Color.white;
+
+        Color currentBorderColor = Color.clear;
+        Color targetBorderColor = Color.clear;
+
         bool pointerInside;
-        bool pressed;
-        int scaleTweenId = -1;
-        int borderTweenId = -1;
+        bool isPressed;
+        bool hasBorder;
+        bool hasBg;
+        bool initialized;
+
+        static readonly Color NeonCyan = new Color(0.22f, 0.74f, 0.97f, 1f); // #38BDF8
 
         void Awake()
         {
+            Initialize();
+        }
+
+        public void Initialize()
+        {
+            if (initialized) return;
+
             if (target == null)
                 target = transform as RectTransform;
 
@@ -42,6 +67,24 @@ namespace KaplaoGames.UI
                 baseScale = target.localScale;
 
             selectable = GetComponent<Selectable>();
+            if (selectable is Button btn)
+                btn.transition = Selectable.Transition.None;
+
+            if (targetGraphic == null)
+            {
+                if (selectable != null && selectable.targetGraphic != null)
+                    targetGraphic = selectable.targetGraphic;
+                else
+                    targetGraphic = GetComponent<Image>();
+            }
+
+            if (targetGraphic != null)
+            {
+                baseBgColor = targetGraphic.color;
+                currentBgColor = baseBgColor;
+                targetBgColor = baseBgColor;
+                hasBg = true;
+            }
 
             if (borderGraphic == null)
             {
@@ -51,31 +94,131 @@ namespace KaplaoGames.UI
 
             if (borderGraphic != null)
             {
-                normalBorderColor = borderGraphic.color;
+                baseBorderColor = borderGraphic.color;
+                currentBorderColor = baseBorderColor;
+                targetBorderColor = baseBorderColor;
                 hasBorder = true;
             }
+
+            initialized = true;
         }
 
         void OnEnable()
         {
+            Initialize();
+            pointerInside = false;
+            isPressed = false;
+            targetScale = 1f;
+            currentScale = 1f;
+
             if (target != null)
                 target.localScale = baseScale;
 
-            if (hasBorder && borderGraphic != null)
-                borderGraphic.color = normalBorderColor;
+            if (hasBg && targetGraphic != null)
+            {
+                currentBgColor = baseBgColor;
+                targetBgColor = baseBgColor;
+                targetGraphic.color = baseBgColor;
+            }
 
-            pointerInside = false;
-            pressed = false;
+            if (hasBorder && borderGraphic != null)
+            {
+                currentBorderColor = baseBorderColor;
+                targetBorderColor = baseBorderColor;
+                borderGraphic.color = baseBorderColor;
+            }
         }
 
         void OnDisable()
         {
-            CancelScaleTween();
-            CancelBorderTween();
+            pointerInside = false;
+            isPressed = false;
+            currentScale = 1f;
+            targetScale = 1f;
+
             if (target != null)
                 target.localScale = baseScale;
+
+            if (hasBg && targetGraphic != null)
+                targetGraphic.color = baseBgColor;
+
             if (hasBorder && borderGraphic != null)
-                borderGraphic.color = normalBorderColor;
+                borderGraphic.color = baseBorderColor;
+        }
+
+        public void SetBaseColors(Color bg, Color border)
+        {
+            Initialize();
+            baseBgColor = bg;
+            baseBorderColor = border;
+
+            if (!pointerInside && !isPressed)
+            {
+                targetBgColor = bg;
+                targetBorderColor = border;
+            }
+            else if (pointerInside && !isPressed)
+            {
+                ComputeHoverTargets();
+            }
+            else if (isPressed)
+            {
+                ComputePressTargets();
+            }
+        }
+
+        public void SetScale(float hover, float press)
+        {
+            hoverScale = hover;
+            pressScale = press;
+        }
+
+        public void SetBorderGraphic(Graphic border)
+        {
+            borderGraphic = border;
+            if (borderGraphic != null)
+            {
+                baseBorderColor = borderGraphic.color;
+                currentBorderColor = baseBorderColor;
+                targetBorderColor = baseBorderColor;
+                hasBorder = true;
+            }
+        }
+
+        void Update()
+        {
+            bool interactable = selectable == null || selectable.interactable;
+
+            if (!interactable)
+            {
+                targetScale = 1f;
+                targetBgColor = new Color(baseBgColor.r, baseBgColor.g, baseBgColor.b, baseBgColor.a * 0.45f);
+                targetBorderColor = new Color(baseBorderColor.r, baseBorderColor.g, baseBorderColor.b, baseBorderColor.a * 0.35f);
+            }
+
+            float dt = Time.unscaledDeltaTime;
+            if (dt <= 0f) return;
+
+            float t = 1f - Mathf.Exp(-responseSpeed * dt);
+
+            // Interpolate scale
+            currentScale = Mathf.Lerp(currentScale, targetScale, t);
+            if (target != null)
+                target.localScale = baseScale * currentScale;
+
+            // Interpolate background color
+            if (hasBg && targetGraphic != null)
+            {
+                currentBgColor = Color.Lerp(currentBgColor, targetBgColor, t);
+                targetGraphic.color = currentBgColor;
+            }
+
+            // Interpolate border color
+            if (hasBorder && borderGraphic != null)
+            {
+                currentBorderColor = Color.Lerp(currentBorderColor, targetBorderColor, t);
+                borderGraphic.color = currentBorderColor;
+            }
         }
 
         public void OnPointerEnter(PointerEventData eventData)
@@ -84,21 +227,15 @@ namespace KaplaoGames.UI
                 return;
 
             pointerInside = true;
-            if (!pressed)
-            {
-                TweenToScale(hoverScale, ease);
-                TweenBorder(1.3f);
-            }
+            if (!isPressed)
+                ComputeHoverTargets();
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
             pointerInside = false;
-            if (!pressed)
-            {
-                TweenToScale(1f, ease);
-                TweenBorder(1f);
-            }
+            if (!isPressed)
+                ComputeNormalTargets();
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -106,76 +243,47 @@ namespace KaplaoGames.UI
             if (selectable != null && !selectable.interactable)
                 return;
 
-            pressed = true;
-            TweenToScale(pressScale, ease);
-            TweenBorder(1.6f);
+            isPressed = true;
+            ComputePressTargets();
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
-            pressed = false;
+            isPressed = false;
+            if (pointerInside)
+                ComputeHoverTargets();
+            else
+                ComputeNormalTargets();
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
             if (selectable != null && !selectable.interactable)
-            {
-                TweenToScale(1f, ease);
-                TweenBorder(1f);
                 return;
-            }
 
-            TweenToScale(pointerInside ? hoverScale : 1f, releaseEase);
-            TweenBorder(pointerInside ? 1.3f : 1f);
+            // Micro bounce impulse on click
+            currentScale = Mathf.Min(currentScale, pressScale * 0.97f);
         }
 
-        void TweenToScale(float multiplier, LeanTweenType easeType)
+        void ComputeHoverTargets()
         {
-            if (target == null)
-                return;
-
-            CancelScaleTween();
-            LTDescr tween = LeanTween.scale(target, baseScale * multiplier, tweenDuration)
-                .setIgnoreTimeScale(true)
-                .setEase(easeType);
-            scaleTweenId = tween != null ? tween.uniqueId : -1;
+            targetScale = hoverScale;
+            targetBgColor = Color.Lerp(baseBgColor, Color.white, 0.14f);
+            targetBorderColor = Color.Lerp(baseBorderColor, NeonCyan, 0.55f);
         }
 
-        void TweenBorder(float brightnessMultiplier)
+        void ComputePressTargets()
         {
-            if (!hasBorder || borderGraphic == null)
-                return;
-
-            CancelBorderTween();
-            Color targetCol = new Color(
-                Mathf.Clamp01(normalBorderColor.r * brightnessMultiplier),
-                Mathf.Clamp01(normalBorderColor.g * brightnessMultiplier),
-                Mathf.Clamp01(normalBorderColor.b * brightnessMultiplier),
-                Mathf.Clamp01(normalBorderColor.a * (brightnessMultiplier > 1f ? 1.2f : 1f)));
-
-            LTDescr tween = LeanTween.value(borderGraphic.gameObject, borderGraphic.color, targetCol, tweenDuration)
-                .setIgnoreTimeScale(true)
-                .setEase(LeanTweenType.easeOutQuad)
-                .setOnUpdate((Color c) =>
-                {
-                    if (borderGraphic != null)
-                        borderGraphic.color = c;
-                });
-            borderTweenId = tween != null ? tween.uniqueId : -1;
+            targetScale = pressScale;
+            targetBgColor = Color.Lerp(baseBgColor, Color.black, 0.18f);
+            targetBorderColor = Color.Lerp(baseBorderColor, Color.white, 0.25f);
         }
 
-        void CancelScaleTween()
+        void ComputeNormalTargets()
         {
-            if (scaleTweenId < 0)
-                return;
-
-            LeanTween.cancel(scaleTweenId);
-            scaleTweenId = -1;
-        }
-
-        void CancelBorderTween()
-        {
-            if (borderTweenId < 0)
-                return;
-
-            LeanTween.cancel(borderTweenId);
-            borderTweenId = -1;
+            targetScale = 1f;
+            targetBgColor = baseBgColor;
+            targetBorderColor = baseBorderColor;
         }
     }
 }

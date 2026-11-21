@@ -12,26 +12,45 @@ namespace KaplaoGames.UI.Theme
     /// </summary>
     public static class KaplaoUiStyler
     {
-        public static bool CanSafelyReplaceSprite(Sprite currentSprite)
+        public static bool IsProtectedArtImage(Image img)
         {
-            if (currentSprite == null)
-                return true;
+            if (img == null) return false;
+            if (img is RawImage) return true;
 
-            string name = currentSprite.name;
-            if (name == "UISprite" ||
-                name == "Background" ||
-                name == "InputFieldBackground" ||
-                name == "Knob" ||
-                name == "Checkmark" ||
-                name == "DropdownArrow" ||
-                name.StartsWith("KaplaoUi_", StringComparison.OrdinalIgnoreCase) ||
-                name == "rounded_rect" ||
-                name == "rounded_border" ||
-                name == "pill" ||
-                name == "soft_shadow" ||
-                name == "top_glow" ||
-                name == "circle" ||
-                name == "chevron_down")
+            string name = img.gameObject.name;
+            string parentName = img.transform.parent != null ? img.transform.parent.name : string.Empty;
+
+            // 1. Skin previews
+            if (name.StartsWith("SkinToggle", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("SkinRandomToggle", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("Preview", StringComparison.OrdinalIgnoreCase) ||
+                parentName.StartsWith("SkinToggle", StringComparison.OrdinalIgnoreCase) ||
+                parentName.Equals("SkinRow", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // 2. Color picker palette
+            if (name.Contains("SvImage") || name.Contains("HueImage") ||
+                name.Contains("SvPicker") || name.Contains("HuePicker") ||
+                name.StartsWith("Swatch_", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // 3. File/folder/tree icons, arrows, cursors, block previews
+            if (name.Equals("Icon", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("Twist", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("Arrow", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("FileTree") || name.Contains("Cursor") ||
+                name.Equals("TexturePreview", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("BlockPreview", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // 4. Mobile joystick
+            if (name.Contains("MobileJoystick") || parentName.Contains("MobileJoystick"))
             {
                 return true;
             }
@@ -39,7 +58,55 @@ namespace KaplaoGames.UI.Theme
             return false;
         }
 
-        public static void StylePanel(GameObject panel, bool withShadow = true, bool withHeaderGlow = true)
+        public static bool CanSafelyReplaceSprite(Image image, bool forceReplaceSprite = true)
+        {
+            if (image == null) return false;
+            if (IsProtectedArtImage(image)) return false;
+            if (forceReplaceSprite) return true;
+
+            Sprite currentSprite = image.sprite;
+            if (currentSprite == null) return true;
+
+            string name = currentSprite.name;
+            return name == "UISprite" ||
+                   name == "Background" ||
+                   name == "InputFieldBackground" ||
+                   name == "Knob" ||
+                   name == "Checkmark" ||
+                   name == "DropdownArrow" ||
+                   name.StartsWith("KaplaoUi_", StringComparison.OrdinalIgnoreCase) ||
+                   name == "rounded_rect" ||
+                   name == "rounded_border" ||
+                   name == "pill" ||
+                   name == "soft_shadow" ||
+                   name == "top_glow" ||
+                   name == "circle" ||
+                   name == "chevron_down";
+        }
+
+        public static bool CanSafelyReplaceSprite(Sprite currentSprite)
+        {
+            if (currentSprite == null)
+                return true;
+
+            string name = currentSprite.name;
+            return name == "UISprite" ||
+                   name == "Background" ||
+                   name == "InputFieldBackground" ||
+                   name == "Knob" ||
+                   name == "Checkmark" ||
+                   name == "DropdownArrow" ||
+                   name.StartsWith("KaplaoUi_", StringComparison.OrdinalIgnoreCase) ||
+                   name == "rounded_rect" ||
+                   name == "rounded_border" ||
+                   name == "pill" ||
+                   name == "soft_shadow" ||
+                   name == "top_glow" ||
+                   name == "circle" ||
+                   name == "chevron_down";
+        }
+
+        public static void StylePanel(GameObject panel, bool withShadow = true, bool withHeaderGlow = true, bool forceReplaceSprite = true)
         {
             if (panel == null)
                 return;
@@ -50,7 +117,7 @@ namespace KaplaoGames.UI.Theme
             if (image == null)
                 image = panel.AddComponent<Image>();
 
-            if (CanSafelyReplaceSprite(image.sprite))
+            if (CanSafelyReplaceSprite(image, forceReplaceSprite))
             {
                 image.sprite = KaplaoUiSprites.RoundedRect(16);
                 image.type = Image.Type.Sliced;
@@ -91,21 +158,20 @@ namespace KaplaoGames.UI.Theme
             marker.ElementType = StyledElementType.Backdrop;
         }
 
-        public static void StyleButton(Button button, KaplaoButtonVariant variant = KaplaoButtonVariant.Secondary)
+        public static void StyleButton(Button button, KaplaoButtonVariant variant = KaplaoButtonVariant.Secondary, bool forceReplaceSprite = true)
         {
             if (button == null)
                 return;
 
+            button.transition = Selectable.Transition.None;
+
             KaplaoUiTheme theme = KaplaoUiTheme.Instance;
             var (normal, hover, press, border) = theme.GetButtonColors(variant);
 
-            Image image = button.targetGraphic as Image;
-            if (image == null)
-                image = button.GetComponent<Image>();
-
+            Image image = button.targetGraphic as Image ?? button.GetComponent<Image>();
             if (image != null)
             {
-                if (CanSafelyReplaceSprite(image.sprite))
+                if (CanSafelyReplaceSprite(image, forceReplaceSprite))
                 {
                     image.sprite = variant == KaplaoButtonVariant.Ghost || variant == KaplaoButtonVariant.Icon
                         ? KaplaoUiSprites.RoundedRect(8)
@@ -120,8 +186,8 @@ namespace KaplaoGames.UI.Theme
             colors.colorMultiplier = 1f;
             colors.fadeDuration = 0.1f;
             colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.1f, 1.1f, 1.1f, 1f);
-            colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            colors.highlightedColor = Color.white;
+            colors.pressedColor = Color.white;
             colors.selectedColor = Color.white;
             colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
             button.colors = colors;
@@ -131,6 +197,11 @@ namespace KaplaoGames.UI.Theme
                 EnsureChildBorder(button.transform, 10, 2, border);
             }
 
+            if (variant == KaplaoButtonVariant.Primary || variant == KaplaoButtonVariant.Success || variant == KaplaoButtonVariant.Danger)
+            {
+                EnsureChildButtonGlow(button.transform);
+            }
+
             TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
             if (label != null)
             {
@@ -138,11 +209,18 @@ namespace KaplaoGames.UI.Theme
                 label.fontStyle |= FontStyles.Bold;
                 label.alignment = TextAlignmentOptions.Center;
                 label.raycastTarget = false;
+
+                Shadow shadow = label.GetComponent<Shadow>();
+                if (shadow == null)
+                    shadow = label.gameObject.AddComponent<Shadow>();
+                shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+                shadow.effectDistance = new Vector2(1f, -1f);
             }
 
             UiButtonLeanScale scale = button.GetComponent<UiButtonLeanScale>();
             if (scale == null)
                 scale = button.gameObject.AddComponent<UiButtonLeanScale>();
+            scale.SetBaseColors(normal, border);
 
             KaplaoUiStyledElement marker = button.GetComponent<KaplaoUiStyledElement>() ?? button.gameObject.AddComponent<KaplaoUiStyledElement>();
             marker.ElementType = StyledElementType.Button;
@@ -150,20 +228,17 @@ namespace KaplaoGames.UI.Theme
             marker.Radius = 10;
         }
 
-        public static void StyleInputField(TMP_InputField input)
+        public static void StyleInputField(TMP_InputField input, bool forceReplaceSprite = true)
         {
             if (input == null)
                 return;
 
             KaplaoUiTheme theme = KaplaoUiTheme.Instance;
 
-            Image bg = input.targetGraphic as Image;
-            if (bg == null)
-                bg = input.GetComponent<Image>();
-
+            Image bg = input.targetGraphic as Image ?? input.GetComponent<Image>();
             if (bg != null)
             {
-                if (CanSafelyReplaceSprite(bg.sprite))
+                if (CanSafelyReplaceSprite(bg, forceReplaceSprite))
                 {
                     bg.sprite = KaplaoUiSprites.RoundedRect(10);
                     bg.type = Image.Type.Sliced;
@@ -213,20 +288,17 @@ namespace KaplaoGames.UI.Theme
             marker.Radius = 10;
         }
 
-        public static void StyleDropdown(TMP_Dropdown dropdown)
+        public static void StyleDropdown(TMP_Dropdown dropdown, bool forceReplaceSprite = true)
         {
             if (dropdown == null)
                 return;
 
             KaplaoUiTheme theme = KaplaoUiTheme.Instance;
 
-            Image bg = dropdown.targetGraphic as Image;
-            if (bg == null)
-                bg = dropdown.GetComponent<Image>();
-
+            Image bg = dropdown.targetGraphic as Image ?? dropdown.GetComponent<Image>();
             if (bg != null)
             {
-                if (CanSafelyReplaceSprite(bg.sprite))
+                if (CanSafelyReplaceSprite(bg, forceReplaceSprite))
                 {
                     bg.sprite = KaplaoUiSprites.RoundedRect(10);
                     bg.type = Image.Type.Sliced;
@@ -387,7 +459,7 @@ namespace KaplaoGames.UI.Theme
             marker.ElementType = StyledElementType.ToggleSwitch;
         }
 
-        public static void StyleCardRow(GameObject row)
+        public static void StyleCardRow(GameObject row, bool forceReplaceSprite = true)
         {
             if (row == null)
                 return;
@@ -398,7 +470,7 @@ namespace KaplaoGames.UI.Theme
             if (img == null)
                 img = row.AddComponent<Image>();
 
-            if (CanSafelyReplaceSprite(img.sprite))
+            if (CanSafelyReplaceSprite(img, forceReplaceSprite))
             {
                 img.sprite = KaplaoUiSprites.RoundedRect(12);
                 img.type = Image.Type.Sliced;
@@ -406,6 +478,12 @@ namespace KaplaoGames.UI.Theme
             img.color = theme.SurfaceCard;
 
             EnsureChildBorder(row.transform, 12, 2, theme.BorderSubtle);
+
+            UiButtonLeanScale scale = row.GetComponent<UiButtonLeanScale>();
+            if (scale == null)
+                scale = row.AddComponent<UiButtonLeanScale>();
+            scale.SetBaseColors(theme.SurfaceCard, theme.BorderSubtle);
+            scale.SetScale(1.02f, 0.985f);
 
             KaplaoUiStyledElement marker = row.GetComponent<KaplaoUiStyledElement>() ?? row.AddComponent<KaplaoUiStyledElement>();
             marker.ElementType = StyledElementType.Card;
@@ -616,7 +694,40 @@ namespace KaplaoGames.UI.Theme
             return shadowImg;
         }
 
-        public static void StyleHierarchy(Transform root)
+        public static Image EnsureChildButtonGlow(Transform button)
+        {
+            Transform existing = button.Find("UI_BtnGlow");
+            GameObject glowObj;
+            if (existing != null)
+            {
+                glowObj = existing.gameObject;
+            }
+            else
+            {
+                glowObj = new GameObject("UI_BtnGlow", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+                glowObj.transform.SetParent(button, false);
+            }
+
+            RectTransform rect = glowObj.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image glowImg = glowObj.GetComponent<Image>();
+            glowImg.sprite = KaplaoUiSprites.TopGradientOverlay();
+            glowImg.type = Image.Type.Sliced;
+            glowImg.raycastTarget = false;
+            glowImg.color = new Color(1f, 1f, 1f, 0.35f);
+
+            LayoutElement layout = glowObj.GetComponent<LayoutElement>();
+            if (layout != null)
+                layout.ignoreLayout = true;
+
+            return glowImg;
+        }
+
+        public static void StyleHierarchy(Transform root, bool forceReplaceSprites = true)
         {
             if (root == null) return;
 
@@ -632,19 +743,19 @@ namespace KaplaoGames.UI.Theme
                 Button btn = buttons[i];
                 if (btn == null) continue;
                 KaplaoButtonVariant variant = DetermineButtonVariant(btn.gameObject);
-                StyleButton(btn, variant);
+                StyleButton(btn, variant, forceReplaceSprites);
             }
 
             TMP_InputField[] inputs = root.GetComponentsInChildren<TMP_InputField>(true);
             for (int i = 0; i < inputs.Length; i++)
             {
-                if (inputs[i] != null) StyleInputField(inputs[i]);
+                if (inputs[i] != null) StyleInputField(inputs[i], forceReplaceSprites);
             }
 
             TMP_Dropdown[] dropdowns = root.GetComponentsInChildren<TMP_Dropdown>(true);
             for (int i = 0; i < dropdowns.Length; i++)
             {
-                if (dropdowns[i] != null) StyleDropdown(dropdowns[i]);
+                if (dropdowns[i] != null) StyleDropdown(dropdowns[i], forceReplaceSprites);
             }
 
             Slider[] sliders = root.GetComponentsInChildren<Slider>(true);
@@ -663,6 +774,11 @@ namespace KaplaoGames.UI.Theme
                     continue;
                 StyleToggleAsSwitch(t);
             }
+        }
+
+        public static void ApplyRuntimePolish(Transform root)
+        {
+            StyleHierarchy(root, forceReplaceSprites: true);
         }
     }
 }

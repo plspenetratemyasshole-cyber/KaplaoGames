@@ -10,7 +10,7 @@ namespace KaplaoGames.LevelScript
     {
         static readonly HashSet<string> TypeKeywords = new(StringComparer.OrdinalIgnoreCase)
         {
-            "int", "bool", "float", "string", "GameObject", "Component", "list", "list"
+            "int", "bool", "float", "string", "GameObject", "Component", "list"
         };
 
         static readonly HashSet<string> ControlKeywords = new(StringComparer.OrdinalIgnoreCase)
@@ -60,7 +60,7 @@ namespace KaplaoGames.LevelScript
         static readonly string[] CompletionKeywords =
         {
             "spawn", "while", "for", "if", "else", "function", "public", "private", "using",
-            "int", "bool", "float", "string", "GameObject", "Component",
+            "int", "bool", "float", "string", "GameObject", "Component", "list",
             "true", "false", "nil",
             "move", "animate", "spawnExecutor", "rotate", "rotateTo", "wait", "goto",
             "scaleTo", "visibility", "transparency", "playSound", "spawnPoint", "spawnPoints",
@@ -463,9 +463,12 @@ namespace KaplaoGames.LevelScript
 
         static readonly string[] GameObjectMembers =
         {
-            "x", "y", "scaleX", "scaleY", "alpha", "color", "visible",
-            "OnTriggerEnter(GameObject player)", "OnTriggerStay(GameObject player)", "OnTriggerExit(GameObject player)",
-            "destroy()", "hitbox"
+            "x", "y", "name",
+            "OnTriggerEnter(GameObject player)", "OnTriggerStay(GameObject player)", "OnTriggerExit(GameObject player)"
+        };
+        static readonly string[] ComponentMembers =
+        {
+            "velocity", "gravityScale", "Play()", "Stop()", "Pause()", "Clear()"
         };
         static readonly string[] ListMembers = { "add()", "removeAt()", "clear()", "count", "length" };
 
@@ -549,10 +552,30 @@ namespace KaplaoGames.LevelScript
                     memberSet = GameObjectMembers;
                 else if (receiver.StartsWith("Group", StringComparison.OrdinalIgnoreCase) ||
                          receiver.StartsWith("player", StringComparison.OrdinalIgnoreCase) ||
-                         receiver.StartsWith("target", StringComparison.OrdinalIgnoreCase))
+                         receiver.StartsWith("target", StringComparison.OrdinalIgnoreCase) ||
+                         receiver.StartsWith("Scene.", StringComparison.OrdinalIgnoreCase))
                     memberSet = GameObjectMembers;
                 else
-                    memberSet = ListMembers;
+                {
+                    Match declMatch = Regex.Match(
+                        source,
+                        @"\b(?:(?:public|private)\s+)?(GameObject|Component|list|int\[\]|float\[\]|bool\[\]|string\[\])\s+" + Regex.Escape(receiver) + @"\b",
+                        RegexOptions.IgnoreCase);
+                    if (declMatch.Success)
+                    {
+                        string typeName = declMatch.Groups[1].Value;
+                        if (string.Equals(typeName, "GameObject", StringComparison.OrdinalIgnoreCase))
+                            memberSet = GameObjectMembers;
+                        else if (string.Equals(typeName, "Component", StringComparison.OrdinalIgnoreCase))
+                            memberSet = ComponentMembers;
+                        else
+                            memberSet = ListMembers;
+                    }
+                    else
+                    {
+                        memberSet = ListMembers;
+                    }
+                }
 
                 if (memberSet != null)
                 {
@@ -697,6 +720,13 @@ namespace KaplaoGames.LevelScript
             var sb = new StringBuilder(source.Length * 2 + (ghostSuffix?.Length ?? 0) + 32);
             bool errorOpen = false;
 
+            LevelScriptDiagnostic safeDiag = diagnostic;
+            if (safeDiag.HasError)
+            {
+                safeDiag.StartIndex = Math.Clamp(safeDiag.StartIndex, 0, source.Length);
+                safeDiag.EndIndex = Math.Clamp(safeDiag.EndIndex, safeDiag.StartIndex, source.Length);
+            }
+
             for (int i = 0; i < source.Length; i++)
             {
                 if (i == caret)
@@ -710,16 +740,16 @@ namespace KaplaoGames.LevelScript
                     }
                 }
 
-                if (diagnostic.HasError && !errorOpen && i == diagnostic.StartIndex)
+                if (safeDiag.HasError && !errorOpen && i == safeDiag.StartIndex)
                 {
                     sb.Append("<color=#F44747><u>");
                     errorOpen = true;
                 }
 
-                if (TryEmitComment(source, ref i, sb, diagnostic, ref errorOpen))
+                if (TryEmitComment(source, ref i, sb, safeDiag, ref errorOpen))
                     continue;
 
-                if (TryEmitString(source, ref i, sb, diagnostic, ref errorOpen))
+                if (TryEmitString(source, ref i, sb, safeDiag, ref errorOpen))
                     continue;
 
                 if (char.IsLetter(source[i]) || source[i] == '_')
@@ -747,7 +777,7 @@ namespace KaplaoGames.LevelScript
                     AppendEscaped(sb, source[i].ToString());
                 }
 
-                if (diagnostic.HasError && errorOpen && i + 1 >= diagnostic.EndIndex)
+                if (safeDiag.HasError && errorOpen && i + 1 >= safeDiag.EndIndex)
                 {
                     sb.Append("</u></color>");
                     errorOpen = false;

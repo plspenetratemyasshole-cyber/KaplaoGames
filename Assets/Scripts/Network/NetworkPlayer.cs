@@ -106,6 +106,15 @@ namespace KaplaoGames.Network
         }
 
         [Command]
+        public void CmdSendScriptEventToServer(string eventName, string jsonArgs)
+        {
+            LevelScript.LevelScriptRuntime.Instance?.DispatchClientEvent(
+                eventName,
+                new LevelScript.ScriptGameObjectRef(LevelScript.ScriptObjectKind.Player, netId),
+                jsonArgs);
+        }
+
+        [Command]
         public void CmdModerationDecision(LevelSessionServer.ModerationDecision decision, ulong requestId)
         {
             LevelSessionServer.Instance?.ServerApplyModerationDecision(requestId, decision, connectionToClient);

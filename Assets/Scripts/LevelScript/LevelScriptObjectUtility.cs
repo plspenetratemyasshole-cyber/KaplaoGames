@@ -68,6 +68,39 @@ namespace KaplaoGames.LevelScript
 
     public static class LevelScriptObjectUtility
     {
+        static readonly Dictionary<uint, Transform> sceneObjectsById = new();
+        static readonly Dictionary<Transform, uint> sceneIdsByTransform = new();
+        static readonly List<PhysicsMaterial2D> createdMaterials = new();
+        static uint nextSceneObjectId = 1;
+
+        public static void ClearSceneObjectRegistry()
+        {
+            sceneObjectsById.Clear();
+            sceneIdsByTransform.Clear();
+            nextSceneObjectId = 1;
+
+            for (int i = 0; i < createdMaterials.Count; i++)
+            {
+                if (createdMaterials[i] != null)
+                    UnityEngine.Object.Destroy(createdMaterials[i]);
+            }
+            createdMaterials.Clear();
+        }
+
+        public static uint RegisterSceneObject(Transform transform)
+        {
+            if (transform == null)
+                return 0;
+
+            if (sceneIdsByTransform.TryGetValue(transform, out uint existingId))
+                return existingId;
+
+            uint id = nextSceneObjectId++;
+            sceneObjectsById[id] = transform;
+            sceneIdsByTransform[transform] = id;
+            return id;
+        }
+
         public static bool TryResolveTransform(ScriptGameObjectRef reference, out Transform transform)
         {
             transform = null;
@@ -81,6 +114,28 @@ namespace KaplaoGames.LevelScript
 
                 transform = tile.transform;
                 return true;
+            }
+
+            if (reference.Kind == ScriptObjectKind.SceneObject)
+            {
+                if (sceneObjectsById.TryGetValue(reference.NetId, out Transform sceneTr) && sceneTr != null)
+                {
+                    transform = sceneTr;
+                    return true;
+                }
+
+                if (NetworkServer.active && NetworkServer.spawned.TryGetValue(reference.NetId, out NetworkIdentity identity) && identity != null)
+                {
+                    transform = identity.transform;
+                    return true;
+                }
+                if (NetworkClient.active && NetworkClient.spawned.TryGetValue(reference.NetId, out NetworkIdentity clientIdentity) && clientIdentity != null)
+                {
+                    transform = clientIdentity.transform;
+                    return true;
+                }
+
+                return false;
             }
 
             if (!TryResolvePlayer(reference.NetId, out NetworkPlayer player))
@@ -522,13 +577,38 @@ namespace KaplaoGames.LevelScript
             if (string.IsNullOrEmpty(path))
                 return ScriptGameObjectRef.Null;
 
-            // Split path by dots: "ParallaxBackground.Clouds4" -> ["ParallaxBackground", "Clouds4"]
+            Transform found = FindSceneTransform(path);
+            if (found == null)
+                throw new InvalidOperationException($"Scene object '{path}' not found.");
+
+            // Check if it's already a tile or player with NetworkIdentity
+            if (found.TryGetComponent(out NetworkIdentity identity))
+            {
+                if (identity.TryGetComponent<LevelTileServer>(out _))
+                    return new ScriptGameObjectRef(ScriptObjectKind.Tile, identity.netId);
+
+                if (identity.TryGetComponent<NetworkPlayer>(out _))
+                    return new ScriptGameObjectRef(ScriptObjectKind.Player, identity.netId);
+            }
+
+            // Register in static registry without forcing NetworkIdentity or NetworkServer.Spawn
+            uint id = RegisterSceneObject(found);
+            return new ScriptGameObjectRef(ScriptObjectKind.SceneObject, id);
+        }
+
+        static Transform FindSceneTransform(string path)
+        {
+            string unityPath = path.Replace('.', '/');
+            GameObject direct = GameObject.Find(unityPath);
+            if (direct != null) return direct.transform;
+
+            direct = GameObject.Find(path);
+            if (direct != null) return direct.transform;
+
             string[] parts = path.Split('.');
-            
-            // Start from root scene objects
             Transform current = null;
             GameObject[] rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-            
+
             // Find first part in root objects
             foreach (GameObject rootObj in rootObjects)
             {
@@ -539,8 +619,26 @@ namespace KaplaoGames.LevelScript
                 }
             }
 
+            // If not in root objects, check if it's under a "World" or "Objects" container
             if (current == null)
-                throw new InvalidOperationException($"Scene object '{parts[0]}' not found.");
+            {
+                GameObject worldObj = GameObject.Find("World");
+                if (worldObj != null)
+                {
+                    for (int j = 0; j < worldObj.transform.childCount; j++)
+                    {
+                        Transform c = worldObj.transform.GetChild(j);
+                        if (c.name.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+                        {
+                            current = c;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (current == null)
+                return null;
 
             // Navigate through children
             for (int i = 1; i < parts.Length; i++)
@@ -557,34 +655,12 @@ namespace KaplaoGames.LevelScript
                 }
 
                 if (child == null)
-                    throw new InvalidOperationException($"Child '{parts[i]}' not found in '{parts[i - 1]}'.");
+                    return null;
 
                 current = child;
             }
 
-            // Try to get NetworkIdentity for netId, otherwise create a special reference
-            if (current.TryGetComponent(out NetworkIdentity identity))
-            {
-                // Check if it's a tile or player
-                if (identity.TryGetComponent<LevelTileServer>(out _))
-                    return new ScriptGameObjectRef(ScriptObjectKind.Tile, identity.netId);
-                
-                if (identity.TryGetComponent<NetworkPlayer>(out _))
-                    return new ScriptGameObjectRef(ScriptObjectKind.Player, identity.netId);
-
-                // Has NetworkIdentity but not tile/player - it's a scene object
-                return new ScriptGameObjectRef(ScriptObjectKind.SceneObject, identity.netId);
-            }
-
-            // No NetworkIdentity - need to add it on server
-            if (NetworkServer.active)
-            {
-                NetworkIdentity newIdentity = current.gameObject.AddComponent<NetworkIdentity>();
-                NetworkServer.Spawn(current.gameObject);
-                return new ScriptGameObjectRef(ScriptObjectKind.SceneObject, newIdentity.netId);
-            }
-
-            throw new InvalidOperationException($"Cannot reference scene object '{path}' without NetworkIdentity on client.");
+            return current;
         }
 
         public static void ApplyBackgroundAction(BackgroundActionKind kind, int layerIndex, string hexColor, float value)
@@ -666,6 +742,7 @@ namespace KaplaoGames.LevelScript
                         PhysicsMaterial2D mat = col.sharedMaterial != null
                             ? new PhysicsMaterial2D(col.sharedMaterial.name) { bounciness = x, friction = col.sharedMaterial.friction }
                             : new PhysicsMaterial2D { bounciness = x };
+                        createdMaterials.Add(mat);
                         col.sharedMaterial = mat;
                         break;
                     }
@@ -675,11 +752,14 @@ namespace KaplaoGames.LevelScript
                         PhysicsMaterial2D mat = col.sharedMaterial != null
                             ? new PhysicsMaterial2D(col.sharedMaterial.name) { bounciness = col.sharedMaterial.bounciness, friction = x }
                             : new PhysicsMaterial2D { friction = x };
+                        createdMaterials.Add(mat);
                         col.sharedMaterial = mat;
                         break;
                     }
                 }
             }
+
+            LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
         }
 
         public static void ApplySpriteAction(
@@ -748,9 +828,9 @@ namespace KaplaoGames.LevelScript
                     if (kind == SpriteActionKind.SortingOrder)
                         LevelGridServer.Instance.TrySetTilesSortingOrderByNetIds(tileNetIds, sortingOrder);
                     else if (kind == SpriteActionKind.Alpha)
-                        LevelGridServer.Instance.TrySetTilesTransparencyByNetIds(tileNetIds, 1f - Mathf.Clamp01(alpha));
+                        LevelGridServer.Instance.TrySetTilesTransparencyByNetIds(tileNetIds, Mathf.Clamp01(alpha), updateBaseState: false);
                     else if (kind == SpriteActionKind.Color && !string.IsNullOrEmpty(hexColor))
-                        LevelGridServer.Instance.TrySetTilesColorByNetIds(tileNetIds, ParseHexColor(hexColor));
+                        LevelGridServer.Instance.TrySetTilesColorByNetIds(tileNetIds, ParseHexColor(hexColor), updateBaseState: false);
                 }
             }
         }
@@ -774,11 +854,36 @@ namespace KaplaoGames.LevelScript
                     break;
 
                 case WorldActionKind.SetTile:
-                    LevelGridServer.Instance?.TryPlaceTile((TileType)tileId, new Vector2Int(tileX, tileY), new Color32(255, 255, 255, 255));
+                    if (LevelGridServer.Instance != null)
+                    {
+                        Vector2Int cell = new Vector2Int(tileX, tileY);
+                        if (LevelGridServer.Instance.TryGetTile(cell, out LevelTileServer existingTile) && existingTile != null)
+                        {
+                            LevelTileRecord rec = LevelGridServer.CreateRecordFromTile(existingTile);
+                            LevelScriptRuntime.Instance?.RegisterDestroyedTile(rec);
+                            LevelGridServer.Instance.TryRemoveTile(cell);
+                        }
+                        uint newNetId = LevelGridServer.Instance.TryPlaceTile((TileType)tileId, cell, new Color32(255, 255, 255, 255));
+                        if (newNetId != 0)
+                        {
+                            LevelScriptRuntime.Instance?.RegisterCreatedObject(new ScriptGameObjectRef(ScriptObjectKind.Tile, newNetId));
+                        }
+                        LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
+                    }
                     break;
 
                 case WorldActionKind.RemoveTile:
-                    LevelGridServer.Instance?.TryRemoveTile(new Vector2Int(tileX, tileY));
+                    if (LevelGridServer.Instance != null)
+                    {
+                        Vector2Int cell = new Vector2Int(tileX, tileY);
+                        if (LevelGridServer.Instance.TryGetTile(cell, out LevelTileServer existingTile) && existingTile != null)
+                        {
+                            LevelTileRecord rec = LevelGridServer.CreateRecordFromTile(existingTile);
+                            LevelScriptRuntime.Instance?.RegisterDestroyedTile(rec);
+                        }
+                        LevelGridServer.Instance.TryRemoveTile(cell);
+                        LevelScriptTriggerBridge.Instance?.InvalidateWatchCache();
+                    }
                     break;
             }
         }

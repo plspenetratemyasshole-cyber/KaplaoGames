@@ -199,6 +199,12 @@ namespace KaplaoGames.LevelScript
           if (!cache.WatchByColliderId.TryGetValue(colliderId, out ScriptGameObjectRef watchRef))
             continue;
 
+          if (watchRef.IsNull || !LevelScriptObjectUtility.TryResolveTransform(watchRef, out Transform tr) || tr == null)
+          {
+            InvalidateWatchCache();
+            continue;
+          }
+
           var key = new ContactKey(
             registration.Id,
             actorRef.Kind,
@@ -245,6 +251,12 @@ namespace KaplaoGames.LevelScript
           if (!cache.WatchByColliderId.TryGetValue(hit.GetInstanceID(), out ScriptGameObjectRef watchRef))
             continue;
 
+          if (watchRef.IsNull || !LevelScriptObjectUtility.TryResolveTransform(watchRef, out Transform tr) || tr == null)
+          {
+            InvalidateWatchCache();
+            continue;
+          }
+
           if (actorRef.Kind == watchRef.Kind && actorRef.NetId == watchRef.NetId)
             continue;
 
@@ -282,7 +294,7 @@ namespace KaplaoGames.LevelScript
 
       watchCaches.Clear();
       handlersByColliderId.Clear();
-      var context = new LevelScriptExecutionContext();
+      var context = runtime != null ? runtime.CreateEvaluationContext() : new LevelScriptExecutionContext();
 
       for (int h = 0; h < handlers.Count; h++)
       {
@@ -298,6 +310,9 @@ namespace KaplaoGames.LevelScript
         for (int w = 0; w < watches.Count; w++)
         {
           ScriptGameObjectRef watchRef = watches[w];
+          if (watchRef.IsNull || !LevelScriptObjectUtility.TryResolveTransform(watchRef, out Transform tr) || tr == null)
+            continue;
+
           cache.Watches.Add(watchRef);
           Collider2D watchCollider = LevelScriptObjectUtility.TryGetCollider(watchRef);
           if (watchCollider == null || !watchCollider.enabled)

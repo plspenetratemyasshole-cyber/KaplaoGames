@@ -15,6 +15,13 @@ namespace KaplaoGames.UI.Theme
         void Awake()
         {
             ApplySkin(transform);
+            KaplaoUiStyler.ApplyRuntimePolish(transform);
+        }
+
+        void Start()
+        {
+            ApplySkin(transform);
+            KaplaoUiStyler.ApplyRuntimePolish(transform);
         }
 
         public static void ApplySkin(Transform root)

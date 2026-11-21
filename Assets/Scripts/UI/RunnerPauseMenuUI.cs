@@ -234,8 +234,11 @@ namespace KaplaoGames.UI
             if (networkManager == null)
                 return;
 
-            if (NetworkClient.isConnected)
-                networkManager.StopClient();
+            KaplaoGames.UI.Animation.KaplaoSceneTransition.TransitionTo("Returning to Main Menu...", () =>
+            {
+                if (NetworkClient.isConnected)
+                    networkManager.StopClient();
+            });
         }
     }
 }

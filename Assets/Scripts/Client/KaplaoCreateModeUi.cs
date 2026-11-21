@@ -5,6 +5,8 @@ using KaplaoGames.Network;
 using KaplaoGames.Server;
 using KaplaoGames.Shared;
 using KaplaoGames.UI;
+using KaplaoGames.UI.Animation;
+using KaplaoGames.UI.Theme;
 using Mirror;
 using TMPro;
 using UnityEngine;
@@ -190,6 +192,19 @@ namespace KaplaoGames.Client
 
             EnsureDecimalNormalizers();
             EnsureDismissOverlay();
+
+            if (cursorCoordinatesLabel != null)
+            {
+                Image pillBg = cursorCoordinatesLabel.GetComponent<Image>();
+                if (pillBg == null)
+                {
+                    pillBg = cursorCoordinatesLabel.gameObject.AddComponent<Image>();
+                    pillBg.sprite = KaplaoUiSprites.Pill();
+                    pillBg.type = Image.Type.Sliced;
+                    pillBg.color = new Color(0.06f, 0.09f, 0.16f, 0.65f);
+                    pillBg.raycastTarget = false;
+                }
+            }
         }
 
         void OnEnable()
@@ -441,7 +456,14 @@ namespace KaplaoGames.Client
             if (editorLayerLabel == null || cursorServer == null)
                 return;
 
-            editorLayerLabel.text = cursorServer.GetActiveEditorLayerLabel();
+            string newText = cursorServer.GetActiveEditorLayerLabel();
+            if (editorLayerLabel.text != newText)
+            {
+                editorLayerLabel.text = newText;
+                KaplaoValuePunch punch = editorLayerLabel.GetComponent<KaplaoValuePunch>() ??
+                                         editorLayerLabel.gameObject.AddComponent<KaplaoValuePunch>();
+                punch.Punch();
+            }
         }
 
         void SetEditorLayerControlsEnabled(bool enabled)
@@ -712,8 +734,17 @@ namespace KaplaoGames.Client
 
         void SetSelectionToolbarVisible(bool visible)
         {
-            if (selectionToolbarRoot != null)
-                selectionToolbarRoot.SetActive(visible);
+            if (selectionToolbarRoot == null) return;
+            if (visible)
+            {
+                if (!selectionToolbarRoot.activeSelf)
+                    KaplaoUiAnimator.ShowPanel(selectionToolbarRoot, PanelAnimStyle.SlideFromBottom, 0.18f);
+            }
+            else
+            {
+                if (selectionToolbarRoot.activeSelf)
+                    KaplaoUiAnimator.HidePanel(selectionToolbarRoot, PanelAnimStyle.Fade, 0.12f);
+            }
         }
 
         void ToggleSetGroupPanel()
@@ -740,8 +771,8 @@ namespace KaplaoGames.Client
             if (cursorServer == null)
                 return;
 
-            if (setGroupPanelRoot != null)
-                setGroupPanelRoot.SetActive(true);
+            if (setGroupPanelRoot != null && !setGroupPanelRoot.activeSelf)
+                KaplaoUiAnimator.ShowPanel(setGroupPanelRoot, PanelAnimStyle.PopScale, 0.2f);
 
             if (groupInputField != null && string.IsNullOrWhiteSpace(groupInputField.text))
                 groupInputField.text = "1";
@@ -752,8 +783,8 @@ namespace KaplaoGames.Client
 
         void HideSetGroupPanel()
         {
-            if (setGroupPanelRoot != null)
-                setGroupPanelRoot.SetActive(false);
+            if (setGroupPanelRoot != null && setGroupPanelRoot.activeSelf)
+                KaplaoUiAnimator.HidePanel(setGroupPanelRoot, PanelAnimStyle.Fade, 0.14f);
             RefreshToolbarToggleColors();
         }
 
@@ -1049,8 +1080,8 @@ namespace KaplaoGames.Client
             if (cursorServer == null)
                 return;
 
-            if (settingsPanelRoot != null)
-                settingsPanelRoot.SetActive(true);
+            if (settingsPanelRoot != null && !settingsPanelRoot.activeSelf)
+                KaplaoUiAnimator.ShowPanel(settingsPanelRoot, PanelAnimStyle.PopScale, 0.2f);
 
             RefreshSettingsToggles();
             RefreshToolbarToggleColors();
@@ -1065,8 +1096,8 @@ namespace KaplaoGames.Client
                     ApplyTransformPatchFromDirtyFields();
             }
 
-            if (settingsPanelRoot != null)
-                settingsPanelRoot.SetActive(false);
+            if (settingsPanelRoot != null && settingsPanelRoot.activeSelf)
+                KaplaoUiAnimator.HidePanel(settingsPanelRoot, PanelAnimStyle.Fade, 0.14f);
             RefreshToolbarToggleColors();
         }
 
@@ -1091,8 +1122,8 @@ namespace KaplaoGames.Client
             HideSetGroupPanel();
             HideSettingsPanel();
 
-            if (createSettingsPanelRoot != null)
-                createSettingsPanelRoot.SetActive(true);
+            if (createSettingsPanelRoot != null && !createSettingsPanelRoot.activeSelf)
+                KaplaoUiAnimator.ShowPanel(createSettingsPanelRoot, PanelAnimStyle.PopScale, 0.2f);
 
             CreateModeSnapSettings.LoadLocal();
             CreateModeEditorSettings.LoadLocal();
@@ -1125,8 +1156,8 @@ namespace KaplaoGames.Client
 
         void HideCreateSettingsPanel()
         {
-            if (createSettingsPanelRoot != null)
-                createSettingsPanelRoot.SetActive(false);
+            if (createSettingsPanelRoot != null && createSettingsPanelRoot.activeSelf)
+                KaplaoUiAnimator.HidePanel(createSettingsPanelRoot, PanelAnimStyle.Fade, 0.14f);
             RefreshToolbarToggleColors();
         }
 

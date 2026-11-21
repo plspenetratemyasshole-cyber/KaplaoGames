@@ -132,7 +132,11 @@ namespace KaplaoGames.LevelScript
         public void SetValue(string name, ScriptValue val)
         {
             lock (syncRoot)
+            {
+                if (values.TryGetValue(name, out ScriptValue existing) && existing.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int)
+                    val = ScriptValue.FromFloat(val.IntValue);
                 values[name] = val;
+            }
         }
 
         public bool TryGetValue(string name, out ScriptValue val)
@@ -358,7 +362,9 @@ namespace KaplaoGames.LevelScript
             {
                 if (scopes[i].TryGetValue(name, out ScriptValue existing))
                 {
-                    if (existing.Kind != val.Kind && !(existing.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int))
+                    if (existing.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int)
+                        val = ScriptValue.FromFloat(val.IntValue);
+                    else if (existing.Kind != val.Kind)
                         throw new InvalidOperationException($"Variable '{name}' is not a {val.Kind.ToString().ToLowerInvariant()}.");
                     scopes[i][name] = val;
                     return;
@@ -368,7 +374,9 @@ namespace KaplaoGames.LevelScript
             if (programGlobals != null && programGlobals.TryGetValue(name, out ScriptValue gVal))
             {
                 EnsureCanAccessVariable(name);
-                if (gVal.Kind != val.Kind && !(gVal.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int))
+                if (gVal.Kind == ScriptValueKind.Float && val.Kind == ScriptValueKind.Int)
+                    val = ScriptValue.FromFloat(val.IntValue);
+                else if (gVal.Kind != val.Kind)
                     throw new InvalidOperationException($"Variable '{name}' is not a {val.Kind.ToString().ToLowerInvariant()}.");
                 programGlobals.SetValue(name, val);
                 return;
@@ -809,7 +817,7 @@ namespace KaplaoGames.LevelScript
             {
                 int idx = Index != null ? Index.Evaluate(context) : 0;
                 if (idx >= 0 && idx < list.Count)
-                    return list[idx].StringValue ?? string.Empty;
+                    return list[idx].ToString();
             }
             return string.Empty;
         }
@@ -883,6 +891,13 @@ namespace KaplaoGames.LevelScript
     {
         public float Value;
         public override float Evaluate(LevelScriptExecutionContext context) => Value;
+    }
+
+    public sealed class FloatFromIntExpression : FloatExpression
+    {
+        public IntExpression Value;
+        public override float Evaluate(LevelScriptExecutionContext context) =>
+            Value != null ? Value.Evaluate(context) : 0f;
     }
 
     public sealed class FloatVariableExpression : FloatExpression
@@ -1105,8 +1120,28 @@ namespace KaplaoGames.LevelScript
     {
         public string PlayerName;
 
-        public override string Evaluate(LevelScriptExecutionContext context) =>
-            context.GetPlayerName(PlayerName);
+        public override string Evaluate(LevelScriptExecutionContext context)
+        {
+            if (string.Equals(PlayerName, "localPlayer", StringComparison.OrdinalIgnoreCase))
+            {
+                ScriptGameObjectRef localRef = (context != null && !context.LocalPlayerRef.IsNull)
+                    ? context.LocalPlayerRef
+                    : (Mirror.NetworkClient.localPlayer != null
+                        ? new ScriptGameObjectRef(ScriptObjectKind.Player, Mirror.NetworkClient.localPlayer.netId)
+                        : ScriptGameObjectRef.Null);
+
+                if (LevelScriptObjectUtility.TryResolveTransform(localRef, out var t))
+                    return t.name;
+            }
+
+            if (context != null && context.TryGetGameObject(PlayerName, out ScriptGameObjectRef reference) &&
+                LevelScriptObjectUtility.TryResolveTransform(reference, out var objTr))
+            {
+                return objTr.name;
+            }
+
+            return context != null ? context.GetPlayerName(PlayerName) : string.Empty;
+        }
     }
 
     public sealed class GameObjectArrayMemberFloatExpression : FloatExpression
@@ -1259,6 +1294,41 @@ namespace KaplaoGames.LevelScript
         }
     }
 
+    public sealed class BoolComparisonExpression : BoolExpression
+    {
+        public BoolExpression Left;
+        public BoolExpression Right;
+        public ComparisonOperator Operator;
+
+        public override bool Evaluate(LevelScriptExecutionContext context)
+        {
+            bool left = Left != null && Left.Evaluate(context);
+            bool right = Right != null && Right.Evaluate(context);
+
+            return Operator switch
+            {
+                ComparisonOperator.Equal => left == right,
+                ComparisonOperator.NotEqual => left != right,
+                _ => throw new InvalidOperationException("Bool comparisons support only == and !=.")
+            };
+        }
+    }
+
+    public sealed class DynamicEqualityExpression : BoolExpression
+    {
+        public ScriptArgument Left;
+        public ScriptArgument Right;
+        public bool Negate;
+
+        public override bool Evaluate(LevelScriptExecutionContext context)
+        {
+            ScriptValue l = ScriptNetworkEventUtility.EvaluateToScriptValue(Left, context);
+            ScriptValue r = ScriptNetworkEventUtility.EvaluateToScriptValue(Right, context);
+            bool eq = l.Equals(r);
+            return Negate ? !eq : eq;
+        }
+    }
+
     public enum BoolBinaryOperator : byte
     {
         And,
@@ -1390,6 +1460,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public IntExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class BoolDeclarationNode : LevelScriptNode
@@ -1398,6 +1469,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public BoolExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class FloatDeclarationNode : LevelScriptNode
@@ -1406,6 +1478,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public FloatExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class StringDeclarationNode : LevelScriptNode
@@ -1414,6 +1487,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public StringExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class GameObjectDeclarationNode : LevelScriptNode
@@ -1422,6 +1496,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public GameObjectExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class ComponentDeclarationNode : LevelScriptNode
@@ -1430,6 +1505,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public ComponentExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class ListDeclarationNode : LevelScriptNode
@@ -1438,6 +1514,7 @@ namespace KaplaoGames.LevelScript
         public bool IsPublic;
         public string SourcePath = string.Empty;
         public readonly List<ScriptArgument> InitialItems = new();
+        public FunctionCallNode CallValue;
     }
 
     public sealed class ListAddNode : LevelScriptNode
@@ -1464,34 +1541,53 @@ namespace KaplaoGames.LevelScript
         public ScriptArgument Value;
     }
 
+    public sealed class ListAssignmentNode : LevelScriptNode
+    {
+        public string Name;
+        public readonly List<ScriptArgument> InitialItems = new();
+        public FunctionCallNode CallValue;
+    }
+
+    public sealed class GameObjectAssignmentNode : LevelScriptNode
+    {
+        public string Name;
+        public GameObjectExpression Value;
+        public FunctionCallNode CallValue;
+    }
+
     public sealed class IntAssignmentNode : LevelScriptNode
     {
         public string Name;
         public IntExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class BoolAssignmentNode : LevelScriptNode
     {
         public string Name;
         public BoolExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class FloatAssignmentNode : LevelScriptNode
     {
         public string Name;
         public FloatExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class StringAssignmentNode : LevelScriptNode
     {
         public string Name;
         public StringExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class ComponentAssignmentNode : LevelScriptNode
     {
         public string Name;
         public ComponentExpression Value;
+        public FunctionCallNode CallValue;
     }
 
     public sealed class ComponentPropertyAssignmentNode : LevelScriptNode
@@ -1530,6 +1626,7 @@ namespace KaplaoGames.LevelScript
 
     public sealed class ReturnNode : LevelScriptNode
     {
+        public ScriptArgument Value;
         public IntExpression IntValue;
         public FloatExpression FloatValue;
         public BoolExpression BoolValue;
@@ -1552,6 +1649,7 @@ namespace KaplaoGames.LevelScript
         public BoolExpression BoolValue;
         public StringExpression StringValue;
         public GameObjectExpression GameObjectValue;
+        public ComponentExpression ComponentValue;
         public string IdentifierName;
         public IntExpression IndexExpr;
         public int SourceIndex = -1;
@@ -1834,6 +1932,7 @@ namespace KaplaoGames.LevelScript
     {
         public ScriptEventTarget Target;
         public string EventName = string.Empty;
+        public string SourcePath = string.Empty;
         public string PlayerParameterName;
         public readonly List<string> ParameterNames = new();
         public readonly List<LevelScriptNode> Body = new();
@@ -1882,6 +1981,23 @@ namespace KaplaoGames.LevelScript
         public static ScriptValue EvaluateToScriptValue(ScriptArgument arg, LevelScriptExecutionContext context)
         {
             if (arg == null) return ScriptValue.FromInt(0);
+
+            if (!string.IsNullOrEmpty(arg.IdentifierName))
+            {
+                if (context != null && context.TryGetValue(arg.IdentifierName, out ScriptValue val))
+                {
+                    if (arg.IndexExpr != null && val.Kind == ScriptValueKind.List && val.ListValue != null)
+                    {
+                        int idx = arg.IndexExpr.Evaluate(context);
+                        if (idx >= 0 && idx < val.ListValue.Count)
+                            return val.ListValue[idx];
+                        return ScriptValue.FromInt(0);
+                    }
+                    return val;
+                }
+                return ScriptValue.FromInt(0);
+            }
+
             switch (arg.Kind)
             {
                 case ScriptValueKind.Int: return ScriptValue.FromInt(arg.IntValue != null ? arg.IntValue.Evaluate(context) : 0);
@@ -1889,22 +2005,8 @@ namespace KaplaoGames.LevelScript
                 case ScriptValueKind.Bool: return ScriptValue.FromBool(arg.BoolValue != null && arg.BoolValue.Evaluate(context));
                 case ScriptValueKind.String: return ScriptValue.FromString(arg.StringValue != null ? arg.StringValue.Evaluate(context) : string.Empty);
                 case ScriptValueKind.GameObject: return ScriptValue.FromGameObject(arg.GameObjectValue != null ? arg.GameObjectValue.Evaluate(context) : ScriptGameObjectRef.Null);
-                default:
-                    if (!string.IsNullOrEmpty(arg.IdentifierName))
-                    {
-                        if (context.TryGetValue(arg.IdentifierName, out ScriptValue val))
-                        {
-                            if (arg.IndexExpr != null && val.Kind == ScriptValueKind.List && val.ListValue != null)
-                            {
-                                int idx = arg.IndexExpr.Evaluate(context);
-                                if (idx >= 0 && idx < val.ListValue.Count)
-                                    return val.ListValue[idx];
-                                return ScriptValue.FromInt(0);
-                            }
-                            return val;
-                        }
-                    }
-                    return ScriptValue.FromInt(0);
+                case ScriptValueKind.Component: return ScriptValue.FromComponent(arg.ComponentValue != null ? arg.ComponentValue.Evaluate(context) : ScriptComponentRef.Null);
+                default: return ScriptValue.FromInt(0);
             }
         }
 
@@ -1973,19 +2075,19 @@ namespace KaplaoGames.LevelScript
             if (arg == null)
                 return default;
 
-            switch (arg.Kind)
+            ScriptValue val = EvaluateToScriptValue(arg, context);
+            switch (val.Kind)
             {
                 case ScriptValueKind.Int:
-                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Int, IntValue = arg.IntValue != null ? arg.IntValue.Evaluate(context) : 0 };
+                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Int, IntValue = val.IntValue };
                 case ScriptValueKind.Float:
-                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Float, FloatValue = arg.FloatValue != null ? arg.FloatValue.Evaluate(context) : 0f };
+                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Float, FloatValue = val.FloatValue };
                 case ScriptValueKind.Bool:
-                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Bool, BoolValue = arg.BoolValue != null && arg.BoolValue.Evaluate(context) };
+                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.Bool, BoolValue = val.BoolValue };
                 case ScriptValueKind.String:
-                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.String, StringValue = arg.StringValue != null ? arg.StringValue.Evaluate(context) : string.Empty };
+                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.String, StringValue = val.StringValue ?? string.Empty };
                 case ScriptValueKind.GameObject:
-                    var goRef = arg.GameObjectValue != null ? arg.GameObjectValue.Evaluate(context) : ScriptGameObjectRef.Null;
-                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.GameObject, NetId = goRef.NetId, ObjectKind = goRef.Kind };
+                    return new ScriptNetworkEventArg { Kind = ScriptValueKind.GameObject, NetId = val.GameObjectValue.NetId, ObjectKind = val.GameObjectValue.Kind };
                 default:
                     return default;
             }

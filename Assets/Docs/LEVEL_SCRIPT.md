@@ -91,8 +91,10 @@ Level Script — C-подобный интерпретируемый скрип�
 | `Camera.*` (`shake`, `zoom`, `panTo`, `fade`) | ✅ (для хоста) | ✅ (локально для клиента) | На клиенте эффекты камеры видит только этот игрок |
 | `UI.showBanner`, `UI.showTimer` | ✅ (для хоста) | ✅ (локально для клиента) | На клиенте баннеры отображаются только локально |
 | `playSound(...)` | ✅ | ✅ | Проигрывание 2D/3D звука |
-| `move(...)` | ✅ (синхронизирует тайлы) | ✅ (локальный сдвиг Transform) | Локальный сдвиг не рассылается другим игрокам |
-| `destroySprite`, `setSpriteFlip`, `hitbox` | ✅ | ✅ | Локальная модификация визуализации и коллайдеров |
+| `move(...)`, `rotate(...)`, `scaleTo(...)`, `goto(...)` | ✅ (синхронизирует тайлы) | ✅ (локальный сдвиг Transform) | Локальный сдвиг не рассылается другим игрокам |
+| `visibility(...)`, `transparency(...)` | ✅ | ✅ | Прозрачность и видимость тайлов |
+| `destroySprite`, `setSpriteFlip`, `hitbox`, `setColor` | ✅ | ✅ | Модификация визуализации и коллайдеров |
+| `AddComponent`, `GetComponent` | ✅ | ✅ | Поддержка компонентов Unity на обеих сторонах |
 
 ---
 
@@ -559,7 +561,7 @@ onServerEvent("bossAwakened", float shakePower) {
 |---|---|---|
 | `World.setGravity(gx, gy)` | `(float, float)` | Изменение вектора гравитации мира 2D |
 | `World.setTimeScale(scale)` | `(float)` | Скорость течения времени (slow-mo / ускорение) |
-| `World.setTile(x, y, tileId)` | `(int, int, int)` | Установить тайл в ячейку сетки (`1` — Block, `2` — Spike, `3` — Trigger) |
+| `World.setTile(x, y, tileId)` | `(int, int, int)` | Установить тайл в ячейку сетки (`0` — None, `1` — Block, `2` — Spike, `3` — Trigger, `4` — Particle, `5` — Keyframe, `6` — Executor) |
 | `World.removeTile(x, y)` | `(int, int)` | Удалить тайл из ячейки сетки |
 | `World.hasTile(x, y)` | `(int, int) -> bool` | Проверить наличие тайла в координатах сетки |
 
@@ -634,8 +636,16 @@ playSound(player.x, player.y, "item/shield/block1.ogg", 2.0);
 ## Создание динамических объектов и компоненты Unity
 
 ### Создание и удаление объектов
-- `instance(typeName, x, y) -> GameObject` — создает объект указанного типа (`"Block"`, `"Spike"`, `"Runner"`).
-- `destroy(targets)` — уничтожает тайлы или динамические объекты. При нажатии кнопки **Stop** исходные объекты восстанавливаются.
+- `instance(typeName, x, y) -> GameObject` — создает объект указанного типа (`"Block"`, `"Spike"`, `"Runner"`, `"Particle"`).
+- `World.setTile(x, y, tileId)` — динамически размещает или заменяет тайл по координатам сетки:
+  - `0` — `None` (пусто)
+  - `1` — `Block` (твердый блок)
+  - `2` — `Spike` (шип)
+  - `3` — `Trigger` (триггер)
+  - `4` — `Particle` (излучатель частиц)
+  - `5` — `Keyframe` (ключевой кадр)
+  - `6` — `Executor` (исполнитель логики)
+- `destroy(targets)` — уничтожает тайлы или динамические объекты. При нажатии кнопки **Stop** исходные объекты и тайлы автоматически восстанавливаются.
 
 ### Компоненты Unity
 ```csharp
@@ -643,8 +653,28 @@ GameObject platform = Scene.MovingPlatform;
 platform.AddComponent<Rigidbody2D>();
 
 Component rb = platform.GetComponent<Rigidbody2D>();
-rb.Mass = 5.0;
-rb.AddForce(0.0, 25.0);
+rb.gravityScale = 0.0;
+rb.velocity = 5.0;
+```
+
+### Возвращаемые значения пользовательских функций
+Функции могут возвращать вычисленные значения любых типов через `return`:
+```csharp
+function calcOffset(float baseOffset, float multiplier) {
+  return baseOffset * multiplier + 1.5;
+}
+
+float total = calcOffset(10.0, 2.0);
+print("Вычисленный офсет: " + total);
+```
+
+### Строковая конкатенация с выражениями
+Поддерживается конкатенация со значениями любых типов и выражениями в скобках:
+```csharp
+int counter = 4;
+print("Результат умножения: " + (counter * 2.5));
+print("Позиция локального игрока: " + localPlayer.x + ", " + localPlayer.y);
+print("Флаг готовности: " + true);
 ```
 
 ---
