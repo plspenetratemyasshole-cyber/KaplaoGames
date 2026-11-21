@@ -83,6 +83,12 @@ namespace KaplaoGames.Editor
             SceneUiBinderUtility.SetObject(serialized, "cancelExitButton",
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "PauseMenuRoot/ExitWithoutSavePanel/CancelButton"), report, "ExitWithoutSavePanel/CancelButton");
 
+            Transform pausePanel = SceneUiBinderUtility.FindRelative(root, "PauseMenuRoot/PauseMenuPanel");
+            SceneUiBinderUtility.SetObject(serialized, "pauseWorldNameLabel",
+                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/WorldNameLabel") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/WorldName"), report, "PauseHeader/WorldName (optional)");
+            SceneUiBinderUtility.SetObject(serialized, "pauseStatusPillLabel",
+                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/StatusPill/StatusLabel") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/StatusPill/StatusText"), report, "PauseHeader/StatusPill/StatusText (optional)");
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(pauseMenuUi);
         }
@@ -98,10 +104,12 @@ namespace KaplaoGames.Editor
 
             SceneUiBinderUtility.SetObject(serialized, "pauseMenuRoot",
                 SceneUiBinderUtility.FindRelative(root, "RunnerPauseMenuRoot")?.gameObject, report, "RunnerPauseMenuRoot");
+
+            Transform runnerPanel = SceneUiBinderUtility.FindRelative(root, "RunnerPauseMenuRoot/RunnerPauseMenuPanel") ?? SceneUiBinderUtility.FindRelative(root, "RunnerPauseMenuRoot/PauseMenuPanel");
             SceneUiBinderUtility.SetObject(serialized, "resumeButton",
-                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "RunnerPauseMenuRoot/RunnerPauseMenuPanel/ResumeButton"), report, "RunnerPauseMenuPanel/ResumeButton");
+                SceneUiBinderUtility.GetComponentOnPath<Button>(runnerPanel, "ResumeButton"), report, "RunnerPauseMenu/ResumeButton");
             SceneUiBinderUtility.SetObject(serialized, "exitButton",
-                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "RunnerPauseMenuRoot/RunnerPauseMenuPanel/ExitButton"), report, "RunnerPauseMenuPanel/ExitButton");
+                SceneUiBinderUtility.GetComponentOnPath<Button>(runnerPanel, "ExitButton"), report, "RunnerPauseMenu/ExitButton");
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(runnerPauseMenuUi);

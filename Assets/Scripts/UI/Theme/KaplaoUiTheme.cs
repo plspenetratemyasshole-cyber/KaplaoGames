@@ -41,7 +41,7 @@ namespace KaplaoGames.UI.Theme
         public Color BorderSubtle = new Color(0x2B / 255f, 0x3B / 255f, 0x5C / 255f, 0.55f);
         public Color BorderFocus = new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 0.95f);
         public Color InputBorder = new Color(0x26 / 255f, 0x35 / 255f, 0x52 / 255f, 0.95f);
-        public Color SoftShadowColor = new Color(0f, 0f, 0f, 0.45f);
+        public Color SoftShadowColor = new Color(0f, 0f, 0f, 0.28f);
 
         [Header("Typography")]
         public Color TextPrimary = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);

@@ -4,6 +4,7 @@ using KaplaoGames.Server;
 using KaplaoGames.Shared;
 using KaplaoGames.UI.Animation;
 using Mirror;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,6 +30,10 @@ namespace KaplaoGames.UI
         [SerializeField] Button saveSuccessCloseButton;
         [SerializeField] Button confirmExitButton;
         [SerializeField] Button cancelExitButton;
+
+        [Header("Header")]
+        [SerializeField] TextMeshProUGUI pauseWorldNameLabel;
+        [SerializeField] TextMeshProUGUI pauseStatusPillLabel;
 
         [SerializeField] bool onlyForKaplao = true;
 
@@ -280,11 +285,65 @@ namespace KaplaoGames.UI
                     if (banned != null)
                         banned.SetAsLastSibling();
                 }
+
+                UpdatePauseHeader();
             }
 
             PauseCursorState.SetPauseOpen(open);
             ApplyOpenToLanVisibility();
             ApplyCursorVisibility();
+        }
+
+        void UpdatePauseHeader()
+        {
+            if (pauseWorldNameLabel == null || pauseStatusPillLabel == null)
+            {
+                Transform header = pauseMenuPanel != null ? pauseMenuPanel.transform.Find("PauseHeader") : null;
+                if (header != null)
+                {
+                    if (pauseWorldNameLabel == null)
+                    {
+                        Transform nameTrans = header.Find("WorldName");
+                        if (nameTrans != null) pauseWorldNameLabel = nameTrans.GetComponent<TextMeshProUGUI>();
+                    }
+                    if (pauseStatusPillLabel == null)
+                    {
+                        Transform pillTrans = header.Find("StatusPill/StatusText");
+                        if (pillTrans != null) pauseStatusPillLabel = pillTrans.GetComponent<TextMeshProUGUI>();
+                    }
+                }
+            }
+
+            if (pauseWorldNameLabel != null)
+            {
+                string worldName = WorldSession.HasActiveWorld ? WorldSession.ActiveWorldName : "Multiplayer Session";
+                pauseWorldNameLabel.text = string.IsNullOrEmpty(worldName) ? "World" : worldName;
+            }
+
+            if (pauseStatusPillLabel != null)
+            {
+                KaplaoNetworkManager net = KaplaoNetworkManager.Instance;
+                bool isServer = NetworkServer.active;
+                bool isLanOpen = net != null && net.IsLanAdvertised;
+
+                if (isServer && isLanOpen)
+                {
+                    int port = net != null ? net.GetActiveListenPort() : 7777;
+                    pauseStatusPillLabel.text = $"<color=#10B981>●</color> <color=#E2E8F0>LAN Open ({port})</color>";
+                }
+                else if (isServer)
+                {
+                    pauseStatusPillLabel.text = "<color=#38BDF8>●</color> <color=#E2E8F0>Solo World</color>";
+                }
+                else if (NetworkClient.isConnected)
+                {
+                    pauseStatusPillLabel.text = "<color=#FBBF24>●</color> <color=#E2E8F0>Connected</color>";
+                }
+                else
+                {
+                    pauseStatusPillLabel.text = "<color=#94A3B8>●</color> <color=#94A3B8>Offline</color>";
+                }
+            }
         }
 
         void HideAllOverlays()

@@ -42,7 +42,11 @@ namespace KaplaoGames.UI.Animation
                 instance.Display(message, type, duration);
         }
 
-        public static void ShowSuccess(string message) => Show(message, ToastType.Success, 2.2f);
+        public static void ShowSuccess(string message)
+        {
+            KaplaoUiSoundFx.PlaySuccess();
+            Show(message, ToastType.Success, 2.2f);
+        }
         public static void ShowWarning(string message) => Show(message, ToastType.Warning, 2.8f);
         public static void ShowError(string message) => Show(message, ToastType.Error, 3.2f);
 

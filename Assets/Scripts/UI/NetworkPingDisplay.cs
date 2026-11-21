@@ -50,7 +50,7 @@ namespace KaplaoGames.UI
         static string BuildPerfText(int fps)
         {
             string fpsColor = fps >= 50 ? "#34D399" : (fps >= 30 ? "#FBBF24" : "#F87171");
-            string fpsPart = $"<color=#E2E8F0>FPS</color> <color={fpsColor}>{fps}</color>  <color=#64748B>|</color>  <color=#E2E8F0>PING</color>";
+            string fpsPart = $"<color=#FFFFFF>FPS</color> <color={fpsColor}>{fps}</color>  <color=#64748B>|</color>  <color=#FFFFFF>PING</color>";
 
             if (!NetworkClient.active || !NetworkClient.isConnected)
                 return $"{fpsPart} <color=#94A3B8>--</color>";
@@ -64,7 +64,12 @@ namespace KaplaoGames.UI
             return $"{fpsPart} <color={pingColor}>{pingMs}ms</color>";
         }
 
-        void EnsureLabel()
+        public void RebuildPill()
+        {
+            EnsureLabel();
+        }
+
+        public void EnsureLabel()
         {
             Canvas canvas = GetComponent<Canvas>();
             if (canvas == null)
@@ -89,15 +94,15 @@ namespace KaplaoGames.UI
                 rootRect.anchorMax = new Vector2(1f, 1f);
                 rootRect.pivot = new Vector2(1f, 1f);
                 rootRect.anchoredPosition = new Vector2(-16f, -14f);
-                rootRect.sizeDelta = new Vector2(220f, 34f);
+                rootRect.sizeDelta = new Vector2(230f, 34f);
             }
 
             Image bg = root.GetComponent<Image>();
             if (bg == null)
                 bg = root.gameObject.AddComponent<Image>();
-            bg.sprite = KaplaoUiSprites.Pill();
+            bg.sprite = KaplaoUiSprites.RoundedRect(14);
             bg.type = Image.Type.Sliced;
-            bg.color = new Color(0.05f, 0.08f, 0.14f, 0.88f);
+            bg.color = new Color(0.04f, 0.06f, 0.12f, 0.90f);
             bg.raycastTarget = false;
 
             Transform borderTrans = root.Find("UI_Border");
@@ -119,10 +124,11 @@ namespace KaplaoGames.UI
             borderRect.offsetMax = Vector2.zero;
 
             Image borderImg = borderObj.GetComponent<Image>();
-            borderImg.sprite = KaplaoUiSprites.Pill();
+            borderImg.sprite = KaplaoUiSprites.RoundedBorder(14, 2);
             borderImg.type = Image.Type.Sliced;
+            borderImg.pixelsPerUnitMultiplier = 1f;
             borderImg.raycastTarget = false;
-            borderImg.color = new Color(0x33 / 255f, 0x41 / 255f, 0x55 / 255f, 0.9f);
+            borderImg.color = new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 0.35f);
 
             Transform labelTransform = root.Find("PingLabel");
             GameObject labelObject;
@@ -135,6 +141,8 @@ namespace KaplaoGames.UI
             {
                 labelObject = labelTransform.gameObject;
             }
+
+            labelObject.transform.SetAsLastSibling();
 
             RectTransform labelRect = labelObject.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;

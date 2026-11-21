@@ -220,6 +220,8 @@ namespace KaplaoGames.UI
 
             for (int i = 0; i < ipBans.Count; i++)
                 CreateBannedRow(BanEntryKind.Ip, ipBans[i]);
+
+            KaplaoGames.UI.Animation.KaplaoUiAnimator.AnimateListStagger(listContent, 0.03f, 0.2f);
         }
 
         void CreateEmptyLabel()
@@ -249,14 +251,15 @@ namespace KaplaoGames.UI
             GameObject row = new GameObject($"Banned_{kind}_{value}", typeof(RectTransform));
             row.transform.SetParent(listContent, false);
             row.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, RowHeight);
+            KaplaoGames.UI.Theme.KaplaoUiStyler.StyleCardRow(row, forceReplaceSprite: true);
 
-            var rowLayout = row.AddComponent<HorizontalLayoutGroup>();
+            var rowLayout = row.GetComponent<HorizontalLayoutGroup>() ?? row.AddComponent<HorizontalLayoutGroup>();
             rowLayout.childControlHeight = true;
             rowLayout.childControlWidth = true;
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = true;
-            rowLayout.spacing = 6f;
-            rowLayout.padding = new RectOffset(4, 4, 2, 2);
+            rowLayout.spacing = 8f;
+            rowLayout.padding = new RectOffset(8, 8, 3, 3);
             rowLayout.childAlignment = TextAnchor.MiddleLeft;
 
             GameObject nameGo = new GameObject("Name", typeof(RectTransform), typeof(LayoutElement));
@@ -269,7 +272,8 @@ namespace KaplaoGames.UI
             TextMeshProUGUI nameLabel = nameGo.AddComponent<TextMeshProUGUI>();
             nameLabel.text = display;
             nameLabel.fontSize = 15f;
-            nameLabel.color = Color.white;
+            nameLabel.fontStyle = FontStyles.Bold;
+            nameLabel.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
             nameLabel.alignment = TextAlignmentOptions.MidlineLeft;
             nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
             nameLabel.overflowMode = TextOverflowModes.Ellipsis;
@@ -290,20 +294,22 @@ namespace KaplaoGames.UI
             buttonLe.minHeight = buttonHeight;
 
             Image buttonImage = buttonGo.GetComponent<Image>();
+            Button button = buttonGo.GetComponent<Button>();
+            button.targetGraphic = buttonImage;
+
             if (useSpriteButton)
             {
                 buttonImage.sprite = buttonSprite;
                 buttonImage.type = Image.Type.Sliced;
                 buttonImage.preserveAspect = false;
                 buttonImage.color = Color.white;
+                UiButtonLeanScale scale = buttonGo.AddComponent<UiButtonLeanScale>();
+                scale.SetBaseColors(Color.white, Color.clear);
             }
             else
             {
-                buttonImage.color = new Color(0.18f, 0.18f, 0.22f, 1f);
+                KaplaoGames.UI.Theme.KaplaoUiStyler.StyleButton(button, KaplaoGames.UI.Theme.KaplaoButtonVariant.Danger);
             }
-
-            Button button = buttonGo.GetComponent<Button>();
-            button.targetGraphic = buttonImage;
 
             GameObject textGo = new GameObject("Text", typeof(RectTransform));
             textGo.transform.SetParent(buttonGo.transform, false);

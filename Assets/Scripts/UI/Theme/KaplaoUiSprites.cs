@@ -87,24 +87,48 @@ namespace KaplaoGames.UI.Theme
             return sprite;
         }
 
-        public static Sprite SoftShadow(int radius = 18, int spread = 16)
+        public static Sprite SoftShadow(int radius = 16, int spread = 28)
         {
             string key = $"soft_shadow_r{radius}_s{spread}";
             if (TryGetCached(key, out Sprite cached)) return cached;
 
             Sprite res = Resources.Load<Sprite>(ResourcesThemeFolder + "soft_shadow");
-            if (res != null && radius == 18 && spread == 16)
+            if (res != null && radius == 16 && spread == 28)
             {
                 SpriteCache[key] = res;
                 return res;
             }
 
-            int totalPad = radius + spread + 4;
-            int size = totalPad * 2;
+            int totalPad = 48;
+            int size = 96;
             Texture2D tex = CreateSoftShadowTexture(size, size, radius, spread);
             Vector4 border = new Vector4(totalPad, totalPad, totalPad, totalPad);
             Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
             sprite.name = $"KaplaoUi_SoftShadow_r{radius}_s{spread}";
+            sprite.hideFlags = HideFlags.DontSave;
+            SpriteCache[key] = sprite;
+            return sprite;
+        }
+
+        public static Sprite SwitchTrack()
+        {
+            const string key = "switch_track";
+            if (TryGetCached(key, out Sprite cached)) return cached;
+
+            Sprite res = Resources.Load<Sprite>(ResourcesThemeFolder + "switch_track");
+            if (res != null)
+            {
+                SpriteCache[key] = res;
+                return res;
+            }
+
+            const int width = 96;
+            const int height = 48;
+            const float radius = 22f;
+            Texture2D tex = CreateSdfRoundedRectTexture(width, height, radius, 0);
+            Vector4 border = new Vector4(24, 0, 24, 0);
+            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
+            sprite.name = "KaplaoUi_SwitchTrack";
             sprite.hideFlags = HideFlags.DontSave;
             SpriteCache[key] = sprite;
             return sprite;
@@ -368,8 +392,8 @@ namespace KaplaoGames.UI.Theme
                     else if (d <= radius + spread)
                     {
                         float t = (d - radius) / spread;
-                        // Smooth cubic falloff
-                        alpha = Mathf.Clamp01(1f - (3f * t * t - 2f * t * t * t));
+                        // Ultra-soft gaussian falloff without harsh edges
+                        alpha = Mathf.Exp(-4.2f * t * t) * (1f - t);
                     }
                     pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
                 }
@@ -393,6 +417,7 @@ namespace KaplaoGames.UI.Theme
             float innerH = halfH - radius;
 
             Color[] pixels = new Color[width * height];
+            float topThreshold = height * (1f - 0.28f);
             for (int y = 0; y < height; y++)
             {
                 float dy = Mathf.Max(0f, Mathf.Abs(y - halfH) - innerH);
@@ -402,12 +427,12 @@ namespace KaplaoGames.UI.Theme
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     float sdfAlpha = Mathf.Clamp01(radius + 0.5f - d);
 
-                    // Gradient only in the top half
+                    // Gradient only in the top 28% of height
                     float topGradAlpha = 0f;
-                    if (y >= height / 2)
+                    if (y >= topThreshold)
                     {
-                        float t = (float)(y - height / 2) / (height - 1 - height / 2);
-                        topGradAlpha = Mathf.Pow(t, 1.4f);
+                        float t = (y - topThreshold) / Mathf.Max(1f, (height - 1 - topThreshold));
+                        topGradAlpha = Mathf.Pow(t, 2.2f);
                     }
 
                     float alpha = sdfAlpha * topGradAlpha;
@@ -457,20 +482,23 @@ namespace KaplaoGames.UI.Theme
             // 3. pill.png (r=24)
             SaveTextureAndImportSprite("pill", CreateSdfRoundedRectTexture(54, 54, 24, 0), new Vector4(26, 26, 26, 26));
 
-            // 4. soft_shadow.png (r=18, s=16)
-            int shadowPad = 18 + 16 + 4;
-            SaveTextureAndImportSprite("soft_shadow", CreateSoftShadowTexture(shadowPad * 2, shadowPad * 2, 18, 16), new Vector4(shadowPad, shadowPad, shadowPad, shadowPad));
+            // 4. soft_shadow.png (r=16, s=28, size=96, border=48)
+            int shadowPad = 48;
+            SaveTextureAndImportSprite("soft_shadow", CreateSoftShadowTexture(96, 96, 16, 28), new Vector4(shadowPad, shadowPad, shadowPad, shadowPad));
 
             // 5. top_glow.png (size=64x64, r=14)
             SaveTextureAndImportSprite("top_glow", CreateSdfTopGlowTexture(64, 64, 14), new Vector4(16, 16, 16, 16));
 
-            // 6. circle.png
+            // 6. switch_track.png (size=96x48, r=22)
+            SaveTextureAndImportSprite("switch_track", CreateSdfRoundedRectTexture(96, 48, 22, 0), new Vector4(24, 0, 24, 0));
+
+            // 7. circle.png
             SaveTextureAndImportSprite("circle", CreateCircleTexture(64, 29f), Vector4.zero);
 
-            // 7. checkmark.png
+            // 8. checkmark.png
             SaveTextureAndImportSprite("checkmark", CreateCheckmarkTexture(48), Vector4.zero);
 
-            // 8. chevron_down.png
+            // 9. chevron_down.png
             SaveTextureAndImportSprite("chevron_down", CreateChevronDownTexture(32), Vector4.zero);
 
             AssetDatabase.Refresh();

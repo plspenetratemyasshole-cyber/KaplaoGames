@@ -21,6 +21,7 @@ namespace KaplaoGames.UI.Animation
         readonly List<OrbState> orbs = new();
         readonly List<FireflyState> fireflies = new();
         RectTransform canvasRect;
+        Vector2 currentMouseOffset;
 
         struct OrbState
         {
@@ -153,6 +154,18 @@ namespace KaplaoGames.UI.Animation
             float dt = Time.unscaledDeltaTime;
             float t = Time.unscaledTime;
 
+            // Live mouse parallax response (opposite to cursor, ±18..35px)
+            Vector2 targetOffset = Vector2.zero;
+            if (Screen.width > 0 && Screen.height > 0)
+            {
+                Vector2 mouseNorm = new Vector2(
+                    Mathf.Clamp((Input.mousePosition.x / Screen.width) - 0.5f, -0.5f, 0.5f),
+                    Mathf.Clamp((Input.mousePosition.y / Screen.height) - 0.5f, -0.5f, 0.5f)
+                );
+                targetOffset = new Vector2(-mouseNorm.x * 32f, -mouseNorm.y * 24f);
+            }
+            currentMouseOffset = Vector2.Lerp(currentMouseOffset, targetOffset, 1f - Mathf.Exp(-4.5f * dt));
+
             // Move Orbs
             for (int i = 0; i < orbs.Count; i++)
             {
@@ -161,7 +174,7 @@ namespace KaplaoGames.UI.Animation
                 {
                     float angle = t * o.speed + o.phase;
                     Vector2 offset = new Vector2(Mathf.Sin(angle) * o.radius.x, Mathf.Cos(angle * 0.8f) * o.radius.y);
-                    o.transform.anchoredPosition = o.center + offset;
+                    o.transform.anchoredPosition = o.center + offset + currentMouseOffset * 1.15f;
                 }
             }
 
@@ -179,7 +192,7 @@ namespace KaplaoGames.UI.Animation
                     }
 
                     float offsetX = Mathf.Sin(t * f.freqX + f.phase) * f.ampX;
-                    f.transform.anchoredPosition = new Vector2(f.x + offsetX, f.y);
+                    f.transform.anchoredPosition = new Vector2(f.x + offsetX, f.y) + currentMouseOffset * 0.75f;
 
                     float alpha = f.baseAlpha * (0.6f + 0.4f * Mathf.Sin(t * f.pulseSpeed + f.phase));
                     Color c = f.image.color;

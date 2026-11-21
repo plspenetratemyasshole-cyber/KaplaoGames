@@ -60,7 +60,7 @@ namespace KaplaoGames.UI.Theme
                             Image sImg = shadow.GetComponent<Image>();
                             if (sImg != null)
                             {
-                                sImg.sprite = KaplaoUiSprites.SoftShadow(18, 16);
+                                sImg.sprite = KaplaoUiSprites.SoftShadow(16, 28);
                                 sImg.type = Image.Type.Sliced;
                             }
                         }
@@ -126,13 +126,8 @@ namespace KaplaoGames.UI.Theme
                         Transform btnGlow = el.transform.Find("UI_BtnGlow");
                         if (btnGlow != null)
                         {
-                            Image gImg = btnGlow.GetComponent<Image>();
-                            if (gImg != null)
-                            {
-                                gImg.sprite = KaplaoUiSprites.TopGradientOverlay();
-                                gImg.type = Image.Type.Sliced;
-                                gImg.pixelsPerUnitMultiplier = 14f / bRadius;
-                            }
+                            if (Application.isPlaying) Destroy(btnGlow.gameObject);
+                            else DestroyImmediate(btnGlow.gameObject);
                         }
                         break;
 
@@ -207,14 +202,16 @@ namespace KaplaoGames.UI.Theme
                             Transform tBg = toggle.transform.Find("Background");
                             if (tBg != null && tBg.TryGetComponent(out Image tBgImg))
                             {
-                                tBgImg.sprite = KaplaoUiSprites.Pill();
+                                tBgImg.sprite = KaplaoUiSprites.SwitchTrack();
                                 tBgImg.type = Image.Type.Sliced;
+                                tBgImg.pixelsPerUnitMultiplier = 2f;
                             }
                             Transform checkmark = tBg != null ? tBg.Find("Checkmark") : null;
                             if (checkmark != null && checkmark.TryGetComponent(out Image checkImg))
                             {
                                 checkImg.sprite = KaplaoUiSprites.Circle();
                                 checkImg.type = Image.Type.Simple;
+                                checkImg.preserveAspect = true;
                             }
                         }
                         break;

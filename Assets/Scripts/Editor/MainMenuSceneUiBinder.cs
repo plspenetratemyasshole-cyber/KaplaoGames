@@ -59,12 +59,16 @@ namespace KaplaoGames.Editor
                 SceneUiBinderUtility.FindRelative(root, "SettingsPanel")?.gameObject, report, "SettingsPanel (optional)");
 
             SceneUiBinderUtility.SetObject(serialized, "singlePlayerButton",
+                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/MainMenuButtonsGroup/SinglePlayerButton") ??
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/SinglePlayerButton"), report, "MainPanel/SinglePlayerButton");
             SceneUiBinderUtility.SetObject(serialized, "networkGameButton",
+                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/MainMenuButtonsGroup/NetworkGameButton") ??
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/NetworkGameButton"), report, "MainPanel/NetworkGameButton");
             SceneUiBinderUtility.SetObject(serialized, "settingsButton",
+                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/MainMenuButtonsGroup/SettingsButton") ??
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/SettingsButton"), report, "MainPanel/SettingsButton (optional)");
             SceneUiBinderUtility.SetObject(serialized, "exitButton",
+                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/MainMenuButtonsGroup/ExitButton") ??
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/ExitButton"), report, "MainPanel/ExitButton");
 
             SceneUiBinderUtility.SetObject(serialized, "settingsPortInput",
@@ -84,6 +88,7 @@ namespace KaplaoGames.Editor
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "NicknamePanel/BackButton"), report, "NicknamePanel/BackButton");
 
             SceneUiBinderUtility.SetObject(serialized, "singlePlayerBackButton",
+                SceneUiBinderUtility.GetComponentOnPath<Button>(root, "SinglePlayerPanel/BottomBar/BackButton") ??
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "SinglePlayerPanel/BackButton"), report, "SinglePlayerPanel/BackButton");
             SceneUiBinderUtility.SetObject(serialized, "worldListContent",
                 SceneUiBinderUtility.FindRelative(root, "SinglePlayerPanel/WorldScrollView/Viewport/Content"), report, "SinglePlayerPanel/WorldScrollView/Viewport/Content");
@@ -100,6 +105,7 @@ namespace KaplaoGames.Editor
             SceneUiBinderUtility.SetObject(serialized, "createNewWorldButton",
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "SinglePlayerPanel/BottomBar/CreateNewWorldButton"), report, "SinglePlayerPanel/BottomBar/CreateNewWorldButton");
             SceneUiBinderUtility.SetObject(serialized, "emptyWorldsLabel",
+                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/Title2") ??
                 SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/EmptyStateLabel"), report, "SinglePlayerPanel/EmptyStateLabel (optional)");
 
             SceneUiBinderUtility.SetObject(serialized, "worldNameInput",
@@ -134,6 +140,17 @@ namespace KaplaoGames.Editor
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             SceneUiBinderUtility.MarkDirty(menuUi, scene);
+
+            KaplaoBrowseLevelsUi browseUi = canvas.GetComponentInChildren<KaplaoBrowseLevelsUi>(true);
+            if (browseUi != null)
+            {
+                SerializedObject browseSer = new SerializedObject(browseUi);
+                Button browseBtn = SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/MainMenuButtonsGroup/BrowseLevelsButton") ??
+                                  SceneUiBinderUtility.GetComponentOnPath<Button>(root, "MainPanel/BrowseLevelsButton");
+                SceneUiBinderUtility.SetObject(browseSer, "browseButton", browseBtn, report, "KaplaoBrowseLevelsUi/browseButton");
+                browseSer.ApplyModifiedPropertiesWithoutUndo();
+                SceneUiBinderUtility.MarkDirty(browseUi, scene);
+            }
 
             Debug.Log(report.ToString());
         }

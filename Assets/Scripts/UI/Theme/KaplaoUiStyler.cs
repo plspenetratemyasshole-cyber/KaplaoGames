@@ -58,6 +58,7 @@ namespace KaplaoGames.UI.Theme
                    name == "rounded_rect" ||
                    name == "rounded_border" ||
                    name == "pill" ||
+                   name == "switch_track" ||
                    name == "soft_shadow" ||
                    name == "top_glow" ||
                    name == "circle" ||
@@ -267,18 +268,12 @@ namespace KaplaoGames.UI.Theme
                 }
             }
 
-            if (!isProtected && (variant == KaplaoButtonVariant.Primary || variant == KaplaoButtonVariant.Success || variant == KaplaoButtonVariant.Danger))
+            // UI_BtnGlow is removed completely from all buttons
+            Transform oldGlow = button.transform.Find("UI_BtnGlow");
+            if (oldGlow != null)
             {
-                EnsureChildButtonGlow(button.transform, 10);
-            }
-            else if (isProtected)
-            {
-                Transform oldGlow = button.transform.Find("UI_BtnGlow");
-                if (oldGlow != null)
-                {
-                    if (Application.isPlaying) UnityEngine.Object.Destroy(oldGlow.gameObject);
-                    else UnityEngine.Object.DestroyImmediate(oldGlow.gameObject);
-                }
+                if (Application.isPlaying) UnityEngine.Object.Destroy(oldGlow.gameObject);
+                else UnityEngine.Object.DestroyImmediate(oldGlow.gameObject);
             }
 
             TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
@@ -316,9 +311,19 @@ namespace KaplaoGames.UI.Theme
                 scale = button.gameObject.AddComponent<UiButtonLeanScale>();
 
             if (isProtected)
+            {
                 scale.SetBaseColors(Color.white, Color.clear);
+            }
             else
+            {
                 scale.SetBaseColors(normal, border);
+                if (variant != KaplaoButtonVariant.Ghost && variant != KaplaoButtonVariant.Icon)
+                {
+                    KaplaoUiButtonRipple ripple = button.GetComponent<KaplaoUiButtonRipple>();
+                    if (ripple == null)
+                        button.gameObject.AddComponent<KaplaoUiButtonRipple>();
+                }
+            }
 
             KaplaoUiStyledElement marker = button.GetComponent<KaplaoUiStyledElement>() ?? button.gameObject.AddComponent<KaplaoUiStyledElement>();
             marker.ElementType = StyledElementType.Button;
@@ -441,6 +446,13 @@ namespace KaplaoGames.UI.Theme
                     if (oldMask != null)
                         UnityEngine.Object.DestroyImmediate(oldMask);
 
+                    Image vpImg = viewport.GetComponent<Image>();
+                    if (vpImg != null)
+                    {
+                        vpImg.color = new Color(0f, 0f, 0f, 0f);
+                        vpImg.raycastTarget = false;
+                    }
+
                     RectMask2D rectMask = viewport.GetComponent<RectMask2D>();
                     if (rectMask == null)
                         viewport.gameObject.AddComponent<RectMask2D>();
@@ -462,6 +474,16 @@ namespace KaplaoGames.UI.Theme
             Transform bg = slider.transform.Find("Background");
             if (bg != null)
             {
+                RectTransform bgRt = bg as RectTransform;
+                if (bgRt != null)
+                {
+                    bgRt.anchorMin = new Vector2(0f, 0.5f);
+                    bgRt.anchorMax = new Vector2(1f, 0.5f);
+                    bgRt.pivot = new Vector2(0.5f, 0.5f);
+                    bgRt.anchoredPosition = Vector2.zero;
+                    bgRt.sizeDelta = new Vector2(0f, 8f);
+                }
+
                 Image bgImg = bg.GetComponent<Image>();
                 if (bgImg != null)
                 {
@@ -471,9 +493,32 @@ namespace KaplaoGames.UI.Theme
                 }
             }
 
+            Transform fillArea = slider.transform.Find("Fill Area");
+            if (fillArea != null)
+            {
+                RectTransform faRt = fillArea as RectTransform;
+                if (faRt != null)
+                {
+                    faRt.anchorMin = new Vector2(0f, 0.5f);
+                    faRt.anchorMax = new Vector2(1f, 0.5f);
+                    faRt.pivot = new Vector2(0.5f, 0.5f);
+                    faRt.anchoredPosition = Vector2.zero;
+                    faRt.sizeDelta = new Vector2(-12f, 8f);
+                }
+            }
+
             Transform fill = slider.transform.Find("Fill Area/Fill");
             if (fill != null)
             {
+                RectTransform fillRt = fill as RectTransform;
+                if (fillRt != null)
+                {
+                    fillRt.anchorMin = new Vector2(0f, 0f);
+                    fillRt.anchorMax = new Vector2(1f, 1f);
+                    fillRt.offsetMin = Vector2.zero;
+                    fillRt.offsetMax = Vector2.zero;
+                }
+
                 Image fillImg = fill.GetComponent<Image>();
                 if (fillImg != null)
                 {
@@ -483,14 +528,39 @@ namespace KaplaoGames.UI.Theme
                 }
             }
 
+            Transform handleArea = slider.transform.Find("Handle Slide Area");
+            if (handleArea != null)
+            {
+                RectTransform haRt = handleArea as RectTransform;
+                if (haRt != null)
+                {
+                    haRt.anchorMin = new Vector2(0f, 0.5f);
+                    haRt.anchorMax = new Vector2(1f, 0.5f);
+                    haRt.pivot = new Vector2(0.5f, 0.5f);
+                    haRt.anchoredPosition = Vector2.zero;
+                    haRt.sizeDelta = new Vector2(-12f, 20f);
+                }
+            }
+
             Transform handle = slider.transform.Find("Handle Slide Area/Handle");
             if (handle != null)
             {
+                RectTransform hRt = handle as RectTransform;
+                if (hRt != null)
+                {
+                    hRt.anchorMin = new Vector2(0.5f, 0.5f);
+                    hRt.anchorMax = new Vector2(0.5f, 0.5f);
+                    hRt.pivot = new Vector2(0.5f, 0.5f);
+                    hRt.anchoredPosition = new Vector2(hRt.anchoredPosition.x, 0f);
+                    hRt.sizeDelta = new Vector2(20f, 20f);
+                }
+
                 Image handleImg = handle.GetComponent<Image>();
                 if (handleImg != null)
                 {
                     handleImg.sprite = KaplaoUiSprites.Circle();
                     handleImg.type = Image.Type.Simple;
+                    handleImg.preserveAspect = true;
                     handleImg.color = Color.white;
                 }
 
@@ -529,14 +599,15 @@ namespace KaplaoGames.UI.Theme
                 bgRect.anchorMax = new Vector2(0f, 0.5f);
                 bgRect.pivot = new Vector2(0f, 0.5f);
                 bgRect.anchoredPosition = Vector2.zero;
-                bgRect.sizeDelta = new Vector2(44f, 24f);
+                bgRect.sizeDelta = new Vector2(46f, 24f);
             }
 
             Image bgImg = bg.GetComponent<Image>();
             if (bgImg != null)
             {
-                bgImg.sprite = KaplaoUiSprites.Pill();
+                bgImg.sprite = KaplaoUiSprites.SwitchTrack();
                 bgImg.type = Image.Type.Sliced;
+                bgImg.pixelsPerUnitMultiplier = 2f;
                 bgImg.color = toggle.isOn
                     ? new Color(0x10 / 255f, 0xB9 / 255f, 0x81 / 255f, 1f)
                     : new Color(0x33 / 255f, 0x41 / 255f, 0x55 / 255f, 1f);
@@ -550,6 +621,7 @@ namespace KaplaoGames.UI.Theme
                 {
                     checkImg.sprite = KaplaoUiSprites.Circle();
                     checkImg.type = Image.Type.Simple;
+                    checkImg.preserveAspect = true;
                     checkImg.color = Color.white;
                     checkImg.raycastTarget = false;
                 }
@@ -572,7 +644,7 @@ namespace KaplaoGames.UI.Theme
                     if (anim == null)
                         anim = toggle.gameObject.AddComponent<KaplaoUiToggleAnimator>();
 
-                    anim.Configure(checkRect, bgImg, -10f, 10f);
+                    anim.Configure(checkRect, bgImg, -11f, 11f);
                 }
             }
 
@@ -647,7 +719,10 @@ namespace KaplaoGames.UI.Theme
 
                 Image vpImg = viewport.GetComponent<Image>();
                 if (vpImg != null)
+                {
+                    vpImg.color = new Color(0f, 0f, 0f, 0f);
                     vpImg.raycastTarget = false;
+                }
 
                 RectMask2D rectMask = viewport.GetComponent<RectMask2D>();
                 if (rectMask == null)
@@ -792,7 +867,7 @@ namespace KaplaoGames.UI.Theme
             glowImg.type = Image.Type.Sliced;
             glowImg.pixelsPerUnitMultiplier = 14f / Mathf.Max(4f, radius);
             glowImg.raycastTarget = false;
-            glowImg.color = new Color(1f, 1f, 1f, 0.22f);
+            glowImg.color = new Color(1f, 1f, 1f, 0.055f);
 
             LayoutElement layout = glowObj.GetComponent<LayoutElement>();
             if (layout != null)
@@ -801,8 +876,9 @@ namespace KaplaoGames.UI.Theme
             return glowImg;
         }
 
-        public static Image EnsureChildShadow(Transform parent, int radius, int spread, Color color)
+        public static Image EnsureChildShadow(Transform parent, int radius = 16, int spread = 28, Color? colorOpt = null)
         {
+            Color color = colorOpt ?? KaplaoUiTheme.Instance.SoftShadowColor;
             Transform existing = parent.Find("UI_Shadow");
             GameObject shadowObj;
             if (existing != null)
@@ -816,15 +892,15 @@ namespace KaplaoGames.UI.Theme
                 shadowObj.transform.SetAsFirstSibling();
             }
 
-            int pad = radius + spread;
+            int pad = 36;
             RectTransform rect = shadowObj.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(-pad, -pad);
-            rect.offsetMax = new Vector2(pad, pad);
+            rect.offsetMin = new Vector2(-pad, -40f);
+            rect.offsetMax = new Vector2(pad, 32f);
 
             Image shadowImg = shadowObj.GetComponent<Image>();
-            shadowImg.sprite = KaplaoUiSprites.SoftShadow(radius, spread);
+            shadowImg.sprite = KaplaoUiSprites.SoftShadow(16, 28);
             shadowImg.type = Image.Type.Sliced;
             shadowImg.raycastTarget = false;
             shadowImg.color = color;
@@ -838,8 +914,7 @@ namespace KaplaoGames.UI.Theme
 
         public static Image EnsureChildButtonGlow(Transform button, int radius = 10)
         {
-            RectTransform btnRect = button as RectTransform;
-            if (btnRect != null && btnRect.rect.height > 0f && btnRect.rect.height < 36f)
+            if (button != null)
             {
                 Transform old = button.Find("UI_BtnGlow");
                 if (old != null)
@@ -847,39 +922,8 @@ namespace KaplaoGames.UI.Theme
                     if (Application.isPlaying) UnityEngine.Object.Destroy(old.gameObject);
                     else UnityEngine.Object.DestroyImmediate(old.gameObject);
                 }
-                return null;
             }
-
-            Transform existing = button.Find("UI_BtnGlow");
-            GameObject glowObj;
-            if (existing != null)
-            {
-                glowObj = existing.gameObject;
-            }
-            else
-            {
-                glowObj = new GameObject("UI_BtnGlow", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-                glowObj.transform.SetParent(button, false);
-            }
-
-            RectTransform rect = glowObj.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image glowImg = glowObj.GetComponent<Image>();
-            glowImg.sprite = KaplaoUiSprites.TopGradientOverlay();
-            glowImg.type = Image.Type.Sliced;
-            glowImg.pixelsPerUnitMultiplier = 14f / Mathf.Max(4f, radius);
-            glowImg.raycastTarget = false;
-            glowImg.color = new Color(1f, 1f, 1f, 0.18f);
-
-            LayoutElement layout = glowObj.GetComponent<LayoutElement>();
-            if (layout != null)
-                layout.ignoreLayout = true;
-
-            return glowImg;
+            return null;
         }
 
         public static void StyleHierarchy(Transform root, bool forceReplaceSprites = true)
