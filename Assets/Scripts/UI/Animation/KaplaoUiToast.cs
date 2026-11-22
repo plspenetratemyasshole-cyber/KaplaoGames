@@ -44,7 +44,6 @@ namespace KaplaoGames.UI.Animation
 
         public static void ShowSuccess(string message)
         {
-            KaplaoUiSoundFx.PlaySuccess();
             Show(message, ToastType.Success, 2.2f);
         }
         public static void ShowWarning(string message) => Show(message, ToastType.Warning, 2.8f);

@@ -75,8 +75,6 @@ namespace KaplaoGames.UI.Animation
                 return;
             }
 
-            KaplaoGames.UI.Theme.KaplaoUiSoundFx.PlayToggle(isOn);
-
             float targetX = isOn ? onPosX : offPosX;
             Color targetCol = isOn ? onColor : offColor;
 

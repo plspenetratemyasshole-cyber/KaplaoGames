@@ -104,9 +104,11 @@ namespace KaplaoGames.Editor
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "SinglePlayerPanel/BottomBar/OpenSavesFolderButton"), report, "SinglePlayerPanel/BottomBar/OpenSavesFolderButton");
             SceneUiBinderUtility.SetObject(serialized, "createNewWorldButton",
                 SceneUiBinderUtility.GetComponentOnPath<Button>(root, "SinglePlayerPanel/BottomBar/CreateNewWorldButton"), report, "SinglePlayerPanel/BottomBar/CreateNewWorldButton");
-            SceneUiBinderUtility.SetObject(serialized, "emptyWorldsLabel",
-                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/Title2") ??
-                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/EmptyStateLabel"), report, "SinglePlayerPanel/EmptyStateLabel (optional)");
+            var emptyWorldsTmp = SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/Title2") ??
+                                 SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(root, "SinglePlayerPanel/EmptyStateLabel");
+            if (emptyWorldsTmp != null)
+                emptyWorldsTmp.raycastTarget = false;
+            SceneUiBinderUtility.SetObject(serialized, "emptyWorldsLabel", emptyWorldsTmp, report, "SinglePlayerPanel/Title2");
 
             SceneUiBinderUtility.SetObject(serialized, "worldNameInput",
                 SceneUiBinderUtility.GetComponentOnPath<TMP_InputField>(root, "CreateWorldNamePanel/WorldNameInput"), report, "CreateWorldNamePanel/WorldNameInput");

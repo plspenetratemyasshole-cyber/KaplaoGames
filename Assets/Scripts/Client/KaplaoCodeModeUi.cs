@@ -240,8 +240,8 @@ namespace KaplaoGames.Client
                 outRect.anchorMax = new Vector2(1f, 0f);
                 outRect.pivot = new Vector2(0.5f, 0f);
                 outRect.anchoredPosition = Vector2.zero;
-                outRect.offsetMin = new Vector2(FileTreeWidth + 8f, 52f);
-                outRect.offsetMax = new Vector2(-8f, 52f + outputHeight);
+                outRect.offsetMin = new Vector2(FileTreeWidth + 8f, 54f);
+                outRect.offsetMax = new Vector2(-8f, 54f + outputHeight);
             }
 
             if (codeInputField != null)
@@ -249,7 +249,7 @@ namespace KaplaoGames.Client
                 RectTransform codeRect = codeInputField.GetComponent<RectTransform>();
                 codeRect.anchorMin = Vector2.zero;
                 codeRect.anchorMax = Vector2.one;
-                float bottomOffset = outputPanelTransform != null ? (52f + outputHeight + 6f) : 72f;
+                float bottomOffset = outputPanelTransform != null ? (54f + outputHeight + 6f) : 72f;
                 codeRect.offsetMin = new Vector2(FileTreeWidth + 8f, bottomOffset);
                 codeRect.offsetMax = new Vector2(-8f, -(TabBarHeight + 16f));
             }
@@ -260,8 +260,8 @@ namespace KaplaoGames.Client
                 runRect.anchorMin = new Vector2(1f, 0f);
                 runRect.anchorMax = new Vector2(1f, 0f);
                 runRect.pivot = new Vector2(1f, 0f);
-                runRect.anchoredPosition = new Vector2(-24f, 12f);
-                runRect.sizeDelta = new Vector2(120f, 32f);
+                runRect.anchoredPosition = new Vector2(-24f, 10f);
+                runRect.sizeDelta = new Vector2(120f, 34f);
             }
 
             if (documentationButton != null)
@@ -270,8 +270,8 @@ namespace KaplaoGames.Client
                 docRect.anchorMin = new Vector2(0f, 0f);
                 docRect.anchorMax = new Vector2(0f, 0f);
                 docRect.pivot = new Vector2(0f, 0f);
-                docRect.anchoredPosition = new Vector2(FileTreeWidth + 16f, 12f);
-                docRect.sizeDelta = new Vector2(140f, 32f);
+                docRect.anchoredPosition = new Vector2(FileTreeWidth + 16f, 10f);
+                docRect.sizeDelta = new Vector2(140f, 34f);
             }
 
             if (statusLabel != null)
@@ -280,9 +280,23 @@ namespace KaplaoGames.Client
                 statusRect.anchorMin = new Vector2(0.5f, 0f);
                 statusRect.anchorMax = new Vector2(0.5f, 0f);
                 statusRect.pivot = new Vector2(0.5f, 0f);
-                statusRect.anchoredPosition = new Vector2(FileTreeWidth * 0.5f, 14f);
-                statusRect.sizeDelta = new Vector2(500f, 28f);
+                statusRect.anchoredPosition = new Vector2(FileTreeWidth * 0.5f, 12f);
+                statusRect.sizeDelta = new Vector2(500f, 30f);
             }
+
+            if (documentationButton != null)
+                documentationButton.transform.SetAsLastSibling();
+            if (statusLabel != null)
+                statusLabel.transform.SetAsLastSibling();
+            if (runButton != null)
+                runButton.transform.SetAsLastSibling();
+
+            Transform ctx = overlayRoot.transform.Find("CodeContextMenu");
+            if (ctx != null) ctx.SetAsLastSibling();
+            Transform namePrompt = overlayRoot.transform.Find("NamePrompt");
+            if (namePrompt != null) namePrompt.SetAsLastSibling();
+            Transform delConfirm = overlayRoot.transform.Find("DeleteConfirm");
+            if (delConfirm != null) delConfirm.SetAsLastSibling();
         }
 
         // Back-compat for older setup scripts.

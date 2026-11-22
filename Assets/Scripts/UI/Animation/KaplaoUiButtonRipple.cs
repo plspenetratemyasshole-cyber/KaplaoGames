@@ -14,9 +14,9 @@ namespace KaplaoGames.UI.Animation
     [AddComponentMenu("Kaplao/UI/Button Ripple")]
     public class KaplaoUiButtonRipple : MonoBehaviour, IPointerDownHandler
     {
-        [SerializeField] float duration = 0.32f;
-        [SerializeField] float startAlpha = 0.28f;
-        [SerializeField] Color rippleColor = Color.white;
+        [SerializeField] float duration = 0.22f;
+        [SerializeField] float startAlpha = 0.09f;
+        [SerializeField] Color rippleColor = new Color(1f, 1f, 1f, 1f);
 
         RectTransform rectTransform;
         Selectable selectable;
@@ -47,8 +47,12 @@ namespace KaplaoGames.UI.Animation
 
         void SpawnRipple(Vector2 localPos)
         {
-            GameObject rippleObj = new GameObject("UI_Ripple", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            GameObject rippleObj = new GameObject("UI_Ripple", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(LayoutElement));
             rippleObj.transform.SetParent(transform, false);
+
+            LayoutElement le = rippleObj.GetComponent<LayoutElement>();
+            if (le != null)
+                le.ignoreLayout = true;
 
             // Keep ripple under borders and labels
             Transform border = transform.Find("UI_Border");
@@ -79,7 +83,7 @@ namespace KaplaoGames.UI.Animation
 
             float w = rectTransform.rect.width > 0f ? rectTransform.rect.width : 200f;
             float h = rectTransform.rect.height > 0f ? rectTransform.rect.height : 50f;
-            float targetSize = Mathf.Max(w, h) * 2.2f;
+            float targetSize = Mathf.Max(w, h) * 1.15f;
 
             LeanTween.value(rippleObj, initialSize, targetSize, duration)
                 .setIgnoreTimeScale(true)

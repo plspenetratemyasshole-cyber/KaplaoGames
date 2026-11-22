@@ -229,8 +229,6 @@ namespace KaplaoGames.UI
             pointerInside = true;
             if (!isPressed)
                 ComputeHoverTargets();
-
-            KaplaoUiSoundFx.PlayHover();
         }
 
         public void OnPointerExit(PointerEventData eventData)
@@ -265,7 +263,6 @@ namespace KaplaoGames.UI
 
             // Micro bounce impulse on click
             currentScale = Mathf.Min(currentScale, pressScale * 0.97f);
-            KaplaoUiSoundFx.PlayClick();
         }
 
         void ComputeHoverTargets()

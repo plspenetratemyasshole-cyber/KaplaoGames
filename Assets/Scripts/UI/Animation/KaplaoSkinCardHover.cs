@@ -14,7 +14,7 @@ namespace KaplaoGames.UI.Animation
     [AddComponentMenu("Kaplao/UI/Skin Card Hover")]
     public class KaplaoSkinCardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
-        [SerializeField] float hoverScale = 1.12f;
+        [SerializeField] float hoverScale = 1.10f;
         [SerializeField] float responseSpeed = 18f;
 
         Toggle toggle;
@@ -91,8 +91,6 @@ namespace KaplaoGames.UI.Animation
         {
             isHovered = true;
             targetScale = hoverScale;
-            transform.SetAsLastSibling();
-            KaplaoUiSoundFx.PlayHover();
         }
 
         public void OnPointerExit(PointerEventData eventData)

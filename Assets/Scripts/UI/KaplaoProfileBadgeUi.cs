@@ -48,7 +48,7 @@ namespace KaplaoGames.UI
                 rootRect.anchorMin = new Vector2(1f, 1f);
                 rootRect.anchorMax = new Vector2(1f, 1f);
                 rootRect.pivot = new Vector2(1f, 1f);
-                rootRect.anchoredPosition = new Vector2(-24f, -24f);
+                rootRect.anchoredPosition = new Vector2(-24f, -86f);
                 rootRect.sizeDelta = new Vector2(230f, 54f);
             }
 

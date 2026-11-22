@@ -18,6 +18,7 @@ namespace KaplaoGames.UI.Animation
 
         Slider slider;
         RectTransform badgeRect;
+        float lastValue = -999f;
 
         void Awake()
         {
@@ -36,6 +37,25 @@ namespace KaplaoGames.UI.Animation
             {
                 slider.onValueChanged.RemoveListener(OnValueChanged);
                 slider.onValueChanged.AddListener(OnValueChanged);
+                lastValue = slider.value;
+                UpdateText(slider.value, punch: false);
+            }
+        }
+
+        void Update()
+        {
+            if (slider != null && !Mathf.Approximately(slider.value, lastValue))
+            {
+                lastValue = slider.value;
+                UpdateText(slider.value, punch: false);
+            }
+        }
+
+        public void Refresh()
+        {
+            if (slider != null)
+            {
+                lastValue = slider.value;
                 UpdateText(slider.value, punch: false);
             }
         }
