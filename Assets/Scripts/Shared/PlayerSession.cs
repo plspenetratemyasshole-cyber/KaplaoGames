@@ -14,6 +14,7 @@ namespace KaplaoGames.Shared
         const string AuthTokenKey = "kaplao.account.token";
         const string AuthEmailKey = "kaplao.account.email";
         const string AuthLoggedInKey = "kaplao.account.loggedIn";
+        const string NicknamePresetKey = "kaplao.player.nicknamePreset";
 
         public const string DefaultNickname = "Player";
         public const ushort DefaultPort = 25565;
@@ -27,6 +28,9 @@ namespace KaplaoGames.Shared
         public static bool IsLoggedIn { get; private set; }
         public static string AccountEmail { get; private set; } = string.Empty;
         public static string AuthToken { get; private set; } = string.Empty;
+        public static string CachedNicknamePreset { get; private set; } = "none";
+
+        public static event System.Action NicknamePresetChanged;
 
         public static bool IsDefaultNickname =>
             string.Equals(Nickname, DefaultNickname, System.StringComparison.OrdinalIgnoreCase);
@@ -62,6 +66,7 @@ namespace KaplaoGames.Shared
             IsLoggedIn = PlayerPrefs.GetInt(AuthLoggedInKey, 0) != 0;
             AccountEmail = PlayerPrefs.GetString(AuthEmailKey, string.Empty);
             AuthToken = PlayerPrefs.GetString(AuthTokenKey, string.Empty);
+            CachedNicknamePreset = PlayerPrefs.GetString(NicknamePresetKey, "none");
             RunnerSkinPreference.Load();
             KaplaoAudioPreference.Load();
             if (IsLoggedIn && (string.IsNullOrWhiteSpace(AuthToken) || string.IsNullOrWhiteSpace(Nickname)))
@@ -96,16 +101,34 @@ namespace KaplaoGames.Shared
             UpdateServerDisplayName();
         }
 
+        public static void SetCachedNicknamePreset(string preset)
+        {
+            string normalized = string.IsNullOrWhiteSpace(preset) || preset.Equals("own", System.StringComparison.OrdinalIgnoreCase)
+                ? "none"
+                : preset.Trim().ToLowerInvariant();
+
+            if (CachedNicknamePreset != normalized)
+            {
+                CachedNicknamePreset = normalized;
+                PlayerPrefs.SetString(NicknamePresetKey, normalized);
+                PlayerPrefs.Save();
+                NicknamePresetChanged?.Invoke();
+            }
+        }
+
         public static void ClearAccount()
         {
             IsLoggedIn = false;
             AccountEmail = string.Empty;
             AuthToken = string.Empty;
+            CachedNicknamePreset = "none";
             RunnerSkinPreference.ClearOwnedAdminSkinIds();
             PlayerPrefs.DeleteKey(AuthEmailKey);
             PlayerPrefs.DeleteKey(AuthTokenKey);
+            PlayerPrefs.DeleteKey(NicknamePresetKey);
             PlayerPrefs.SetInt(AuthLoggedInKey, 0);
             PlayerPrefs.Save();
+            NicknamePresetChanged?.Invoke();
         }
 
         public static void SignOutKeepLocalNickname()

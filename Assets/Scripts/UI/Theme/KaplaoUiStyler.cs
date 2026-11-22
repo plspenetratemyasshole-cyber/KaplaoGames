@@ -210,12 +210,34 @@ namespace KaplaoGames.UI.Theme
             marker.ElementType = StyledElementType.Backdrop;
         }
 
+        public static void CenterPivotPreservingPosition(RectTransform rt)
+        {
+            if (rt == null) return;
+            Vector2 newPivot = new Vector2(0.5f, 0.5f);
+            if ((rt.pivot - newPivot).sqrMagnitude < 0.0001f) return;
+            // Skip elements driven by RobloxStyleRect (RobloxStyleRect overwrites pivot in Update)
+            if (rt.GetComponent("RobloxStyleRect") != null) return;
+
+            Vector2 size = rt.rect.size;
+            if (size.sqrMagnitude < 0.01f) size = rt.sizeDelta;
+            Vector2 deltaPivot = newPivot - rt.pivot;
+            Vector3 deltaPos = new Vector3(deltaPivot.x * size.x * rt.localScale.x, deltaPivot.y * size.y * rt.localScale.y, 0f);
+            rt.pivot = newPivot;
+            rt.anchoredPosition += (Vector2)deltaPos;
+        }
+
         public static void StyleButton(Button button, KaplaoButtonVariant variant = KaplaoButtonVariant.Secondary, bool forceReplaceSprite = true)
         {
             if (button == null)
                 return;
 
             button.transition = Selectable.Transition.None;
+
+            RectTransform btnRt = button.GetComponent<RectTransform>();
+            if (btnRt != null && btnRt.anchorMin == btnRt.anchorMax)
+            {
+                CenterPivotPreservingPosition(btnRt);
+            }
 
             KaplaoUiTheme theme = KaplaoUiTheme.Instance;
             var (normal, hover, press, border) = theme.GetButtonColors(variant);
@@ -798,11 +820,19 @@ namespace KaplaoGames.UI.Theme
                 return KaplaoButtonVariant.Success;
             }
 
-            if (name.Equals("closebutton", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("cancelbutton", StringComparison.OrdinalIgnoreCase) ||
-                text.Equals("×") || text.Equals("x", StringComparison.OrdinalIgnoreCase))
+            if (text.Equals("×") || text.Equals("x", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("closexbutton", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("xbutton", StringComparison.OrdinalIgnoreCase))
             {
                 return KaplaoButtonVariant.Ghost;
+            }
+
+            if (name.Equals("closebutton", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("cancelbutton", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("close") ||
+                combined.Contains("cancel"))
+            {
+                return KaplaoButtonVariant.Secondary;
             }
 
             return KaplaoButtonVariant.Secondary;

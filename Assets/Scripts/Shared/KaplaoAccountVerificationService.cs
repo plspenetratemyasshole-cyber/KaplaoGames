@@ -16,6 +16,7 @@ namespace KaplaoGames.Shared
         public class VerifyResult
         {
             public bool Valid;
+            public bool NetworkError;
             public string Email;
             public string Nickname;
             public bool IsAdmin;
@@ -43,6 +44,7 @@ namespace KaplaoGames.Shared
             {
                 Debug.LogWarning(
                     "[KaplaoAccountVerification] No network — skipping online verification (no admin / nickname preset).");
+                result.NetworkError = true;
                 onComplete(result);
                 yield break;
             }
@@ -94,12 +96,13 @@ namespace KaplaoGames.Shared
                     request.SetRequestHeader("Authorization", "Bearer " + catalog.anonKey);
                 }
 
-                request.timeout = 12;
+                request.timeout = 6;
                 yield return request.SendWebRequest();
 
                 string responseBody = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
                 if (request.result != UnityWebRequest.Result.Success)
                 {
+                    result.NetworkError = true;
                     Debug.LogWarning(
                         $"[KaplaoAccountVerification] HTTP failed ({url}): {request.error} ({request.responseCode}) body={Truncate(responseBody, 300)}");
                     yield break;

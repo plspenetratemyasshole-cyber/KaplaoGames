@@ -60,11 +60,17 @@ namespace KaplaoGames.UI
         {
             if (initialized) return;
 
-            if (target == null)
+            if (target == null || target != transform as RectTransform)
                 target = transform as RectTransform;
 
             if (target != null)
+            {
                 baseScale = target.localScale;
+                if ((target.pivot - new Vector2(0.5f, 0.5f)).sqrMagnitude > 0.001f)
+                {
+                    if (hoverScale > 1.025f) hoverScale = 1.02f;
+                }
+            }
 
             selectable = GetComponent<Selectable>();
             if (selectable is Button btn)

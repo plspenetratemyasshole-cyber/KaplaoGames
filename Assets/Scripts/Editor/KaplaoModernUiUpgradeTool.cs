@@ -110,6 +110,8 @@ namespace KaplaoGames.Editor
             Transform serverTmpl = canvas.transform.Find("NetworkPanel/ServerScrollView/Viewport/Content/ServerEntryTemplate");
             if (serverTmpl != null) serverTmpl.gameObject.SetActive(false);
 
+            CenterAllButtonPivots(canvas.transform);
+
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Debug.Log("[Kaplao] MainMenu scene UI upgrade complete and saved.");
@@ -189,9 +191,18 @@ namespace KaplaoGames.Editor
             SetPanelActive(canvas.transform.Find("HostModerationPanel") ?? FindDeepChild(canvas.transform, "HostModerationPanel"), false);
             SetPanelActive(canvas.transform.Find("BannedPlayersPanel") ?? FindDeepChild(canvas.transform, "BannedPlayersPanel"), false);
             SetPanelActive(canvas.transform.Find("ModeratorModerationPanel"), false);
-            SetPanelActive(canvas.transform.Find("DocumentationPanel"), false);
+            SetPanelActive(canvas.transform.Find("DocumentationPanel") ?? FindDeepChild(canvas.transform, "DocumentationPanel"), false);
+            SetPanelActive(canvas.transform.Find("DocPanel") ?? FindDeepChild(canvas.transform, "DocPanel"), false);
             SetPanelActive(canvas.transform.Find("CantChangeModePanel"), false);
             SetPanelActive(canvas.transform.Find("KaplaoUiToastRoot"), false);
+            SetPanelActive(canvas.transform.Find("SoundPickerPanel") ?? FindDeepChild(canvas.transform, "SoundPickerPanel"), false);
+            SetPanelActive(canvas.transform.Find("TexturePickerPanel") ?? FindDeepChild(canvas.transform, "TexturePickerPanel"), false);
+            SetPanelActive(canvas.transform.Find("PngImportPanel") ?? FindDeepChild(canvas.transform, "PngImportPanel"), false);
+            SetPanelActive(canvas.transform.Find("TextureImportPanel") ?? FindDeepChild(canvas.transform, "TextureImportPanel"), false);
+            SetPanelActive(canvas.transform.Find("SoundImportPanel") ?? FindDeepChild(canvas.transform, "SoundImportPanel"), false);
+            SetPanelActive(canvas.transform.Find("PromoteRunnerPanel") ?? FindDeepChild(canvas.transform, "PromoteRunnerPanel"), false);
+            SetPanelActive(canvas.transform.Find("SelectionSettingsPanel") ?? FindDeepChild(canvas.transform, "SelectionSettingsPanel"), false);
+            SetPanelActive(canvas.transform.Find("LevelSettingsPanel") ?? FindDeepChild(canvas.transform, "LevelSettingsPanel"), false);
 
             if (createMode != null)
             {
@@ -204,6 +215,9 @@ namespace KaplaoGames.Editor
                 SetPanelActive(createMode.Find("KeyframeEditorPanel"), false);
                 SetPanelActive(createMode.Find("ExecutorEditorPanel"), false);
             }
+
+            CenterAllButtonPivots(canvas.transform);
+            FixNestedButtonsAndScales(canvas.transform);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
@@ -255,11 +269,21 @@ namespace KaplaoGames.Editor
         {
             if (mainPanel == null) return;
             Transform existing = mainPanel.Find("ProfileBadge");
+            KaplaoProfileBadgeUi badgeUi = null;
             if (existing == null)
             {
                 GameObject badgeObj = new GameObject("ProfileBadge", typeof(RectTransform));
                 badgeObj.transform.SetParent(mainPanel, false);
-                badgeObj.AddComponent<KaplaoProfileBadgeUi>();
+                badgeUi = badgeObj.AddComponent<KaplaoProfileBadgeUi>();
+            }
+            else
+            {
+                badgeUi = existing.GetComponent<KaplaoProfileBadgeUi>() ?? existing.gameObject.AddComponent<KaplaoProfileBadgeUi>();
+            }
+
+            if (badgeUi != null)
+            {
+                badgeUi.EnsureVisualHierarchy();
             }
         }
 
@@ -272,6 +296,16 @@ namespace KaplaoGames.Editor
             {
                 canvas.gameObject.AddComponent<NetworkPingDisplay>();
             }
+
+            KaplaoDataFetchHud fetchHud = canvas.GetComponentInChildren<KaplaoDataFetchHud>(true);
+            if (fetchHud == null)
+            {
+                Transform existing = canvas.transform.Find("KaplaoDataFetchHud");
+                GameObject hudObj = existing != null ? existing.gameObject : new GameObject("KaplaoDataFetchHud");
+                hudObj.transform.SetParent(canvas.transform, false);
+                fetchHud = hudObj.AddComponent<KaplaoDataFetchHud>();
+            }
+            fetchHud.EnsureVisualHierarchy();
 
             // Remove KaplaoModeBannerHud and any banner object (banner is no longer used)
             KaplaoModeBannerHud[] banners = canvas.GetComponentsInChildren<KaplaoModeBannerHud>(true);
@@ -1492,7 +1526,7 @@ namespace KaplaoGames.Editor
             if (toolbar != null)
             {
                 StyleButtonIfExists(toolbar, "DeleteButton", KaplaoButtonVariant.Danger);
-                StyleButtonIfExists(toolbar, "DeselectButton", KaplaoButtonVariant.Ghost);
+                StyleButtonIfExists(toolbar, "DeselectButton", KaplaoButtonVariant.Secondary);
             }
 
             // SettingsPanel (Tile Settings)
@@ -1501,9 +1535,10 @@ namespace KaplaoGames.Editor
             {
                 RectTransform rt = settingsPanel.GetComponent<RectTransform>();
                 rt.sizeDelta = new Vector2(440f, 480f);
-                KaplaoUiStyler.StylePanel(settingsPanel.gameObject, true, true);
+                KaplaoUiStyler.StylePanel(settingsPanel.gameObject, true, true, forceReplaceSprite: true);
                 StyleButtonIfExists(settingsPanel, "ApplyTransformButton", KaplaoButtonVariant.Success);
-                StyleButtonIfExists(settingsPanel, "SettingsCloseButton", KaplaoButtonVariant.Ghost);
+                StyleButtonIfExists(settingsPanel, "SettingsCloseButton", KaplaoButtonVariant.Secondary);
+                AdjustToggleMargins(settingsPanel, 440f);
             }
 
             // CreateSettingsPanel
@@ -1512,9 +1547,10 @@ namespace KaplaoGames.Editor
             {
                 RectTransform rt = createSettings.GetComponent<RectTransform>();
                 rt.sizeDelta = new Vector2(380f, 620f);
-                KaplaoUiStyler.StylePanel(createSettings.gameObject, true, true);
+                KaplaoUiStyler.StylePanel(createSettings.gameObject, true, true, forceReplaceSprite: true);
                 StyleButtonIfExists(createSettings, "CreateSettingsSaveButton", KaplaoButtonVariant.Success);
-                StyleButtonIfExists(createSettings, "CreateSettingsCloseButton", KaplaoButtonVariant.Ghost);
+                StyleButtonIfExists(createSettings, "CreateSettingsCloseButton", KaplaoButtonVariant.Secondary);
+                AdjustToggleMargins(createSettings, 380f);
             }
 
             // Other dialogs
@@ -1531,7 +1567,198 @@ namespace KaplaoGames.Editor
             {
                 Transform p = createMode.Find(panels[i]);
                 if (p != null)
-                    KaplaoUiStyler.StylePanel(p.gameObject, true, true);
+                    KaplaoUiStyler.StylePanel(p.gameObject, true, true, forceReplaceSprite: true);
+            }
+
+            // Polish legacy import & picker panels
+            PolishPickerAndImportPanels(canvas);
+        }
+
+        static void AdjustToggleMargins(Transform panel, float panelWidth = 380f)
+        {
+            if (panel == null) return;
+            Toggle[] toggles = panel.GetComponentsInChildren<Toggle>(true);
+            for (int i = 0; i < toggles.Length; i++)
+            {
+                RectTransform rt = toggles[i].GetComponent<RectTransform>();
+                if (rt == null) continue;
+                // If it's anchored top-left with fixed x near 160 or touches edges
+                if (rt.anchorMin == new Vector2(0f, 1f) && rt.anchorMax == new Vector2(0f, 1f))
+                {
+                    rt.anchorMin = new Vector2(0.5f, 1f);
+                    rt.anchorMax = new Vector2(0.5f, 1f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.anchoredPosition = new Vector2(0f, rt.anchoredPosition.y);
+                    rt.sizeDelta = new Vector2(panelWidth - 48f, rt.sizeDelta.y > 0 ? rt.sizeDelta.y : 28f);
+                }
+            }
+        }
+
+        static void PolishPickerAndImportPanels(Canvas canvas)
+        {
+            if (canvas == null) return;
+
+            // 1. SoundPickerPanel
+            Transform soundPicker = canvas.transform.Find("SoundPickerPanel") ?? FindDeepChild(canvas.transform, "SoundPickerPanel");
+            if (soundPicker != null)
+            {
+                KaplaoUiStyler.StylePanel(soundPicker.gameObject, true, true, forceReplaceSprite: true);
+                Transform buttonsRow = soundPicker.Find("ButtonsRow") ?? FindDeepChild(soundPicker, "ButtonsRow");
+                if (buttonsRow != null)
+                {
+                    UiButtonLeanScale ubls = buttonsRow.GetComponent<UiButtonLeanScale>();
+                    if (ubls != null) UnityEngine.Object.DestroyImmediate(ubls);
+                }
+                StyleButtonIfExists(soundPicker, "BackButton", KaplaoButtonVariant.Secondary);
+                StyleButtonIfExists(soundPicker, "CopyNameButton", KaplaoButtonVariant.Primary);
+                StyleButtonIfExists(soundPicker, "CloseButton", KaplaoButtonVariant.Secondary);
+                AttachPanelAnimator(soundPicker, PanelAnimStyle.PopScale);
+            }
+
+            // 2. TexturePickerPanel
+            Transform texturePicker = canvas.transform.Find("TexturePickerPanel") ?? FindDeepChild(canvas.transform, "TexturePickerPanel");
+            if (texturePicker != null)
+            {
+                KaplaoUiStyler.StylePanel(texturePicker.gameObject, true, true, forceReplaceSprite: true);
+                StyleButtonIfExists(texturePicker, "CloseButton", KaplaoButtonVariant.Secondary);
+                StyleButtonIfExists(texturePicker, "ChangeNameButton", KaplaoButtonVariant.Primary);
+                AttachPanelAnimator(texturePicker, PanelAnimStyle.PopScale);
+            }
+
+            // 3. PngImportPanel, TextureImportPanel, SoundImportPanel
+            string[] importPanels = new[] { "PngImportPanel", "TextureImportPanel", "SoundImportPanel" };
+            foreach (var panelName in importPanels)
+            {
+                Transform p = canvas.transform.Find(panelName) ?? FindDeepChild(canvas.transform, panelName);
+                if (p != null)
+                {
+                    KaplaoUiStyler.StylePanel(p.gameObject, true, true, forceReplaceSprite: true);
+                    Button[] btns = p.GetComponentsInChildren<Button>(true);
+                    foreach (var b in btns)
+                    {
+                        var roblox = b.GetComponent("RobloxStyleRect");
+                        if (roblox != null) UnityEngine.Object.DestroyImmediate(roblox);
+                        RectTransform brt = b.GetComponent<RectTransform>();
+                        if (brt != null)
+                        {
+                            CenterPivotPreservingPosition(brt);
+                        }
+                        string bName = b.name.ToLowerInvariant();
+                        if (bName.Contains("add"))
+                            KaplaoUiStyler.StyleButton(b, KaplaoButtonVariant.Success);
+                        else if (bName.Contains("select") || bName.Contains("import"))
+                            KaplaoUiStyler.StyleButton(b, KaplaoButtonVariant.Primary);
+                        else if (bName.Contains("close") || bName.Contains("cancel"))
+                            KaplaoUiStyler.StyleButton(b, KaplaoButtonVariant.Secondary);
+                    }
+                    AttachPanelAnimator(p, PanelAnimStyle.PopScale);
+                }
+            }
+
+            // 4. Canvas/DocPanel (and DocumentationPanel)
+            Transform docPanel = canvas.transform.Find("DocPanel") ?? FindDeepChild(canvas.transform, "DocPanel") ??
+                                 canvas.transform.Find("DocumentationPanel") ?? FindDeepChild(canvas.transform, "DocumentationPanel");
+            if (docPanel != null)
+            {
+                KaplaoUiStyler.StylePanel(docPanel.gameObject, true, true, forceReplaceSprite: true);
+                Transform okBtn = docPanel.Find("OKButton") ?? FindDeepChild(docPanel, "OKButton");
+                if (okBtn != null)
+                {
+                    var roblox = okBtn.GetComponent("RobloxStyleRect");
+                    if (roblox != null) UnityEngine.Object.DestroyImmediate(roblox);
+                    RectTransform okRt = okBtn.GetComponent<RectTransform>();
+                    if (okRt != null)
+                    {
+                        okRt.pivot = new Vector2(0.5f, 0.5f);
+                        okRt.sizeDelta = new Vector2(120f, 36f);
+                    }
+                    Button b = okBtn.GetComponent<Button>();
+                    if (b != null)
+                        KaplaoUiStyler.StyleButton(b, KaplaoButtonVariant.Primary);
+                }
+                TextMeshProUGUI docText = docPanel.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (docText != null)
+                {
+                    docText.color = new Color(0.97f, 0.98f, 0.99f, 1f); // #F8FAFC
+                }
+                AttachPanelAnimator(docPanel, PanelAnimStyle.PopScale);
+            }
+
+            // 5. PromoteRunnerPanel, SelectionSettingsPanel, LevelSettingsPanel
+            string[] extraPanels = new[] { "PromoteRunnerPanel", "SelectionSettingsPanel", "LevelSettingsPanel" };
+            foreach (var extraName in extraPanels)
+            {
+                Transform ep = canvas.transform.Find(extraName) ?? FindDeepChild(canvas.transform, extraName);
+                if (ep != null)
+                {
+                    KaplaoUiStyler.StylePanel(ep.gameObject, true, true, forceReplaceSprite: true);
+                    AttachPanelAnimator(ep, PanelAnimStyle.PopScale);
+                }
+            }
+        }
+
+        public static void CenterPivotPreservingPosition(RectTransform rt)
+        {
+            if (rt == null) return;
+            Vector2 newPivot = new Vector2(0.5f, 0.5f);
+            if ((rt.pivot - newPivot).sqrMagnitude < 0.0001f) return;
+            // Skip elements driven by RobloxStyleRect (RobloxStyleRect overwrites pivot in Update)
+            if (rt.GetComponent("RobloxStyleRect") != null) return;
+
+            Vector2 size = rt.rect.size;
+            if (size.sqrMagnitude < 0.01f) size = rt.sizeDelta;
+            Vector2 deltaPivot = newPivot - rt.pivot;
+            Vector3 deltaPos = new Vector3(deltaPivot.x * size.x * rt.localScale.x, deltaPivot.y * size.y * rt.localScale.y, 0f);
+            rt.pivot = newPivot;
+            rt.anchoredPosition += (Vector2)deltaPos;
+        }
+
+        static void CenterAllButtonPivots(Transform root)
+        {
+            if (root == null) return;
+            Button[] buttons = root.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button b = buttons[i];
+                if (b == null) continue;
+                RectTransform rt = b.GetComponent<RectTransform>();
+                if (rt == null) continue;
+                if (rt.anchorMin != rt.anchorMax) continue; // Skip stretch full-size buttons
+                CenterPivotPreservingPosition(rt);
+            }
+        }
+
+        static void FixNestedButtonsAndScales(Transform root)
+        {
+            if (root == null) return;
+
+            // Remove UiButtonLeanScale from containers like 'Buttons' and 'ButtonsRow' that have no Selectable
+            UiButtonLeanScale[] allScales = root.GetComponentsInChildren<UiButtonLeanScale>(true);
+            for (int i = 0; i < allScales.Length; i++)
+            {
+                if (allScales[i] == null) continue;
+                if (allScales[i].GetComponent<Selectable>() == null)
+                {
+                    UnityEngine.Object.DestroyImmediate(allScales[i]);
+                }
+            }
+
+            // Ensure every button targets strictly its own RectTransform
+            Button[] allButtons = root.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < allButtons.Length; i++)
+            {
+                Button btn = allButtons[i];
+                if (btn == null) continue;
+                RectTransform brt = btn.GetComponent<RectTransform>();
+                if (brt != null && brt.anchorMin == brt.anchorMax)
+                {
+                    CenterPivotPreservingPosition(brt);
+                }
+                UiButtonLeanScale scale = btn.GetComponent<UiButtonLeanScale>();
+                if (scale != null)
+                {
+                    scale.Initialize();
+                }
             }
         }
 
@@ -1644,14 +1871,63 @@ namespace KaplaoGames.Editor
                 hsRt.anchorMin = new Vector2(1f, 1f);
                 hsRt.anchorMax = new Vector2(1f, 1f);
                 hsRt.pivot = new Vector2(1f, 1f);
-                hsRt.anchoredPosition = new Vector2(-16f, -128f);
-                hsRt.sizeDelta = new Vector2(290f, 44f);
+                hsRt.anchoredPosition = new Vector2(-16f, -124f);
+                hsRt.sizeDelta = new Vector2(290f, 52f);
                 KaplaoUiStyler.StylePanel(hostSettings.gameObject, true, true);
 
                 Toggle runnerToggle = hostSettings.GetComponentInChildren<Toggle>(true);
                 if (runnerToggle != null)
                 {
                     KaplaoUiStyler.StyleToggleAsSwitch(runnerToggle);
+
+                    RectTransform rtToggle = runnerToggle.GetComponent<RectTransform>();
+                    if (rtToggle != null)
+                    {
+                        rtToggle.anchorMin = Vector2.zero;
+                        rtToggle.anchorMax = Vector2.one;
+                        rtToggle.offsetMin = new Vector2(14f, 6f);
+                        rtToggle.offsetMax = new Vector2(-14f, -6f);
+                    }
+
+                    Transform bgTrans = runnerToggle.transform.Find("Background");
+                    if (bgTrans != null && bgTrans.TryGetComponent(out RectTransform bgRt))
+                    {
+                        bgRt.anchorMin = new Vector2(0f, 0.5f);
+                        bgRt.anchorMax = new Vector2(0f, 0.5f);
+                        bgRt.pivot = new Vector2(0f, 0.5f);
+                        bgRt.anchoredPosition = Vector2.zero;
+                    }
+
+                    Transform labelTrans = runnerToggle.transform.Find("Label");
+                    if (labelTrans != null && labelTrans.TryGetComponent(out RectTransform lblRt))
+                    {
+                        lblRt.anchorMin = Vector2.zero;
+                        lblRt.anchorMax = Vector2.one;
+                        lblRt.offsetMin = new Vector2(56f, 0f);
+                        lblRt.offsetMax = Vector2.zero;
+                        if (labelTrans.TryGetComponent(out TextMeshProUGUI tmp))
+                        {
+                            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+                        }
+                    }
+                }
+            }
+
+            Transform coords = FindDeepChild(canvas.transform, "CursorCoordinatesLabel");
+            if (coords != null)
+            {
+                RectTransform crt = coords.GetComponent<RectTransform>();
+                if (crt != null)
+                {
+                    crt.anchorMin = new Vector2(1f, 0f);
+                    crt.anchorMax = new Vector2(1f, 0f);
+                    crt.pivot = new Vector2(1f, 0f);
+                    crt.anchoredPosition = new Vector2(-16f, 16f);
+                    crt.sizeDelta = new Vector2(190f, 30f);
+                }
+                if (coords.TryGetComponent(out TextMeshProUGUI tmp))
+                {
+                    tmp.alignment = TextAlignmentOptions.Center;
                 }
             }
         }
@@ -1990,7 +2266,12 @@ namespace KaplaoGames.Editor
             Sprite rightArrowSprite = LoadSpriteOrSubSprite("Assets/Sprites/right-arrow-button.png");
             Sprite sendSprite = LoadSpriteOrSubSprite("Assets/Sprites/send.png");
             Sprite infoSprite = LoadSpriteOrSubSprite("Assets/Sprites/UI/info.png");
-            Sprite triggerSprite = LoadSpriteOrSubSprite("Assets/Sprites/Cursor/224679.png");
+
+            GameObject triggerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/TriggerTile.prefab");
+            Sprite triggerSprite = triggerPrefab != null && triggerPrefab.TryGetComponent(out SpriteRenderer trSr) ? trSr.sprite : LoadSpriteOrSubSprite("Assets/Sprites/Cursor/224679.png");
+
+            GameObject blockPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/BlockTile.prefab");
+            Sprite blockSprite = blockPrefab != null && blockPrefab.TryGetComponent(out SpriteRenderer blkSr) ? blkSr.sprite : null;
 
             Transform usualSlots = FindDeepChild(canvas.transform, "UsualToolSlots");
             if (usualSlots != null)
@@ -2004,8 +2285,11 @@ namespace KaplaoGames.Editor
             if (createSlots != null)
             {
                 SetProtectedSlotIcon(createSlots.Find("Slot1Button"), cursorSprite);
+                if (blockSprite != null)
+                    SetProtectedSlotIcon(createSlots.Find("Slot2Button"), blockSprite);
                 SetProtectedSlotIcon(createSlots.Find("Slot3Button"), triangleSprite);
-                SetProtectedSlotIcon(createSlots.Find("Slot4Button"), triggerSprite);
+                if (triggerSprite != null)
+                    SetProtectedSlotIcon(createSlots.Find("Slot4Button"), triggerSprite);
                 SetProtectedSlotIcon(createSlots.Find("Slot5Button"), trashSprite);
                 SetProtectedSlotIcon(createSlots.Find("Slot6Button"), particleSprite);
                 SetProtectedSlotIcon(createSlots.Find("Slot7Button"), keyframeSprite);

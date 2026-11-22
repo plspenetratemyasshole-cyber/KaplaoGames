@@ -12,6 +12,8 @@ namespace KaplaoGames.Network
         public string authToken;
         /// <summary>-1 = random skin; otherwise library character index.</summary>
         public int preferredSkinIndex;
+        /// <summary>Purely cosmetic initial hint while DB is being checked; NEVER trust for privileges.</summary>
+        public string cachedNicknamePreset;
     }
 
     public struct KaplaoServerResponse : NetworkMessage

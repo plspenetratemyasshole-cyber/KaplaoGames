@@ -361,6 +361,8 @@ namespace KaplaoGames.UI
                 sb.Append(np.netId).Append(':')
                     .Append((int)np.role).Append(':')
                     .Append(np.isModerator ? '1' : '0').Append(':')
+                    .Append(np.isAdmin ? '1' : '0').Append(':')
+                    .Append(np.playerPermission).Append(':')
                     .Append(np.displayName).Append(':')
                     .Append(np.accountEmail).Append(':')
                     .Append(np.nicknamePreset).Append(';');

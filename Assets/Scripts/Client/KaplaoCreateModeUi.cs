@@ -212,14 +212,16 @@ namespace KaplaoGames.Client
                 RectTransform rt = pillGo.GetComponent<RectTransform>();
                 rt.anchorMin = Vector2.zero;
                 rt.anchorMax = Vector2.one;
-                rt.offsetMin = new Vector2(-12f, -4f);
-                rt.offsetMax = new Vector2(12f, 4f);
+                rt.offsetMin = new Vector2(-8f, -4f);
+                rt.offsetMax = new Vector2(8f, 4f);
 
                 Image pillBg = pillGo.GetComponent<Image>();
                 pillBg.sprite = KaplaoUiSprites.Pill();
                 pillBg.type = Image.Type.Sliced;
                 pillBg.color = new Color(0.05f, 0.08f, 0.15f, 0.85f);
                 pillBg.raycastTarget = false;
+
+                KaplaoUiStyler.EnsureChildBorder(pillGo.transform, 16, 1, new Color(0.22f, 0.74f, 0.97f, 0.40f));
             }
         }
 

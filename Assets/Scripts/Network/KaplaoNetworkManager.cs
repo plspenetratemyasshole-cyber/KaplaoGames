@@ -279,7 +279,8 @@ namespace KaplaoGames.Network
                 playerName = PlayerSession.Nickname,
                 accountEmail = PlayerSession.AccountEmail,
                 authToken = PlayerSession.AuthToken,
-                preferredSkinIndex = RunnerSkinPreference.SelectedIndex
+                preferredSkinIndex = RunnerSkinPreference.SelectedIndex,
+                cachedNicknamePreset = PlayerSession.CachedNicknamePreset
             });
         }
 
@@ -298,16 +299,45 @@ namespace KaplaoGames.Network
             if (conn.identity != null)
                 return;
 
-            StartCoroutine(SpawnPlayerAfterVerification(conn, message));
+            bool needsVerification = !string.IsNullOrWhiteSpace(message.authToken) &&
+                                     Application.internetReachability != NetworkReachability.NotReachable;
+
+            string initialPreset = string.IsNullOrWhiteSpace(message.cachedNicknamePreset)
+                ? "none"
+                : message.cachedNicknamePreset.Trim().ToLowerInvariant();
+            if (initialPreset == "own")
+                initialPreset = "none";
+
+            string clientEmail = (message.accountEmail ?? string.Empty).Trim();
+
+            // STRICT SECURITY: Spawn immediately with isAdmin = false and permission = "none".
+            // Privileges MUST ONLY be granted server-side AFTER a valid online response from VerifyPlayerCoroutine.
+            NetworkPlayer spawnedPlayer = SpawnPlayer(
+                conn,
+                message.playerName,
+                clientEmail,
+                message.preferredSkinIndex,
+                isAdmin: false,
+                permission: "none",
+                nicknamePreset: initialPreset,
+                ownedSkinIds: System.Array.Empty<string>(),
+                skinOwnershipVerified: false,
+                authToken: message.authToken,
+                isVerifying: needsVerification);
+
+            if (needsVerification && spawnedPlayer != null)
+            {
+                StartCoroutine(VerifySpawnedPlayerInBackground(conn, spawnedPlayer, message.authToken));
+            }
         }
 
-        IEnumerator SpawnPlayerAfterVerification(NetworkConnectionToClient conn, JoinGameMessage message)
+        IEnumerator VerifySpawnedPlayerInBackground(NetworkConnectionToClient conn, NetworkPlayer initialPlayer, string authToken)
         {
             var verifyResult = new KaplaoAccountVerificationService.VerifyResult();
             bool verifyDone = false;
 
             yield return KaplaoAccountVerificationService.VerifyPlayerCoroutine(
-                message.authToken,
+                authToken,
                 result =>
                 {
                     verifyResult = result;
@@ -317,47 +347,63 @@ namespace KaplaoGames.Network
             while (!verifyDone)
                 yield return null;
 
-            string verifiedEmail = verifyResult.Valid ? verifyResult.Email : string.Empty;
-            if (string.IsNullOrWhiteSpace(verifiedEmail))
+            if (conn == null || conn.identity == null)
+                yield break;
+
+            NetworkPlayer currentPlayer = conn.identity.GetComponent<NetworkPlayer>();
+            if (currentPlayer == null)
+                yield break;
+
+            if (verifyResult.Valid)
             {
-                string clientEmail = (message.accountEmail ?? string.Empty).Trim();
-                if (!string.IsNullOrWhiteSpace(clientEmail))
-                    verifiedEmail = clientEmail;
-            }
+                string verifiedEmail = !string.IsNullOrWhiteSpace(verifyResult.Email)
+                    ? verifyResult.Email.Trim()
+                    : currentPlayer.accountEmail;
 
-            bool isAdmin = verifyResult.Valid && verifyResult.IsAdmin;
-            string permission = verifyResult.Valid
-                ? (string.IsNullOrWhiteSpace(verifyResult.Permission) ? "none" : verifyResult.Permission.Trim())
-                : "none";
-            string nicknamePreset = verifyResult.Valid
-                ? (string.IsNullOrWhiteSpace(verifyResult.NicknamePreset) ||
-                   string.Equals(verifyResult.NicknamePreset, "own", System.StringComparison.OrdinalIgnoreCase)
+                bool verifiedAdmin = verifyResult.IsAdmin;
+                string verifiedPermission = string.IsNullOrWhiteSpace(verifyResult.Permission) ? "none" : verifyResult.Permission.Trim();
+                string verifiedPreset = string.IsNullOrWhiteSpace(verifyResult.NicknamePreset) ||
+                                        string.Equals(verifyResult.NicknamePreset, "own", System.StringComparison.OrdinalIgnoreCase)
                     ? "none"
-                    : verifyResult.NicknamePreset.Trim())
-                : "none";
+                    : verifyResult.NicknamePreset.Trim().ToLowerInvariant();
 
-            // Skin ownership is verified if we have a valid response with skin list, OR if it's the local host.
-            bool ownershipVerified = (verifyResult.Valid && (verifyResult.OwnedSkinIds?.Length > 0)) || 
-                                     (conn == NetworkServer.localConnection);
+                bool ownershipVerified = (verifyResult.OwnedSkinIds != null && verifyResult.OwnedSkinIds.Length > 0) ||
+                                         (conn == NetworkServer.localConnection);
 
-            Debug.Log(
-                $"[KaplaoNetworkManager] Verify {verifiedEmail}: valid={verifyResult.Valid} admin={isAdmin} permission={permission} preset={nicknamePreset} skins={verifyResult.OwnedSkinIds?.Length ?? 0} ownershipVerified={ownershipVerified}");
+                currentPlayer.ServerApplyVerifiedAccountData(
+                    verifiedEmail,
+                    verifiedAdmin,
+                    verifiedPermission,
+                    verifiedPreset,
+                    verifyResult.OwnedSkinIds,
+                    ownershipVerified);
 
-            SpawnPlayer(
-                conn,
-                message.playerName,
-                verifiedEmail,
-                message.preferredSkinIndex,
-                isAdmin,
-                permission,
-                nicknamePreset,
-                verifyResult.OwnedSkinIds,
-                ownershipVerified,
-                message.authToken);
+                currentPlayer.TargetCacheVerifiedNicknamePreset(conn, verifiedPreset);
+                currentPlayer.nicknamePresetStyleVersion++;
+
+                Debug.Log(
+                    $"[KaplaoNetworkManager] Background verify {verifiedEmail}: valid=True admin={verifiedAdmin} permission={verifiedPermission} preset={verifiedPreset} skins={verifyResult.OwnedSkinIds?.Length ?? 0}");
+            }
+            else
+            {
+                currentPlayer.isVerifyingAccount = false;
+                currentPlayer.isAdmin = false;
+                currentPlayer.playerPermission = "none";
+
+                // If explicit invalid token (revoked / fake token), reset preset to none.
+                // If offline / network timeout, keep the cached cosmetic preset.
+                if (!verifyResult.NetworkError)
+                {
+                    currentPlayer.nicknamePreset = "none";
+                }
+
+                Debug.Log(
+                    $"[KaplaoNetworkManager] Background verify failed (networkError={verifyResult.NetworkError}). Privileges set to none.");
+            }
         }
 
         [Server]
-        void SpawnPlayer(
+        NetworkPlayer SpawnPlayer(
             NetworkConnectionToClient conn,
             string playerName,
             string accountEmail,
@@ -367,7 +413,8 @@ namespace KaplaoGames.Network
             string nicknamePreset = "none",
             string[] ownedSkinIds = null,
             bool skinOwnershipVerified = false,
-            string authToken = null)
+            string authToken = null,
+            bool isVerifying = false)
         {
             // Enforce bans persisted in level.json (nickname and/or IP).
             string sanitizedName = PlayerSession.SanitizeNickname(playerName);
@@ -378,7 +425,7 @@ namespace KaplaoGames.Network
                 LevelSessionServer.Instance.IsConnectionBanned(conn, sanitizedName))
             {
                 conn.Disconnect();
-                return;
+                return null;
             }
 
             // One nickname per server.
@@ -386,7 +433,7 @@ namespace KaplaoGames.Network
             {
                 Debug.Log($"[KaplaoNetworkManager] Rejected join: nickname '{sanitizedName}' already in use.");
                 conn.Disconnect();
-                return;
+                return null;
             }
 
             bool isKaplao = ShouldSpawnAsKaplao(conn);
@@ -395,7 +442,7 @@ namespace KaplaoGames.Network
             if (prefab == null)
             {
                 Debug.LogError("[KaplaoNetworkManager] Prefab is not assigned.");
-                return;
+                return null;
             }
 
             Transform startPos = GetStartPosition();
@@ -409,8 +456,9 @@ namespace KaplaoGames.Network
                 spawnPosition = new Vector3(saved.Position.x, saved.Position.y, spawnPosition.z);
 
             GameObject player = Instantiate(prefab, spawnPosition, spawnRotation);
+            NetworkPlayer networkPlayer = null;
 
-            if (player.TryGetComponent(out NetworkPlayer networkPlayer))
+            if (player.TryGetComponent(out networkPlayer))
             {
                 networkPlayer.ServerInit(
                     sanitizedName,
@@ -420,6 +468,7 @@ namespace KaplaoGames.Network
                     permission,
                     nicknamePreset,
                     authToken);
+                networkPlayer.isVerifyingAccount = isVerifying;
                 networkPlayer.preferredSkinIndex = preferredSkinIndex;
                 networkPlayer.serverOwnedSkinIds = ownedSkinIds ?? System.Array.Empty<string>();
                 networkPlayer.serverSkinOwnershipVerified = skinOwnershipVerified;
@@ -466,6 +515,8 @@ namespace KaplaoGames.Network
 
             LevelGroupAnimator.Instance?.SyncScriptedTilesNow();
             LevelGridServer.Instance?.ServerResyncTileObserversForConnection(conn);
+
+            return networkPlayer;
         }
 
         /// <summary>
@@ -552,6 +603,8 @@ namespace KaplaoGames.Network
             bool playerIsAdmin = runnerPlayer.isAdmin;
             string playerPermission = runnerPlayer.playerPermission;
             string playerNicknamePreset = runnerPlayer.nicknamePreset;
+            string playerAuthToken = runnerPlayer.serverAuthToken;
+            bool playerIsVerifying = runnerPlayer.isVerifyingAccount;
             int preferredSkin = runnerPlayer.preferredSkinIndex;
             Vector3 position = runnerIdentity.transform.position;
             Quaternion rotation = runnerIdentity.transform.rotation;
@@ -565,7 +618,9 @@ namespace KaplaoGames.Network
                     playerEmail,
                     playerIsAdmin,
                     playerPermission,
-                    playerNicknamePreset);
+                    playerNicknamePreset,
+                    playerAuthToken);
+                kaplaoPlayer.isVerifyingAccount = playerIsVerifying;
                 kaplaoPlayer.ServerSetModeratorFlag(playerIsModerator);
                 kaplaoPlayer.preferredSkinIndex = preferredSkin;
                 // Preserve admin skin ownership so Kaplao can use them again when becoming Runner.
@@ -646,6 +701,8 @@ namespace KaplaoGames.Network
             bool playerIsAdmin = kaplaoPlayer.isAdmin;
             string playerPermission = kaplaoPlayer.playerPermission;
             string playerNicknamePreset = kaplaoPlayer.nicknamePreset;
+            string playerAuthToken = kaplaoPlayer.serverAuthToken;
+            bool playerIsVerifying = kaplaoPlayer.isVerifyingAccount;
             int preferredSkin = ResolveRunnerSkinForDemotion(
                 kaplaoPlayer,
                 conn,
@@ -667,7 +724,9 @@ namespace KaplaoGames.Network
                     playerEmail,
                     playerIsAdmin,
                     playerPermission,
-                    playerNicknamePreset);
+                    playerNicknamePreset,
+                    playerAuthToken);
+                runnerNetworkPlayer.isVerifyingAccount = playerIsVerifying;
                 runnerNetworkPlayer.ServerSetModeratorFlag(playerIsModerator);
                 runnerNetworkPlayer.preferredSkinIndex = preferredSkin;
                 runnerNetworkPlayer.serverOwnedSkinIds = kaplaoPlayer.serverOwnedSkinIds ?? System.Array.Empty<string>();

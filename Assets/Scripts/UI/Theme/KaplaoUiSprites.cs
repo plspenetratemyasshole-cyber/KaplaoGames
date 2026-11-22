@@ -247,6 +247,67 @@ namespace KaplaoGames.UI.Theme
             return sprite;
         }
 
+        public static Sprite Spinner()
+        {
+            const string key = "spinner";
+            if (TryGetCached(key, out Sprite cached)) return cached;
+
+            Sprite res = Resources.Load<Sprite>(ResourcesThemeFolder + "spinner");
+            if (res != null)
+            {
+                SpriteCache[key] = res;
+                return res;
+            }
+
+            const int size = 48;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.hideFlags = HideFlags.DontSave;
+
+            Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+            const float outerR = 20f;
+            const float innerR = 14f;
+            const float midR = (outerR + innerR) * 0.5f;
+            const float halfThick = (outerR - innerR) * 0.5f;
+
+            Color[] pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Vector2 pos = new Vector2(x, y) - center;
+                    float r = pos.magnitude;
+                    float ringDist = Mathf.Abs(r - midR);
+                    float ringAlpha = Mathf.Clamp01(halfThick + 0.5f - ringDist);
+
+                    float angle = Mathf.Atan2(pos.y, pos.x);
+                    float normAngle = Mathf.Repeat((angle / (Mathf.PI * 2f)) + 0.25f, 1f);
+                    float arcFactor;
+                    if (normAngle < 0.75f)
+                    {
+                        arcFactor = Mathf.Clamp01(normAngle / 0.70f);
+                    }
+                    else
+                    {
+                        arcFactor = 0f;
+                    }
+
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, ringAlpha * arcFactor);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            TextureCache[key] = tex;
+
+            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            sprite.name = "KaplaoUi_Spinner";
+            sprite.hideFlags = HideFlags.DontSave;
+            SpriteCache[key] = sprite;
+            return sprite;
+        }
+
         public static Sprite ChevronDown()
         {
             const string key = "chevron_down";

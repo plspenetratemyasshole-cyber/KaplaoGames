@@ -43,6 +43,9 @@ namespace KaplaoGames.Network
         [SyncVar(hook = nameof(OnNicknamePresetStyleVersionChanged))]
         public int nicknamePresetStyleVersion;
 
+        [SyncVar(hook = nameof(OnIsVerifyingAccountChanged))]
+        public bool isVerifyingAccount;
+
         /// <summary>Server-only preferred runner skin from join (-1 = random).</summary>
         public int preferredSkinIndex = -1;
 
@@ -61,6 +64,7 @@ namespace KaplaoGames.Network
         public event Action<string> NicknamePresetChanged;
         /// <summary>Fired when the server bumps the preset style version, signaling clients to re-fetch the catalog.</summary>
         public event Action NicknamePresetStyleVersionChanged;
+        public event Action<bool> IsVerifyingAccountChanged;
 
         [Server]
         public void ServerInit(
@@ -295,6 +299,55 @@ namespace KaplaoGames.Network
         void OnNicknamePresetStyleVersionChanged(int oldVersion, int newVersion)
         {
             NicknamePresetStyleVersionChanged?.Invoke();
+        }
+
+        void OnIsVerifyingAccountChanged(bool oldVal, bool newVal)
+        {
+            IsVerifyingAccountChanged?.Invoke(newVal);
+        }
+
+        [Server]
+        public void ServerApplyVerifiedAccountData(
+            string verifiedEmail,
+            bool verifiedAdmin,
+            string verifiedPermission,
+            string verifiedNicknamePreset,
+            string[] ownedSkinIds,
+            bool ownershipVerified)
+        {
+            if (verifiedEmail != null)
+                accountEmail = verifiedEmail.Trim();
+
+            playerPermission = string.IsNullOrWhiteSpace(verifiedPermission) ? "none" : verifiedPermission.Trim().ToLowerInvariant();
+            isAdmin = verifiedAdmin || playerPermission == "admin" || playerPermission == "game_host";
+
+            string normalizedPreset = string.IsNullOrWhiteSpace(verifiedNicknamePreset) || verifiedNicknamePreset.Equals("own", StringComparison.OrdinalIgnoreCase)
+                ? "none"
+                : verifiedNicknamePreset.Trim().ToLowerInvariant();
+            nicknamePreset = normalizedPreset;
+
+            serverOwnedSkinIds = ownedSkinIds ?? System.Array.Empty<string>();
+            serverSkinOwnershipVerified = ownershipVerified;
+            isVerifyingAccount = false;
+
+            if (role == PlayerRole.Runner && TryGetComponent(out RunnerAppearanceClient appearance))
+            {
+                appearance.ServerAssignCharacter(preferredSkinIndex, serverOwnedSkinIds, serverSkinOwnershipVerified);
+            }
+
+            if (isLocalPlayer && !string.IsNullOrWhiteSpace(normalizedPreset))
+            {
+                PlayerSession.SetCachedNicknamePreset(normalizedPreset);
+            }
+        }
+
+        [TargetRpc]
+        public void TargetCacheVerifiedNicknamePreset(NetworkConnectionToClient target, string verifiedPreset)
+        {
+            if (!string.IsNullOrWhiteSpace(verifiedPreset))
+            {
+                PlayerSession.SetCachedNicknamePreset(verifiedPreset);
+            }
         }
 
         void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)

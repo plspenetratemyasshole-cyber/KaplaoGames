@@ -151,6 +151,12 @@ namespace KaplaoGames.UI
             InitializeFields();
             SetWorldActionsVisible(false);
             ShowMainPanel();
+
+            KaplaoNicknamePresetCatalog.RequestRefresh();
+            if (PlayerSession.IsLoggedIn && !string.IsNullOrWhiteSpace(PlayerSession.AuthToken))
+            {
+                StartCoroutine(RefreshOwnNicknamePresetFromDbRoutine());
+            }
         }
 
         void OnEnable()
@@ -666,6 +672,35 @@ namespace KaplaoGames.UI
 
             if (settingsPanel != null && settingsPanel.activeSelf)
                 RefreshOwnedSkinsFromServer();
+
+            KaplaoNicknamePresetCatalog.RequestRefresh();
+            if (PlayerSession.IsLoggedIn && !string.IsNullOrWhiteSpace(PlayerSession.AuthToken))
+            {
+                StartCoroutine(RefreshOwnNicknamePresetFromDbRoutine());
+            }
+        }
+
+        IEnumerator RefreshOwnNicknamePresetFromDbRoutine()
+        {
+            if (!PlayerSession.IsLoggedIn || string.IsNullOrWhiteSpace(PlayerSession.AuthToken))
+                yield break;
+
+            if (Application.internetReachability == NetworkReachability.NotReachable)
+                yield break;
+
+            yield return KaplaoAccountVerificationService.VerifyPlayerCoroutine(
+                PlayerSession.AuthToken,
+                result =>
+                {
+                    if (result != null && result.Valid)
+                    {
+                        PlayerSession.SetCachedNicknamePreset(result.NicknamePreset);
+                        if (!string.IsNullOrWhiteSpace(result.Nickname) && result.Nickname != PlayerSession.Nickname)
+                        {
+                            PlayerSession.SetAccount(result.Nickname, PlayerSession.AccountEmail, PlayerSession.AuthToken);
+                        }
+                    }
+                });
         }
 
         void OnAccountSignedOut()

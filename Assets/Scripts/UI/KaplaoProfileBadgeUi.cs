@@ -142,11 +142,11 @@ namespace KaplaoGames.UI
             nickRect.offsetMax = new Vector2(-10f, -6f);
 
             nicknameLabel = nickObj.GetComponent<TextMeshProUGUI>();
-            nicknameLabel.fontSize = 15f;
+            nicknameLabel.fontSize = 15.5f;
             nicknameLabel.fontStyle = FontStyles.Bold;
             nicknameLabel.color = Color.white;
             nicknameLabel.alignment = TextAlignmentOptions.MidlineLeft;
-            nicknameLabel.overflowMode = TextOverflowModes.Ellipsis;
+            nicknameLabel.overflowMode = TextOverflowModes.Overflow;
             nicknameLabel.textWrappingMode = TextWrappingModes.NoWrap;
             nicknameLabel.raycastTarget = false;
 
@@ -221,7 +221,15 @@ namespace KaplaoGames.UI
 
         void OnEnable()
         {
+            PlayerSession.NicknamePresetChanged += Refresh;
+            KaplaoNicknamePresetCatalog.Changed += Refresh;
             Refresh();
+        }
+
+        void OnDisable()
+        {
+            PlayerSession.NicknamePresetChanged -= Refresh;
+            KaplaoNicknamePresetCatalog.Changed -= Refresh;
         }
 
         void Update()
@@ -246,7 +254,10 @@ namespace KaplaoGames.UI
             lastSignedIn = signedIn;
 
             if (nicknameLabel != null)
+            {
                 nicknameLabel.text = nick;
+                NicknameStyle.Apply(nicknameLabel, PlayerSession.AccountEmail, PlayerSession.CachedNicknamePreset);
+            }
 
             if (avatarLetterText != null)
                 avatarLetterText.text = nick.Length > 0 ? nick.Substring(0, 1).ToUpperInvariant() : "G";
