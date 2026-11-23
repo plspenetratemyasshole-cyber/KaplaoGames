@@ -11,6 +11,7 @@ export function getDefaultRecords() {
     bestTimeSec: 0,
     totalGoldenSips: 0,
     totalHrumkas: 0,
+    totalCaps: 0,
     hardcoreCleared: false,
     endings: []
   };
@@ -26,6 +27,7 @@ export function loadRecords() {
       bestTimeSec: Number(parsed.bestTimeSec) || 0,
       totalGoldenSips: Number(parsed.totalGoldenSips) || 0,
       totalHrumkas: Number(parsed.totalHrumkas) || 0,
+      totalCaps: Number(parsed.totalCaps) || 0,
       hardcoreCleared: Boolean(parsed.hardcoreCleared),
       endings: Array.isArray(parsed.endings) ? parsed.endings : []
     };

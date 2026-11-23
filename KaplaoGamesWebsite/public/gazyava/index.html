@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>03:17. Протокол Газява — Вась и Хрумка | Kaplao</title>
-  <meta name="description" content="На часах 03:17. Сушняк 99 уровня. Помоги Васю дожить до рассвета на ледяной газяве и хрумке.">
+  <title>03:17. ПРОТОКОЛ ГАЗЯВА 3.0: НОЧНАЯ СМЕНА | Kaplao</title>
+  <meta name="description" content="03:17. Протокол Газява 3.0: Ночная смена. Сушняк 99 уровня, 4 акта ночи, схрон, отрыжка в подушку и 12 концовок.">
 
   <!-- OpenGraph -->
-  <meta property="og:title" content="03:17. Протокол Газява — Вась и Хрумка | Kaplao">
-  <meta property="og:description" content="На часах 03:17. Сушняк 99 уровня. Помоги Васю дожить до рассвета на ледяной газяве и хрумке.">
+  <meta property="og:title" content="03:17. ПРОТОКОЛ ГАЗЯВА 3.0: НОЧНАЯ СМЕНА | Kaplao">
+  <meta property="og:description" content="03:17. Протокол Газява 3.0: Ночная смена. Сушняк 99 уровня, 4 акта ночи, схрон, отрыжка в подушку и 12 концовок.">
   <meta property="og:url" content="https://kaplao.ru/gazyava">
   <meta property="og:type" content="website">
 
   <!-- Apple & Mobile PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Газява 2.0">
+  <meta name="apple-mobile-web-app-title" content="Газява 3.0">
   <meta name="theme-color" content="#070b14">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -27,7 +27,7 @@
   <script type="module" src="/gazyava/js/main.js"></script>
 </head>
 <body>
-  <!-- Холст частиц: пузырьки, хрустящие крошки, золотые искры, осколки льда -->
+  <!-- Холст частиц: пузырьки, хрустящие крошки, золотые искры, осколки льда, дракон -->
   <canvas id="fxCanvas"></canvas>
 
   <!-- Атмосферный слой: пустынный сушняк (>75%) -->
@@ -42,16 +42,26 @@
     </svg>
   </div>
 
-  <!-- Божественные лучи Вознесения -->
-  <div id="fxAscension" class="fx-overlay" aria-hidden="true"></div>
+  <!-- Божественные золотые лучи Вознесения с изолированным вращающимся слоем лучей -->
+  <div id="fxAscension" class="fx-overlay" aria-hidden="true">
+    <div class="ascension-rays"></div>
+  </div>
 
   <!-- Тёплый VHS-фильтр (Дюшес из ларька) -->
   <div id="fxVhs" class="fx-overlay" aria-hidden="true">
     <div class="vhs-stamp">PLAY ▶ ЛЕТО 2006 • ДВОР</div>
   </div>
 
-  <!-- Алая пульсация сердцебиения (Энергос) -->
-  <div id="fxHeartbeat" class="fx-overlay" aria-hidden="true"></div>
+  <!-- Алая пульсация сердцебиения (Энергос) с изолированным пульсирующим слоем -->
+  <div id="fxHeartbeat" class="fx-overlay" aria-hidden="true">
+    <div class="heartbeat-inner"></div>
+  </div>
+
+  <!-- Оверлей Блэкаута (Акт 3: Кризис 5 утра — холодный спотлайт во тьме) -->
+  <div id="fxBlackout" class="fx-overlay" aria-hidden="true"></div>
+
+  <!-- Оверлей Предрассветного зарева (Акт 4: До будильника) -->
+  <div id="fxDawn" class="fx-overlay" aria-hidden="true"></div>
 
   <!-- Слой оглушения при 100% пробитии в нос -->
   <div id="fxStun" class="fx-overlay" aria-hidden="true">
@@ -65,6 +75,21 @@
   <!-- Всплывающие мемные цитаты -->
   <div id="toastLayer" aria-live="polite"></div>
 
+  <!-- Кинематографичный баннер смены Акта ночи -->
+  <div id="actBanner" class="act-banner" aria-live="assertive"></div>
+
+  <!-- Слайд-баннер фейкового push-уведомления iOS -->
+  <div id="phonePush" class="phone-push" role="alert">
+    <div class="push-top">
+      <div class="push-app">
+        <span id="pushIcon" class="push-icon">💬</span>
+        <span id="pushSender" class="push-sender">Мама</span>
+      </div>
+      <span class="push-time">сейчас</span>
+    </div>
+    <div id="pushText" class="push-text">Вась, ты чего там на кухне шуршишь в 4 утра?</div>
+  </div>
+
   <!-- Тост успешного копирования -->
   <div id="copyBanner">✅ Скопировано! Кидай пацанам в чат 😎🤙</div>
 
@@ -72,30 +97,38 @@
        ОСНОВНОЙ ИГРОВОЙ ИНТЕРФЕЙС
        ======================================================================== -->
   <main id="app">
-    <!-- Шапка: часы, очки, золотые глотки, комбо, звук -->
+    <!-- Шапка: часы, мета, статы, схрон, звук -->
     <header class="hud-top">
       <div class="clock-box">
         <div id="clockVal" class="clock-time">03:17</div>
-        <div id="clockMeta" class="clock-meta">ДО<br>07:00</div>
+        <div id="clockMeta" class="clock-meta">АКТ I<br>ДО 07:00</div>
       </div>
 
       <div class="hud-stats">
+        <div id="capsPill" class="stat-pill pill-caps">🪙 3</div>
         <div id="scorePill" class="stat-pill pill-score">🏆 0</div>
-        <div id="sipsPill" class="stat-pill pill-sips">✨ 0/5</div>
-        <div id="comboPill" class="stat-pill pill-combos">🥨 0/3</div>
+        <div id="sipsPill" class="stat-pill pill-sips">✨ 0/8</div>
+        <div id="comboPill" class="stat-pill pill-combos">🥨 0/5</div>
+        <button id="shopBtn" class="icon-btn btn-shop" type="button" aria-label="Ночной схрон">
+          <span class="shop-icon">🛒</span>
+          <span id="shopBadge" class="shop-badge"></span>
+        </button>
         <button id="muteBtn" class="icon-btn" type="button" aria-label="Звук">🔊</button>
       </div>
     </header>
 
-    <!-- Полоска прогресса ночи -->
+    <!-- Полоска прогресса ночи с метками 4 актов (25%, 50%, 75%) -->
     <div class="night-bar-track">
+      <div class="act-tick tick-25"></div>
+      <div class="act-tick tick-50"></div>
+      <div class="act-tick tick-75"></div>
       <div id="nightBarFill" class="night-bar-fill"></div>
     </div>
 
-    <!-- Бегущая/меняющаяся постироничная строка статуса -->
+    <!-- Бегущая постироничная строка статуса -->
     <div id="memeTicker" class="meme-ticker">Вась, сушняк душит. Неси газяву и хрумку!</div>
 
-    <!-- 4 главные шкалы (Сушняк, Пробитие в нос, Сахарный долг, Шум) -->
+    <!-- Шкалы Вася (Сушняк, Газы в нос, Сахар, Шум, Газация бутылки) -->
     <section class="meters-grid" aria-label="Показатели Вася">
       <!-- Сушняк (на всю ширину) -->
       <div class="meter-item full">
@@ -127,10 +160,10 @@
         </div>
       </div>
 
-      <!-- Сахарный долг (левая половина) -->
+      <!-- Ряд 3: 3 равные колонки (Сахар, Шум, Газ бутылки) -->
       <div class="meter-item">
         <div class="meter-head">
-          <span class="meter-title">🍬 САХАР ДОЛГ</span>
+          <span class="meter-title">🍬 САХАР</span>
           <span id="sugarVal" class="meter-val">0%</span>
         </div>
         <div class="track">
@@ -138,7 +171,6 @@
         </div>
       </div>
 
-      <!-- Шум в квартире (правая половина) -->
       <div class="meter-item">
         <div class="meter-head">
           <span class="meter-title">🔊 ШУМ</span>
@@ -148,24 +180,55 @@
           <div id="noiseFill" class="fill" style="width: 0%;"></div>
         </div>
       </div>
+
+      <div class="meter-item">
+        <div class="meter-head">
+          <span class="meter-title">🫧 ГАЗ БУТ.</span>
+          <span id="carbVal" class="meter-val">100%</span>
+        </div>
+        <div class="track">
+          <div id="carbFill" class="fill" style="width: 100%;"></div>
+        </div>
+      </div>
     </section>
 
     <!-- Центральная игровая арена -->
     <section class="stage">
-      <div id="fridgeAura" class="fridge-aura"></div>
+      <!-- Многослойная аура холодильника (без рывков градиента) -->
+      <div id="fridgeAura" class="fridge-aura">
+        <div class="aura-layer aura-cyan"></div>
+        <div class="aura-layer aura-gold"></div>
+        <div class="aura-layer aura-combo"></div>
+        <div class="aura-layer aura-dragon"></div>
+      </div>
 
       <div class="stage-arena">
-        <!-- Левая кнопка: ХРУМКА -->
-        <button id="hrumkaBtn" class="side-action btn-hrumka" type="button" aria-label="Схрумать снек Хрумка">
-          <span class="side-emoji">🥨</span>
-          <span class="side-title">ХРУМКА</span>
-          <span id="hrumkaFlavor" class="side-sub">Кирики с холодцом</span>
-          <div class="side-meter"><div id="comboMeterFill" class="side-meter-fill"></div></div>
-        </button>
+        <!-- Левая колонка действий -->
+        <div class="side-col">
+          <!-- Верх: ХРУМКА -->
+          <button id="hrumkaBtn" class="side-action btn-hrumka" type="button" aria-label="Схрумать снек Хрумка">
+            <span class="side-emoji">🥨</span>
+            <span class="side-title">ХРУМКА</span>
+            <span id="hrumkaFlavor" class="side-sub">Кирики с холодцом</span>
+            <div class="side-meter"><div id="comboMeterFill" class="side-meter-fill"></div></div>
+          </button>
+
+          <!-- Низ: В ПОДУШКУ (Отрыжка) -->
+          <button id="burpBtn" class="side-action btn-burp" type="button" aria-label="Зажать: стравить отрыжку в подушку">
+            <span class="side-emoji">💨</span>
+            <span class="side-title">В ПОДУШКУ</span>
+            <span id="burpVal" class="side-sub">0% ГАЗ</span>
+            <div class="side-meter"><div id="burpMeterFill" class="side-meter-fill burp-fill"></div></div>
+          </button>
+        </div>
 
         <!-- Центр: Интерактивная SVG-бутылка -->
         <div id="bottleZone" class="bottle-zone" role="button" aria-label="Зажми, чтобы пить газяву">
-          <div id="tempPill" class="temp-pill cold">❄️ 4°C</div>
+          <div class="bottle-pills-row">
+            <div id="tempPill" class="temp-pill cold">❄️ 4°C</div>
+            <button id="shakeBtn" class="shake-pill-btn" type="button" aria-label="Встряхнуть газяву">🫧 ВСТРЯХНУТЬ</button>
+          </div>
+
           <div id="bottleWrap" class="bottle-wrap">
             <svg viewBox="0 0 140 260" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -256,20 +319,34 @@
           </div>
         </div>
 
-        <!-- Правая кнопка: МОРОЗИЛКА (вкл/выкл охлаждения) -->
-        <button id="freezerBtn" class="side-action btn-freezer" type="button" aria-label="Включить или выключить морозилку">
-          <span class="side-emoji">❄️</span>
-          <span class="side-title">МОРОЗИЛКА</span>
-          <span id="freezerSub" class="side-sub">Выкл • Остудить</span>
-          <div class="side-meter"><div id="coldMeterFill" class="side-meter-fill"></div></div>
-        </button>
+        <!-- Правая колонка действий -->
+        <div class="side-col">
+          <!-- Верх: МОРОЗИЛКА -->
+          <button id="freezerBtn" class="side-action btn-freezer" type="button" aria-label="Включить или выключить морозилку">
+            <span class="side-emoji">❄️</span>
+            <span class="side-title">МОРОЗИЛКА</span>
+            <span id="freezerSub" class="side-sub">Выкл • Остудить</span>
+            <div class="side-meter"><div id="coldMeterFill" class="side-meter-fill"></div></div>
+          </button>
+
+          <!-- Низ: ТУАЛЕТ (Клапан) -->
+          <button id="toiletBtn" class="side-action btn-toilet" type="button" aria-label="Стелс-поход в туалет">
+            <span class="side-emoji">🚽</span>
+            <span class="side-title">ТУАЛЕТ</span>
+            <span id="toiletVal" class="side-sub">0% БАК</span>
+            <div class="side-meter"><div id="toiletMeterFill" class="side-meter-fill toilet-fill"></div></div>
+          </button>
+        </div>
       </div>
 
       <!-- Контекстная подсказка под бутылкой -->
       <div id="holdHint" class="hold-hint">ЗАЖМИ БУТЫЛКУ, ВАСЬ!</div>
+
+      <!-- Строка активных баффов -->
+      <div id="buffsRow" class="buffs-row" style="display:none;"></div>
     </section>
 
-    <!-- Искушение обычной водой (>65% сушняка) -->
+    <!-- Искушение обычной водой (>68% сушняка) -->
     <div class="water-slot">
       <button id="tapWaterBtn" class="tap-water-btn" type="button">
         <span>🚰</span>
@@ -323,7 +400,7 @@
   </main>
 
   <!-- ========================================================================
-       МОДАЛЬНОЕ ОКНО НОЧНЫХ ИВЕНТОВ (4 РАЗНЫХ СЦЕНАРИЯ)
+       МОДАЛЬНОЕ ОКНО НОЧНЫХ ИВЕНТОВ
        ======================================================================== -->
   <div id="eventModal" class="event-backdrop" role="dialog" aria-modal="true">
     <div id="eventCard" class="event-card">
@@ -348,25 +425,43 @@
   </div>
 
   <!-- ========================================================================
+       МОДАЛЬНОЕ ОКНО НОЧНОГО СХРОНА (МАГАЗИН ЗА КРЫШЕЧКИ)
+       ======================================================================== -->
+  <div id="shopModal" class="event-backdrop" role="dialog" aria-modal="true">
+    <div class="shop-card">
+      <div class="shop-head">
+        <div class="shop-head-title">
+          <span>🛒 НОЧНОЙ СХРОН</span>
+          <span class="shop-caps-badge">🪙 <span id="shopCapsVal">3</span></span>
+        </div>
+        <button id="closeShopBtn" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div id="shopList" class="shop-list"></div>
+      <button id="shopOkBtn" class="btn-secondary" type="button" style="margin-top:8px; margin-bottom:0;">ВЕРНУТЬСЯ НА КУХНЮ</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================
        СТАРТОВЫЙ ЭКРАН (ВЫБОР РЕЖИМА, РЕКОРДЫ, АЛЬБОМ)
        ======================================================================== -->
   <div id="startScreen" class="full-screen visible">
+    <a href="/" class="back-site-link">← kaplao.ru</a>
     <div class="card-shell">
-      <div class="hero-pill">03:17 AM • ВАСЬ НА КУХНЕ</div>
-      <h1 class="hero-title">ПРОТОКОЛ ГАЗЯВА 2.0:<br>ВАСЬ И ХРУМКА</h1>
-      <p class="hero-sub">Во рту пустыня. В ларьке газява. В шкафу хрустящие кирики.</p>
+      <div class="hero-pill">03:17 AM • НОЧНАЯ СМЕНА</div>
+      <h1 class="hero-title">03:17. ПРОТОКОЛ ГАЗЯВА 3.0:<br>НОЧНАЯ СМЕНА</h1>
+      <p class="hero-sub">4 акта ночной обороны. Схрон за крышечки, отрыжка в подушку и 12 концовок.</p>
 
       <div id="hcTrophyBanner" class="hc-trophy-banner">🏆 ХАРДКОР «ПОХМЕЛЬЕ 1 ЯНВАРЯ» ПРОЙДЕН!</div>
 
       <!-- Выбор режима игры -->
       <div class="mode-switch">
         <button id="modeClassicBtn" class="mode-opt selected" type="button">
-          <div class="mode-name">🌙 03:17. КЛАССИКА</div>
-          <div class="mode-desc">Выжить до 07:00. Базовый сушняк и ночной вайб.</div>
+          <div class="mode-name">🌙 03:17. КЛАССИКА (4.5 мин)</div>
+          <div class="mode-desc">03:17 → 07:00. 4 акта ночи, блэкаут в 5 утра и рассвет.</div>
         </button>
         <button id="modeHardcoreBtn" class="mode-opt hc-opt" type="button">
-          <div class="mode-name">🔥 ПОХМЕЛЬЕ 1 ЯНВАРЯ</div>
-          <div class="mode-desc">02:00 → 08:00. 1.5x сушняк, жёсткий шум, топ-концовка!</div>
+          <div class="mode-name">🔥 ПОХМЕЛЬЕ 1 ЯНВАРЯ (6.5 мин)</div>
+          <div class="mode-desc">02:00 → 08:00. 1.32x сушняк, злой шум, топ-концовка!</div>
         </button>
       </div>
 
@@ -374,15 +469,19 @@
       <div class="rules-compact">
         <div class="rule-row">
           <span>✨</span>
-          <div><strong>Зажимай бутылку</strong> и отпускай в <strong>Золотой зоне (70–90%)</strong> для <strong>Вознесения</strong> (морозит сушняк).</div>
+          <div><strong>Зажимай бутылку</strong> и лови <strong>Золотую зону (70–90%)</strong>. 8+ глотков = Вознесение.</div>
         </div>
         <div class="rule-row">
-          <span>🥨</span>
-          <div><strong>Хрумка</strong> сбивает Сахарный долг, но сушит и шумит. <strong>Хрумка → Золотой глоток за 4.5с = ИМБА-КОМБО!</strong></div>
+          <span>💨</span>
+          <div><strong>В подушку (Key B)</strong> — стравливай газы, иначе взорвётся Мега-отрыжка на 100% шума!</div>
         </div>
         <div class="rule-row">
-          <span>❄️</span>
-          <div><strong>Морозилка</strong> студит бутылку (не передержи до льда!). Следи за <strong>Шумом</strong>, Батей и рассолом.</div>
+          <span>🚽</span>
+          <div><strong>Туалет (Key T)</strong> — стелс по половицам. Смывать со звуком Боинга или уйти с позором?</div>
+        </div>
+        <div class="rule-row">
+          <span>🛒</span>
+          <div><strong>Схрон (Key S)</strong> — копи крышечки 🪙 за золотые глотки и покупай лёд, мяту и глушитель!</div>
         </div>
       </div>
 
@@ -401,13 +500,13 @@
           <div class="rec-lbl">Хрумок</div>
         </div>
         <div class="rec-cell">
-          <div id="recEndings" class="rec-val">0/9</div>
+          <div id="recEndings" class="rec-val">0/12</div>
           <div class="rec-lbl">Концовки</div>
         </div>
       </div>
 
       <button id="startBtn" class="btn-primary" type="button">ОТКРЫТЬ ХОЛОДИЛЬНИК (СТАРТ)</button>
-      <button id="startAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/9)</button>
+      <button id="startAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/12)</button>
     </div>
   </div>
 
@@ -442,18 +541,18 @@
 
       <button id="shareBtn" class="btn-share" type="button">📋 Скопировать результат для чата</button>
       <button id="restartBtn" class="btn-primary" type="button">ЕЩЁ ОДНА НОЧЬ, ВАСЬ!</button>
-      <button id="endAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/9)</button>
+      <button id="endAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/12)</button>
       <button id="toMenuBtn" class="btn-secondary" type="button">🏠 СМЕНИТЬ РЕЖИМ</button>
     </div>
   </div>
 
   <!-- ========================================================================
-       МОДАЛКА АЛЬБОМА КОНЦОВОК (9 ШТ.)
+       МОДАЛКА АЛЬБОМА КОНЦОВОК (12 ШТ.)
        ======================================================================== -->
   <div id="albumModal" class="event-backdrop" role="dialog" aria-modal="true">
     <div class="album-card">
       <div class="album-head">
-        <div id="albumTitle" class="album-title">📖 КОНЦОВКИ: 0/9</div>
+        <div id="albumTitle" class="album-title">📖 КОНЦОВКИ: 0/12</div>
         <button id="closeAlbumBtn" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
       </div>
       <div id="albumList" class="album-list"></div>

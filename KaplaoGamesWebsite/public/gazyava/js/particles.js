@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ХОЛСТ ЧАСТИЦ (ПУЗЫРЬКИ CO2, КРОШКИ ХРУМКИ, ИСКРЫ ВОЗНЕСЕНИЯ, ЛЁД)
+   ХОЛСТ ЧАСТИЦ (ПУЗЫРЬКИ CO2, КРОШКИ ХРУМКИ, ИСКРЫ ВОЗНЕСЕНИЯ, ЛЁД, ДРАКОН)
    ========================================================================== */
 let fxCtx = null;
 let cw = 0;
@@ -7,12 +7,11 @@ let ch = 0;
 const bgBubbles = [];
 const burstParticles = [];
 export const svgBubbleNodes = [];
-let lastTs = 0;
 let canvasElement = null;
 let svgContainerElement = null;
 
 export function initCanvas(canvasEl) {
-  canvasElement = canvasEl || document.getElementById('fxCanvas');
+  canvasElement = (canvasEl instanceof HTMLCanvasElement) ? canvasEl : document.getElementById('fxCanvas');
   if (!canvasElement) return;
   fxCtx = canvasElement.getContext('2d');
   resizeCanvas(canvasElement);
@@ -30,7 +29,7 @@ export function initCanvas(canvasEl) {
 }
 
 export function resizeCanvas(canvasEl) {
-  const el = canvasEl || canvasElement || document.getElementById('fxCanvas');
+  const el = (canvasEl instanceof HTMLCanvasElement) ? canvasEl : (canvasElement || document.getElementById('fxCanvas'));
   if (!el) return;
   canvasElement = el;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -45,25 +44,27 @@ export function spawnParticles(type, x, y, count) {
   const palettes = {
     crumb: ['#f59e0b', '#fbbf24', '#d97706', '#fde68a', '#92400e'],
     gold: ['#fde047', '#fffbeb', '#fbbf24', '#fb923c'],
-    ice: ['#e0f2fe', '#7dd3fc', '#38f2ff', '#ffffff']
+    ice: ['#e0f2fe', '#7dd3fc', '#38f2ff', '#ffffff'],
+    dragon: ['#38f2ff', '#ffffff', '#ffd54f', '#a5f3fc', '#fef08a'],
+    foam: ['#ffffff', '#f0fdf4', '#ecfeff', '#e0f2fe']
   };
   const colors = palettes[type] || palettes.gold;
 
   for (let i = 0; i < count; i++) {
     const ang = Math.random() * Math.PI * 2;
-    const spd = (type === 'crumb' ? 40 : 60) + Math.random() * (type === 'crumb' ? 120 : 180);
+    const spd = (type === 'crumb' ? 40 : (type === 'foam' ? 30 : 60)) + Math.random() * (type === 'crumb' ? 120 : (type === 'dragon' ? 240 : 180));
     burstParticles.push({
       x,
       y,
       vx: Math.cos(ang) * spd,
-      vy: Math.sin(ang) * spd - (type === 'crumb' ? 20 : 40),
-      size: (type === 'crumb' ? 2.5 : 2.8) + Math.random() * 3.6,
+      vy: Math.sin(ang) * spd - (type === 'crumb' ? 20 : (type === 'foam' ? 50 : 40)),
+      size: (type === 'crumb' ? 2.5 : (type === 'foam' ? 2.0 : 2.8)) + Math.random() * 3.6,
       rot: Math.random() * Math.PI * 2,
       vRot: (Math.random() - 0.5) * 12,
       alpha: 1,
       color: colors[Math.floor(Math.random() * colors.length)],
       life: 0,
-      maxLife: 0.6 + Math.random() * 0.45,
+      maxLife: (type === 'dragon' ? 0.9 : 0.6) + Math.random() * 0.45,
       type
     });
   }
@@ -90,7 +91,7 @@ export function drawCanvas(dt, speedMult = 1.0) {
     fxCtx.fill();
   }
 
-  // Частицы от комбо, хрумки и льда
+  // Частицы от комбо, хрумки, льда, дракона и пены
   for (let i = burstParticles.length - 1; i >= 0; i--) {
     const p = burstParticles[i];
     p.life += dt;
@@ -100,7 +101,7 @@ export function drawCanvas(dt, speedMult = 1.0) {
     }
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vy += (p.type === 'crumb' ? 260 : 180) * dt;
+    p.vy += (p.type === 'crumb' ? 260 : (p.type === 'foam' ? -20 : 180)) * dt;
     p.rot += p.vRot * dt;
     p.alpha = Math.max(0, 1 - p.life / p.maxLife);
 
@@ -117,6 +118,15 @@ export function drawCanvas(dt, speedMult = 1.0) {
       fxCtx.moveTo(0, -p.size);
       fxCtx.lineTo(p.size * 0.7, p.size * 0.6);
       fxCtx.lineTo(-p.size * 0.7, p.size * 0.5);
+      fxCtx.closePath();
+      fxCtx.fill();
+    } else if (p.type === 'dragon') {
+      // Кристаллический драконий ромб
+      fxCtx.beginPath();
+      fxCtx.moveTo(0, -p.size * 1.2);
+      fxCtx.lineTo(p.size * 0.7, 0);
+      fxCtx.lineTo(0, p.size * 1.2);
+      fxCtx.lineTo(-p.size * 0.7, 0);
       fxCtx.closePath();
       fxCtx.fill();
     } else {
