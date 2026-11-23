@@ -240,8 +240,8 @@ namespace KaplaoGames.Client
                 outRect.anchorMax = new Vector2(1f, 0f);
                 outRect.pivot = new Vector2(0.5f, 0f);
                 outRect.anchoredPosition = Vector2.zero;
-                outRect.offsetMin = new Vector2(FileTreeWidth + 8f, 54f);
-                outRect.offsetMax = new Vector2(-8f, 54f + outputHeight);
+                outRect.offsetMin = new Vector2(FileTreeWidth + 8f, 56f);
+                outRect.offsetMax = new Vector2(-8f, 56f + outputHeight);
             }
 
             if (codeInputField != null)
@@ -249,7 +249,7 @@ namespace KaplaoGames.Client
                 RectTransform codeRect = codeInputField.GetComponent<RectTransform>();
                 codeRect.anchorMin = Vector2.zero;
                 codeRect.anchorMax = Vector2.one;
-                float bottomOffset = outputPanelTransform != null ? (54f + outputHeight + 6f) : 72f;
+                float bottomOffset = outputPanelTransform != null ? (56f + outputHeight + 6f) : 72f;
                 codeRect.offsetMin = new Vector2(FileTreeWidth + 8f, bottomOffset);
                 codeRect.offsetMax = new Vector2(-8f, -(TabBarHeight + 16f));
             }
@@ -259,9 +259,9 @@ namespace KaplaoGames.Client
                 RectTransform runRect = runButton.GetComponent<RectTransform>();
                 runRect.anchorMin = new Vector2(1f, 0f);
                 runRect.anchorMax = new Vector2(1f, 0f);
-                runRect.pivot = new Vector2(1f, 0f);
-                runRect.anchoredPosition = new Vector2(-24f, 10f);
+                runRect.pivot = new Vector2(0.5f, 0.5f);
                 runRect.sizeDelta = new Vector2(120f, 34f);
+                runRect.anchoredPosition = new Vector2(-80f, 28f);
             }
 
             if (documentationButton != null)
@@ -269,9 +269,9 @@ namespace KaplaoGames.Client
                 RectTransform docRect = documentationButton.GetComponent<RectTransform>();
                 docRect.anchorMin = new Vector2(0f, 0f);
                 docRect.anchorMax = new Vector2(0f, 0f);
-                docRect.pivot = new Vector2(0f, 0f);
-                docRect.anchoredPosition = new Vector2(FileTreeWidth + 16f, 10f);
-                docRect.sizeDelta = new Vector2(140f, 34f);
+                docRect.pivot = new Vector2(0.5f, 0.5f);
+                docRect.sizeDelta = new Vector2(150f, 34f);
+                docRect.anchoredPosition = new Vector2(FileTreeWidth + 92f, 28f);
             }
 
             if (statusLabel != null)
@@ -279,9 +279,9 @@ namespace KaplaoGames.Client
                 RectTransform statusRect = statusLabel.rectTransform;
                 statusRect.anchorMin = new Vector2(0.5f, 0f);
                 statusRect.anchorMax = new Vector2(0.5f, 0f);
-                statusRect.pivot = new Vector2(0.5f, 0f);
-                statusRect.anchoredPosition = new Vector2(FileTreeWidth * 0.5f, 12f);
+                statusRect.pivot = new Vector2(0.5f, 0.5f);
                 statusRect.sizeDelta = new Vector2(500f, 30f);
+                statusRect.anchoredPosition = new Vector2(FileTreeWidth * 0.5f, 28f);
             }
 
             if (documentationButton != null)

@@ -59,6 +59,42 @@ namespace KaplaoGames.UI.Animation
 
         public void EnsureBorder()
         {
+            if (TryGetComponent(out Image bgImg))
+            {
+                bgImg.sprite = KaplaoUiSprites.RoundedRect(10);
+                bgImg.type = Image.Type.Sliced;
+                bgImg.pixelsPerUnitMultiplier = 1.4f;
+                bgImg.color = new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 1f);
+            }
+
+            Transform checkmark = transform.Find("Checkmark");
+            if (checkmark != null && checkmark.TryGetComponent(out Image chkImg))
+            {
+                chkImg.sprite = KaplaoUiSprites.RoundedRect(10);
+                chkImg.type = Image.Type.Sliced;
+                chkImg.pixelsPerUnitMultiplier = 1.4f;
+                chkImg.color = new Color(0.22f, 0.74f, 0.97f, 0.35f);
+            }
+
+            Transform btnGlow = transform.Find("UI_BtnGlow");
+            if (btnGlow != null)
+            {
+                if (Application.isPlaying) Destroy(btnGlow.gameObject);
+                else DestroyImmediate(btnGlow.gameObject);
+            }
+            Transform topGlow = transform.Find("UI_TopGlow");
+            if (topGlow != null)
+            {
+                if (Application.isPlaying) Destroy(topGlow.gameObject);
+                else DestroyImmediate(topGlow.gameObject);
+            }
+
+            Transform preview = transform.Find("Preview");
+            if (preview != null && (name.Contains("Random") || name.Contains("Rnd")))
+            {
+                preview.gameObject.SetActive(false);
+            }
+
             if (borderImage != null)
                 return;
 

@@ -1285,6 +1285,7 @@ namespace KaplaoGames.UI
             }
 
             selectedWorldName = worldName;
+            WorldSaveService.RecordWorldVisited(worldName, ignoreBrowseFlag: true);
             WorldSession.SelectExistingWorld(worldName);
             ShowSinglePlayerPanel();
             SelectWorldInList(worldName);

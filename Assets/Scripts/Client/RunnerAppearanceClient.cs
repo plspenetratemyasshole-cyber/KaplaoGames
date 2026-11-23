@@ -36,17 +36,22 @@ namespace KaplaoGames.Client
       ServerAssignCharacter(
         networkPlayer.preferredSkinIndex,
         networkPlayer.serverOwnedSkinIds,
-        networkPlayer.serverSkinOwnershipVerified);
+        networkPlayer.serverSkinOwnershipVerified,
+        allowUnverifiedAdminSkin: !networkPlayer.serverSkinOwnershipVerified && !networkPlayer.serverSkinRejectedByOnlineCheck);
     }
 
     [Server]
     public void ServerAssignRandomCharacter()
     {
-      ServerAssignCharacter(RunnerSkinPreference.RandomIndex, null, false);
+      ServerAssignCharacter(RunnerSkinPreference.RandomIndex, null, false, false);
     }
 
     [Server]
-    public void ServerAssignCharacter(int preferredIndex, string[] ownedSkinIds, bool ownershipVerified)
+    public void ServerAssignCharacter(
+      int preferredIndex,
+      System.Collections.Generic.IReadOnlyList<string> ownedSkinIds,
+      bool ownershipVerified,
+      bool allowUnverifiedAdminSkin = false)
     {
       RunnerCharacterLibrary library = RunnerCharacterLibrary.LoadDefault();
       if (library == null || library.CharacterCount == 0)
@@ -58,7 +63,8 @@ namespace KaplaoGames.Client
       characterIndex = RunnerSkinCatalog.ResolveServerSkinIndex(
         preferredIndex,
         ownedSkinIds,
-        ownershipVerified);
+        ownershipVerified,
+        allowUnverifiedAdminSkin);
       characterIndex = Mathf.Clamp(characterIndex, 0, library.CharacterCount - 1);
     }
 

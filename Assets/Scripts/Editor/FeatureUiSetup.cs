@@ -404,12 +404,23 @@ namespace KaplaoGames.Editor
 
             entryTemplate.SetActive(false);
 
-            Button play = UiHelpers.FindOrCreateButton(panel.transform, "BrowsePlayButton", "Play", new Vector2(-120f, -200f));
-            play.GetComponent<RectTransform>().sizeDelta = new Vector2(160f, 44f);
-            Button copy = UiHelpers.FindOrCreateButton(panel.transform, "BrowseCopyButton", "Copy", new Vector2(120f, -200f));
-            copy.GetComponent<RectTransform>().sizeDelta = new Vector2(160f, 44f);
-            Button deleteFromServers = UiHelpers.FindOrCreateButton(panel.transform, "BrowseDeleteFromServersButton", "Delete From Servers", new Vector2(0f, -245f));
-            deleteFromServers.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 36f);
+            Button play = UiHelpers.FindOrCreateButton(panel.transform, "BrowsePlayButton", "Play", new Vector2(-160f, -182f));
+            play.GetComponent<RectTransform>().sizeDelta = new Vector2(150f, 40f);
+            Button copy = UiHelpers.FindOrCreateButton(panel.transform, "BrowseCopyButton", "Copy", new Vector2(0f, -182f));
+            copy.GetComponent<RectTransform>().sizeDelta = new Vector2(150f, 40f);
+            Button back = UiHelpers.FindOrCreateButton(panel.transform, "BrowseBackButton", "Back", new Vector2(160f, -182f));
+            back.GetComponent<RectTransform>().sizeDelta = new Vector2(130f, 40f);
+
+            GameObject progress = UiHelpers.FindOrCreateChild(panel.transform, "BrowseProgressRoot");
+            RectTransform progressRt = progress.GetComponent<RectTransform>() ?? progress.AddComponent<RectTransform>();
+            progressRt.anchoredPosition = new Vector2(0f, -234f);
+            progressRt.sizeDelta = new Vector2(520f, 26f);
+            Slider bar = progress.GetComponent<Slider>() ?? progress.AddComponent<Slider>();
+            TextMeshProUGUI pct = UiHelpers.FindOrCreateLabel(progress.transform, "BrowseProgressLabel", "0%", Vector2.zero);
+            progress.SetActive(false);
+
+            Button deleteFromServers = UiHelpers.FindOrCreateButton(panel.transform, "BrowseDeleteFromServersButton", "Delete From Servers", new Vector2(0f, -282f));
+            deleteFromServers.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 36f);
             play.gameObject.SetActive(false);
             copy.gameObject.SetActive(false);
             deleteFromServers.gameObject.SetActive(false);
@@ -422,13 +433,7 @@ namespace KaplaoGames.Editor
             Button deleteCancel = UiHelpers.FindOrCreateButton(deleteConfirmPanel.transform, "BrowseDeleteCancelButton", "Cancel", new Vector2(90f, -40f));
             deleteConfirmPanel.SetActive(false);
 
-            GameObject progress = UiHelpers.FindOrCreateChild(panel.transform, "BrowseProgressRoot");
-            Slider bar = progress.GetComponent<Slider>() ?? progress.AddComponent<Slider>();
-            TextMeshProUGUI pct = UiHelpers.FindOrCreateLabel(progress.transform, "BrowseProgressLabel", "0%", Vector2.zero);
-            progress.SetActive(false);
-
-            Button back = UiHelpers.FindOrCreateButton(panel.transform, "BrowseBackButton", "Back", new Vector2(0f, -280f));
-            TextMeshProUGUI status = UiHelpers.FindOrCreateLabel(panel.transform, "BrowseStatusLabel", string.Empty, new Vector2(0f, -165f));
+            TextMeshProUGUI status = UiHelpers.FindOrCreateLabel(panel.transform, "BrowseStatusLabel", string.Empty, new Vector2(0f, -148f));
             panel.SetActive(false);
 
             KaplaoBrowseLevelsUi ui = canvas.GetComponent<KaplaoBrowseLevelsUi>() ??

@@ -12,6 +12,7 @@ namespace KaplaoGames.Shared
     {
         public const int RandomIndex = -1;
         const string PrefsKey = "kaplao.runner.skinIndex";
+        const string OwnedAdminSkinsPrefsKey = "kaplao.runner.ownedAdminSkins";
 
         static readonly List<string> OwnedAdminSkinIds = new List<string>();
 
@@ -25,6 +26,20 @@ namespace KaplaoGames.Shared
         public static void Load()
         {
             SelectedIndex = PlayerPrefs.GetInt(PrefsKey, RandomIndex);
+            if (OwnedAdminSkinIds.Count == 0)
+            {
+                string cached = PlayerPrefs.GetString(OwnedAdminSkinsPrefsKey, string.Empty);
+                if (!string.IsNullOrWhiteSpace(cached))
+                {
+                    string[] tokens = cached.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string t in tokens)
+                    {
+                        string norm = t.Trim().ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(norm) && !OwnedAdminSkinIds.Contains(norm))
+                            OwnedAdminSkinIds.Add(norm);
+                    }
+                }
+            }
         }
 
         public static void SetSelectedIndex(int index)
@@ -53,6 +68,8 @@ namespace KaplaoGames.Shared
             }
 
             SkinsLoadedFromServer = true;
+            PlayerPrefs.SetString(OwnedAdminSkinsPrefsKey, string.Join(",", OwnedAdminSkinIds));
+            PlayerPrefs.Save();
             ClampSelectedIndexToVisible();
         }
 
@@ -60,6 +77,8 @@ namespace KaplaoGames.Shared
         {
             OwnedAdminSkinIds.Clear();
             SkinsLoadedFromServer = false;
+            PlayerPrefs.DeleteKey(OwnedAdminSkinsPrefsKey);
+            PlayerPrefs.Save();
 
             if (RunnerSkinCatalog.IsAdminSkinIndex(SelectedIndex))
                 SetSelectedIndex(RandomIndex);

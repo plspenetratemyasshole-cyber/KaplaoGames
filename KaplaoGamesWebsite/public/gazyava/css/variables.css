@@ -1,0 +1,23 @@
+/* ==========================================================================
+   ДИЗАЙН-ТОКЕНЫ (IPHONE / SAFARI SAFE)
+   ========================================================================== */
+:root {
+      --bg-void: #040812;
+      --bg-fridge: #0b1c36;
+      --cyan: #38f2ff;
+      --cyan-dim: rgba(56, 242, 255, 0.25);
+      --gold: #ffd54f;
+      --gold-bright: #fff3b0;
+      --danger: #ff3358;
+      --amber: #ff9f1c;
+      --lime: #a3e635;
+      --purple: #c084fc;
+      --panel: rgba(8, 18, 36, 0.82);
+      --panel-border: rgba(74, 214, 255, 0.24);
+      --text-main: #f0f8ff;
+      --text-muted: #8ea8c7;
+      --safe-top: env(safe-area-inset-top, 10px);
+      --safe-bottom: env(safe-area-inset-bottom, 10px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }

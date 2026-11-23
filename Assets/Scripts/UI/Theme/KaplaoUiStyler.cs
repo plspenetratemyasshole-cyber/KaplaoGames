@@ -730,7 +730,7 @@ namespace KaplaoGames.UI.Theme
             if (scrollRect == null)
                 return;
 
-            scrollRect.scrollSensitivity = 35f;
+            scrollRect.scrollSensitivity = 14f;
 
             Transform viewport = scrollRect.viewport != null ? scrollRect.viewport.transform : scrollRect.transform.Find("Viewport");
             if (viewport != null)

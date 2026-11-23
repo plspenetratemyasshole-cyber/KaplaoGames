@@ -20,6 +20,17 @@ namespace KaplaoGames.Shared
         public string author_email;
         public string storage_path;
         public string created_at;
+        public string updated_at;
+    }
+
+    [Serializable]
+    public struct BrowseLevelCacheMeta
+    {
+        public string levelId;
+        public string storagePath;
+        public string versionToken; // storage_path + updated_at/created_at
+        public string title;
+        public long lastPlayedUtcTicks;
     }
 
     [Serializable]
@@ -423,6 +434,183 @@ namespace KaplaoGames.Shared
             }
         }
 
+        public const string BrowsePlayCacheMetaFileName = "public_level_cache.json";
+
+        public static string GetVersionToken(PublicLevelEntry entry)
+        {
+            if (entry == null) return string.Empty;
+            string stamp = !string.IsNullOrWhiteSpace(entry.updated_at) ? entry.updated_at : (entry.created_at ?? string.Empty);
+            return $"{entry.id}|{entry.storage_path}|{stamp}";
+        }
+
+        public static bool IsCachedInBrowsePlay(PublicLevelEntry entry, out string worldName)
+        {
+            worldName = null;
+            if (entry == null) return false;
+            string sanitized = WorldSaveService.SanitizeWorldName(entry.title);
+            if (!WorldSaveService.TryValidateWorldName(sanitized, out string validName, out _))
+                return false;
+
+            string dir = WorldSaveService.GetBrowsePlayWorldDirectory(validName);
+            string levelPath = Path.Combine(dir, LevelIoPaths.DefaultFileName);
+            string metaPath = Path.Combine(dir, BrowsePlayCacheMetaFileName);
+
+            if (!File.Exists(levelPath) || !File.Exists(metaPath))
+                return false;
+
+            try
+            {
+                string json = File.ReadAllText(metaPath);
+                BrowseLevelCacheMeta meta = JsonUtility.FromJson<BrowseLevelCacheMeta>(json);
+                string currentToken = GetVersionToken(entry);
+                if (meta.levelId == entry.id && meta.storagePath == entry.storage_path && meta.versionToken == currentToken)
+                {
+                    worldName = validName;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        public static void TouchBrowsePlayCache(string worldName)
+        {
+            if (string.IsNullOrWhiteSpace(worldName)) return;
+            string sanitized = WorldSaveService.SanitizeWorldName(worldName);
+            string dir = WorldSaveService.GetBrowsePlayWorldDirectory(sanitized);
+            string metaPath = Path.Combine(dir, BrowsePlayCacheMetaFileName);
+            if (File.Exists(metaPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(metaPath);
+                    BrowseLevelCacheMeta meta = JsonUtility.FromJson<BrowseLevelCacheMeta>(json);
+                    meta.lastPlayedUtcTicks = DateTime.UtcNow.Ticks;
+                    File.WriteAllText(metaPath, JsonUtility.ToJson(meta, true));
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[PublicLevelService] Failed to touch cache meta: {ex.Message}");
+                }
+            }
+        }
+
+        public static bool TryCopyFromBrowsePlayCache(PublicLevelEntry entry, out string copiedWorldName)
+        {
+            copiedWorldName = null;
+            if (entry == null) return false;
+            if (!IsCachedInBrowsePlay(entry, out string sourceWorldName))
+                return false;
+
+            string sourceDir = WorldSaveService.GetBrowsePlayWorldDirectory(sourceWorldName);
+            string destWorldName = WorldSaveService.SanitizeWorldName(entry.title);
+            if (!WorldSaveService.TryValidateWorldName(destWorldName, out destWorldName, out _))
+                return false;
+
+            string destDir = WorldSaveService.GetUserWorldDirectory(destWorldName);
+            try
+            {
+                if (Directory.Exists(destDir))
+                    Directory.Delete(destDir, true);
+                Directory.CreateDirectory(destDir);
+
+                foreach (string file in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
+                {
+                    string rel = Path.GetRelativePath(sourceDir, file);
+                    if (string.Equals(rel, BrowsePlayCacheMetaFileName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    string destFile = Path.Combine(destDir, rel);
+                    string parent = Path.GetDirectoryName(destFile);
+                    if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+                    File.Copy(file, destFile, true);
+                }
+
+                WorldSaveService.RecordWorldVisited(destWorldName, ignoreBrowseFlag: true);
+                copiedWorldName = destWorldName;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[PublicLevelService] Failed to copy from cache: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static void EnforceBrowsePlayCacheLimit(int maxCachedLevels = 20)
+        {
+            try
+            {
+                string root = LevelIoPaths.BrowsePlayDirectory;
+                if (!Directory.Exists(root)) return;
+
+                string[] dirs = Directory.GetDirectories(root);
+                if (dirs.Length <= maxCachedLevels) return;
+
+                var list = new List<(string dir, long lastPlayed)>();
+                foreach (string d in dirs)
+                {
+                    string metaPath = Path.Combine(d, BrowsePlayCacheMetaFileName);
+                    long ticks = 0;
+                    if (File.Exists(metaPath))
+                    {
+                        try
+                        {
+                            BrowseLevelCacheMeta m = JsonUtility.FromJson<BrowseLevelCacheMeta>(File.ReadAllText(metaPath));
+                            ticks = m.lastPlayedUtcTicks;
+                        }
+                        catch {}
+                    }
+                    if (ticks <= 0)
+                    {
+                        ticks = Directory.GetLastWriteTimeUtc(d).Ticks;
+                    }
+                    list.Add((d, ticks));
+                }
+
+                list.Sort((a, b) => a.lastPlayed.CompareTo(b.lastPlayed));
+
+                string activeDir = WorldSession.HasActiveWorld
+                    ? WorldSaveService.GetBrowsePlayWorldDirectory(WorldSession.ActiveWorldName)
+                    : null;
+
+                int toRemove = list.Count - maxCachedLevels;
+                for (int i = 0; i < list.Count && toRemove > 0; i++)
+                {
+                    string targetDir = list[i].dir;
+                    if (!string.IsNullOrEmpty(activeDir) && string.Equals(Path.GetFullPath(targetDir), Path.GetFullPath(activeDir), StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    try
+                    {
+                        Directory.Delete(targetDir, true);
+                        toRemove--;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[PublicLevelService] Failed to evict cache folder {targetDir}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[PublicLevelService] EnforceBrowsePlayCacheLimit failed: {ex.Message}");
+            }
+        }
+
+        public static IEnumerator DownloadAndInstall(
+            PublicLevelEntry entry,
+            Action<float> onProgress,
+            Action<string> onSuccess,
+            Action<string> onError,
+            LevelInstallTarget target = LevelInstallTarget.UserLibrary)
+        {
+            yield return DownloadAndInstallInternal(entry, entry != null ? entry.storage_path : null, entry != null ? entry.title : null, onProgress, onSuccess, onError, target);
+        }
+
         public static IEnumerator DownloadAndInstall(
             string storagePath,
             string title,
@@ -431,10 +619,11 @@ namespace KaplaoGames.Shared
             Action<string> onError,
             LevelInstallTarget target = LevelInstallTarget.UserLibrary)
         {
-            yield return DownloadAndInstallInternal(storagePath, title, onProgress, onSuccess, onError, target);
+            yield return DownloadAndInstallInternal(null, storagePath, title, onProgress, onSuccess, onError, target);
         }
 
         static IEnumerator DownloadAndInstallInternal(
+            PublicLevelEntry entry,
             string storagePath,
             string title,
             Action<float> onProgress,
@@ -544,6 +733,25 @@ namespace KaplaoGames.Shared
                 if (Directory.Exists(dest)) Directory.Delete(dest, true);
                 Directory.CreateDirectory(dest);
                 ZipFile.ExtractToDirectory(tempZip, dest);
+
+                if (target == LevelInstallTarget.BrowsePlay)
+                {
+                    BrowseLevelCacheMeta meta = new BrowseLevelCacheMeta
+                    {
+                        levelId = entry != null ? entry.id : string.Empty,
+                        storagePath = storagePath,
+                        versionToken = entry != null ? GetVersionToken(entry) : $"{storagePath}|{DateTime.UtcNow.Ticks}",
+                        title = title,
+                        lastPlayedUtcTicks = DateTime.UtcNow.Ticks
+                    };
+                    File.WriteAllText(Path.Combine(dest, BrowsePlayCacheMetaFileName), JsonUtility.ToJson(meta, true));
+                    EnforceBrowsePlayCacheLimit(20);
+                }
+                else
+                {
+                    WorldSaveService.RecordWorldVisited(worldName, ignoreBrowseFlag: true);
+                }
+
                 onSuccess?.Invoke(worldName);
             }
             catch (Exception ex)

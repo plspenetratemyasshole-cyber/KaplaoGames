@@ -1,4 +1,5 @@
 using KaplaoGames.Network;
+using KaplaoGames.Shared;
 using KaplaoGames.UI;
 using Mirror;
 using UnityEngine;
@@ -47,6 +48,9 @@ namespace KaplaoGames.Client
 
     public static bool CanLocalPlayerToggleRole()
     {
+      if (WorldSession.IsBrowsePlaySession || (Server.LevelSessionServer.Instance != null && Server.LevelSessionServer.Instance.isBrowsePlaySession))
+        return false;
+
       if (!NetworkClient.active || NetworkClient.localPlayer == null)
         return false;
 

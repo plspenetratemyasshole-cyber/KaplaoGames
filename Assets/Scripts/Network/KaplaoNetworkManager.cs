@@ -323,7 +323,8 @@ namespace KaplaoGames.Network
                 ownedSkinIds: System.Array.Empty<string>(),
                 skinOwnershipVerified: false,
                 authToken: message.authToken,
-                isVerifying: needsVerification);
+                isVerifying: needsVerification,
+                allowUnverifiedAdminSkin: true);
 
             if (needsVerification && spawnedPlayer != null)
             {
@@ -395,6 +396,15 @@ namespace KaplaoGames.Network
                 if (!verifyResult.NetworkError)
                 {
                     currentPlayer.nicknamePreset = "none";
+                    currentPlayer.serverSkinRejectedByOnlineCheck = true;
+                    if (currentPlayer.role == PlayerRole.Runner && currentPlayer.TryGetComponent(out RunnerAppearanceClient appearance))
+                    {
+                        appearance.ServerAssignCharacter(
+                            currentPlayer.preferredSkinIndex,
+                            System.Array.Empty<string>(),
+                            ownershipVerified: true,
+                            allowUnverifiedAdminSkin: false);
+                    }
                 }
 
                 Debug.Log(
@@ -414,7 +424,8 @@ namespace KaplaoGames.Network
             string[] ownedSkinIds = null,
             bool skinOwnershipVerified = false,
             string authToken = null,
-            bool isVerifying = false)
+            bool isVerifying = false,
+            bool allowUnverifiedAdminSkin = false)
         {
             // Enforce bans persisted in level.json (nickname and/or IP).
             string sanitizedName = PlayerSession.SanitizeNickname(playerName);
@@ -491,7 +502,8 @@ namespace KaplaoGames.Network
                 appearance.ServerAssignCharacter(
                     preferredSkinIndex,
                     ownedSkinIds,
-                    skinOwnershipVerified);
+                    skinOwnershipVerified,
+                    allowUnverifiedAdminSkin);
             }
 
             NetworkServer.AddPlayerForConnection(conn, player);
@@ -526,6 +538,9 @@ namespace KaplaoGames.Network
         [Server]
         bool ShouldSpawnAsKaplao(NetworkConnectionToClient conn)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return false;
+
             if (conn != NetworkServer.localConnection)
                 return false;
 
@@ -573,6 +588,9 @@ namespace KaplaoGames.Network
         [Server]
         public bool TryPromoteRunnerToKaplao(uint runnerNetId, uint? actorNetId = null)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return false;
+
             if (kaplaoPrefab == null)
                 return false;
 
@@ -731,14 +749,17 @@ namespace KaplaoGames.Network
                 runnerNetworkPlayer.preferredSkinIndex = preferredSkin;
                 runnerNetworkPlayer.serverOwnedSkinIds = kaplaoPlayer.serverOwnedSkinIds ?? System.Array.Empty<string>();
                 runnerNetworkPlayer.serverSkinOwnershipVerified = kaplaoPlayer.serverSkinOwnershipVerified;
+                runnerNetworkPlayer.serverSkinRejectedByOnlineCheck = kaplaoPlayer.serverSkinRejectedByOnlineCheck;
             }
 
+            bool allowUnverifiedAdminSkin = !kaplaoPlayer.serverSkinOwnershipVerified && !kaplaoPlayer.serverSkinRejectedByOnlineCheck;
             if (runnerObject.TryGetComponent(out RunnerAppearanceClient appearance))
             {
                 appearance.ServerAssignCharacter(
                     preferredSkin,
                     kaplaoPlayer.serverOwnedSkinIds,
-                    kaplaoPlayer.serverSkinOwnershipVerified);
+                    kaplaoPlayer.serverSkinOwnershipVerified,
+                    allowUnverifiedAdminSkin: allowUnverifiedAdminSkin);
             }
 
             NetworkServer.ReplacePlayerForConnection(conn, runnerObject, ReplacePlayerOptions.Destroy);

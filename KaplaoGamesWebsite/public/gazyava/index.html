@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>03:17. Протокол Газява — Вась и Хрумка | Kaplao</title>
+  <meta name="description" content="На часах 03:17. Сушняк 99 уровня. Помоги Васю дожить до рассвета на ледяной газяве и хрумке.">
+
+  <!-- OpenGraph -->
+  <meta property="og:title" content="03:17. Протокол Газява — Вась и Хрумка | Kaplao">
+  <meta property="og:description" content="На часах 03:17. Сушняк 99 уровня. Помоги Васю дожить до рассвета на ледяной газяве и хрумке.">
+  <meta property="og:url" content="https://kaplao.ru/gazyava">
+  <meta property="og:type" content="website">
+
+  <!-- Apple & Mobile PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Газява 2.0">
+  <meta name="theme-color" content="#070b14">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/gazyava/css/variables.css">
+  <link rel="stylesheet" href="/gazyava/css/layout.css">
+  <link rel="stylesheet" href="/gazyava/css/components.css">
+  <link rel="stylesheet" href="/gazyava/css/effects.css">
+
+  <script type="module" src="/gazyava/js/main.js"></script>
+</head>
+<body>
+  <!-- Холст частиц: пузырьки, хрустящие крошки, золотые искры, осколки льда -->
+  <canvas id="fxCanvas"></canvas>
+
+  <!-- Атмосферный слой: пустынный сушняк (>75%) -->
+  <div id="fxDesert" class="fx-overlay" aria-hidden="true">
+    <svg viewBox="0 0 400 800" preserveAspectRatio="none">
+      <g stroke="#ffb703" stroke-width="1.8" fill="none" stroke-linecap="round">
+        <path d="M0,110 L52,144 L78,132 L112,174 M52,144 L36,196" />
+        <path d="M400,200 L342,228 L318,214 L286,260 M342,228 L360,285" />
+        <path d="M0,625 L58,596 L92,616 L124,572 M58,596 L42,542" />
+        <path d="M400,675 L336,642 L308,666 L274,630 M336,642 L354,588" />
+      </g>
+    </svg>
+  </div>
+
+  <!-- Божественные лучи Вознесения -->
+  <div id="fxAscension" class="fx-overlay" aria-hidden="true"></div>
+
+  <!-- Тёплый VHS-фильтр (Дюшес из ларька) -->
+  <div id="fxVhs" class="fx-overlay" aria-hidden="true">
+    <div class="vhs-stamp">PLAY ▶ ЛЕТО 2006 • ДВОР</div>
+  </div>
+
+  <!-- Алая пульсация сердцебиения (Энергос) -->
+  <div id="fxHeartbeat" class="fx-overlay" aria-hidden="true"></div>
+
+  <!-- Слой оглушения при 100% пробитии в нос -->
+  <div id="fxStun" class="fx-overlay" aria-hidden="true">
+    <div class="stun-card">
+      <div class="stun-title">😭 ВАСЬ, ГАЗЫ В НОС ДО СЛЁЗ!</div>
+      <div class="stun-sub">Ты закашлялся на всю кухню... Отдышись!</div>
+      <div class="stun-track"><div id="stunFill" class="stun-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Всплывающие мемные цитаты -->
+  <div id="toastLayer" aria-live="polite"></div>
+
+  <!-- Тост успешного копирования -->
+  <div id="copyBanner">✅ Скопировано! Кидай пацанам в чат 😎🤙</div>
+
+  <!-- ========================================================================
+       ОСНОВНОЙ ИГРОВОЙ ИНТЕРФЕЙС
+       ======================================================================== -->
+  <main id="app">
+    <!-- Шапка: часы, очки, золотые глотки, комбо, звук -->
+    <header class="hud-top">
+      <div class="clock-box">
+        <div id="clockVal" class="clock-time">03:17</div>
+        <div id="clockMeta" class="clock-meta">ДО<br>07:00</div>
+      </div>
+
+      <div class="hud-stats">
+        <div id="scorePill" class="stat-pill pill-score">🏆 0</div>
+        <div id="sipsPill" class="stat-pill pill-sips">✨ 0/5</div>
+        <div id="comboPill" class="stat-pill pill-combos">🥨 0/3</div>
+        <button id="muteBtn" class="icon-btn" type="button" aria-label="Звук">🔊</button>
+      </div>
+    </header>
+
+    <!-- Полоска прогресса ночи -->
+    <div class="night-bar-track">
+      <div id="nightBarFill" class="night-bar-fill"></div>
+    </div>
+
+    <!-- Бегущая/меняющаяся постироничная строка статуса -->
+    <div id="memeTicker" class="meme-ticker">Вась, сушняк душит. Неси газяву и хрумку!</div>
+
+    <!-- 4 главные шкалы (Сушняк, Пробитие в нос, Сахарный долг, Шум) -->
+    <section class="meters-grid" aria-label="Показатели Вася">
+      <!-- Сушняк (на всю ширину) -->
+      <div class="meter-item full">
+        <div class="meter-head">
+          <div class="meter-title">
+            <span>🏜️ СУШНЯК</span>
+            <span id="thirstFreezeTag" class="mini-tag tag-freeze">✨ ЗАМОРОЖЕН</span>
+          </div>
+          <span id="thirstVal" class="meter-val">35%</span>
+        </div>
+        <div class="track tall">
+          <div id="thirstFill" class="fill" style="width: 35%;"></div>
+        </div>
+      </div>
+
+      <!-- Пробитие в нос / Газы (на всю ширину с Золотой зоной) -->
+      <div class="meter-item full">
+        <div class="meter-head">
+          <div class="meter-title">
+            <span>⚡ ГАЗЫ В НОС</span>
+            <span id="goldTag" class="mini-tag tag-gold">ОТПУСКАЙ, ВАСЬ!</span>
+          </div>
+          <span id="fizzVal" class="meter-val">0%</span>
+        </div>
+        <div class="track tall">
+          <div class="golden-zone"></div>
+          <div class="golden-label">ЗОЛОТО 70–90</div>
+          <div id="fizzFill" class="fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Сахарный долг (левая половина) -->
+      <div class="meter-item">
+        <div class="meter-head">
+          <span class="meter-title">🍬 САХАР ДОЛГ</span>
+          <span id="sugarVal" class="meter-val">0%</span>
+        </div>
+        <div class="track">
+          <div id="sugarFill" class="fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Шум в квартире (правая половина) -->
+      <div class="meter-item">
+        <div class="meter-head">
+          <span class="meter-title">🔊 ШУМ</span>
+          <span id="noiseVal" class="meter-val">0%</span>
+        </div>
+        <div class="track">
+          <div id="noiseFill" class="fill" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Центральная игровая арена -->
+    <section class="stage">
+      <div id="fridgeAura" class="fridge-aura"></div>
+
+      <div class="stage-arena">
+        <!-- Левая кнопка: ХРУМКА -->
+        <button id="hrumkaBtn" class="side-action btn-hrumka" type="button" aria-label="Схрумать снек Хрумка">
+          <span class="side-emoji">🥨</span>
+          <span class="side-title">ХРУМКА</span>
+          <span id="hrumkaFlavor" class="side-sub">Кирики с холодцом</span>
+          <div class="side-meter"><div id="comboMeterFill" class="side-meter-fill"></div></div>
+        </button>
+
+        <!-- Центр: Интерактивная SVG-бутылка -->
+        <div id="bottleZone" class="bottle-zone" role="button" aria-label="Зажми, чтобы пить газяву">
+          <div id="tempPill" class="temp-pill cold">❄️ 4°C</div>
+          <div id="bottleWrap" class="bottle-wrap">
+            <svg viewBox="0 0 140 260" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <clipPath id="bottleClip">
+                  <path d="M56,42 L84,42 L86,62 C98,74 110,92 110,115 L110,232 C110,244 100,250 86,250 L54,250 C40,250 30,244 30,232 L30,115 C30,92 42,74 54,62 Z" />
+                </clipPath>
+                <linearGradient id="glassGlare" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="rgba(255,255,255,0.44)" />
+                  <stop offset="22%" stop-color="rgba(255,255,255,0.08)" />
+                  <stop offset="78%" stop-color="rgba(255,255,255,0.02)" />
+                  <stop offset="100%" stop-color="rgba(255,255,255,0.28)" />
+                </linearGradient>
+                <linearGradient id="liqGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop id="liqTop" offset="0%" stop-color="#8a3a12" />
+                  <stop id="liqBot" offset="100%" stop-color="#240a02" />
+                </linearGradient>
+                <linearGradient id="frostOverlay" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(186,230,253,0.62)" />
+                  <stop offset="50%" stop-color="rgba(56,242,255,0.2)" />
+                  <stop offset="100%" stop-color="rgba(224,242,254,0.72)" />
+                </linearGradient>
+              </defs>
+
+              <!-- Аура холода / заморозки -->
+              <path id="coldAura"
+                d="M55,40 L85,40 L87,61 C100,74 113,93 113,116 L113,233 C113,246 102,253 87,253 L53,253 C38,253 27,246 27,233 L27,116 C27,93 40,74 53,61 Z"
+                fill="none" stroke="#38f2ff" stroke-width="5.5" opacity="0.45" />
+
+              <!-- Корпус бутылки -->
+              <path d="M56,42 L84,42 L86,62 C98,74 110,92 110,115 L110,232 C110,244 100,250 86,250 L54,250 C40,250 30,244 30,232 L30,115 C30,92 42,74 54,62 Z"
+                fill="rgba(220,245,255,0.14)" stroke="rgba(200,235,255,0.62)" stroke-width="2.2" />
+
+              <!-- Жидкость, пена и пузырьки внутри -->
+              <g clip-path="url(#bottleClip)">
+                <path id="liquidWave" d="M20,95 Q70,88 120,95 L120,260 L20,260 Z" fill="url(#liqGrad)" />
+                <path id="liquidFoam" d="M20,95 Q70,88 120,95 L120,103 Q70,96 20,103 Z" fill="rgba(255,255,255,0.45)" />
+                <g id="svgBubbles"></g>
+              </g>
+
+              <!-- Этикетка -->
+              <g>
+                <rect id="labelRect" x="30" y="132" width="80" height="58" rx="4" fill="#dc2626" opacity="0.94" />
+                <rect x="30" y="136" width="80" height="3" fill="rgba(255,255,255,0.42)" />
+                <rect x="30" y="183" width="80" height="3" fill="rgba(255,255,255,0.42)" />
+                <text id="labelTitle" x="70" y="159" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="900">КОЛА</text>
+                <text id="labelSub" x="70" y="175" text-anchor="middle" fill="#fef08a" font-size="9" font-weight="800">2007 • 03:17</text>
+              </g>
+
+              <!-- Блик и капли конденсата -->
+              <path d="M56,42 L84,42 L86,62 C98,74 110,92 110,115 L110,232 C110,244 100,250 86,250 L54,250 C40,250 30,244 30,232 L30,115 C30,92 42,74 54,62 Z"
+                fill="url(#glassGlare)" pointer-events="none" />
+              <path d="M40,118 C40,104 46,90 54,80" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="4" stroke-linecap="round" />
+
+              <g id="condensation" fill="rgba(224,247,255,0.78)">
+                <circle cx="46" cy="112" r="2.2" />
+                <circle cx="94" cy="108" r="2.6" />
+                <circle cx="88" cy="122" r="1.8" />
+                <circle cx="52" cy="206" r="2.4" />
+                <circle cx="96" cy="215" r="2.8" />
+                <circle cx="78" cy="228" r="2.1" />
+              </g>
+
+              <!-- Лёгкий иней при охлаждении в морозилке -->
+              <path id="frostCoat"
+                d="M56,42 L84,42 L86,62 C98,74 110,92 110,115 L110,232 C110,244 100,250 86,250 L54,250 C40,250 30,244 30,232 L30,115 C30,92 42,74 54,62 Z"
+                fill="url(#frostOverlay)" opacity="0" pointer-events="none" />
+
+              <!-- Волны жара при нагреве -->
+              <g id="heatWaves" stroke="#fb923c" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0">
+                <path d="M16,130 Q10,120 16,110 Q22,100 16,90" />
+                <path d="M124,135 Q130,125 124,115 Q118,105 124,95" />
+              </g>
+
+              <!-- Крышка -->
+              <rect x="52" y="34" width="36" height="9" rx="3" fill="rgba(215,240,255,0.45)" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+              <rect id="capRect" x="50" y="14" width="40" height="22" rx="5" fill="#ef4444" stroke="#fca5a5" stroke-width="1.4" />
+
+              <!-- Ледяная глыба (тапай 3 раза, чтобы разбить) -->
+              <g id="iceBlock" opacity="0">
+                <polygon points="16,88 44,56 98,60 124,94 120,248 20,248"
+                  fill="url(#frostOverlay)" stroke="#e0f2fe" stroke-width="2.6" />
+                <path id="iceCrack1" d="M34,112 L62,146 L48,180" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0" />
+                <path id="iceCrack2" d="M108,124 L78,162 L96,208" fill="none" stroke="#ffffff" stroke-width="2.6" opacity="0" />
+                <text id="iceLabel" x="70" y="166" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="900"
+                  stroke="#0369a1" stroke-width="3.6" paint-order="stroke">🧊 ТАП x3</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Правая кнопка: МОРОЗИЛКА (вкл/выкл охлаждения) -->
+        <button id="freezerBtn" class="side-action btn-freezer" type="button" aria-label="Включить или выключить морозилку">
+          <span class="side-emoji">❄️</span>
+          <span class="side-title">МОРОЗИЛКА</span>
+          <span id="freezerSub" class="side-sub">Выкл • Остудить</span>
+          <div class="side-meter"><div id="coldMeterFill" class="side-meter-fill"></div></div>
+        </button>
+      </div>
+
+      <!-- Контекстная подсказка под бутылкой -->
+      <div id="holdHint" class="hold-hint">ЗАЖМИ БУТЫЛКУ, ВАСЬ!</div>
+    </section>
+
+    <!-- Искушение обычной водой (>65% сушняка) -->
+    <div class="water-slot">
+      <button id="tapWaterBtn" class="tap-water-btn" type="button">
+        <span>🚰</span>
+        <span>Просто попить обычной воды из-под крана</span>
+      </button>
+    </div>
+
+    <!-- Арсенал 6 напитков («Ларёк в 3 ночи») -->
+    <div class="dock-header">
+      <span>🏪 ЛАРЁК В 03:17 (СВАЙПАЙ →)</span>
+      <span id="activeDrinkName">Кола 2007</span>
+    </div>
+    <nav id="drinkDock" class="drink-dock" aria-label="Выбор газявы">
+      <button class="drink-card active" type="button" data-drink="cola">
+        <span id="corner-cola" class="drink-corner">4°</span>
+        <span class="drink-emoji">🥤</span>
+        <span class="drink-name">Кола 2007</span>
+        <span class="drink-perk">Мощно • +Сахар</span>
+      </button>
+      <button class="drink-card" type="button" data-drink="mineral">
+        <span id="corner-mineral" class="drink-corner">3°</span>
+        <span class="drink-emoji">🫧</span>
+        <span class="drink-name">Минералка</span>
+        <span class="drink-perk">0 сахара • 2x газ</span>
+      </button>
+      <button class="drink-card" type="button" data-drink="duchess">
+        <span id="corner-duchess" class="drink-corner">5°</span>
+        <span class="drink-emoji">🍐</span>
+        <span class="drink-name">Дюшес</span>
+        <span class="drink-perk">VHS • -Шум</span>
+      </button>
+      <button class="drink-card" type="button" data-drink="energy">
+        <span id="corner-energy" class="drink-corner energy-cnt">⚡0/5</span>
+        <span class="drink-emoji">⚡</span>
+        <span class="drink-name">Энергос</span>
+        <span class="drink-perk">Турбо-часы</span>
+      </button>
+      <button class="drink-card" type="button" data-drink="brine">
+        <span id="corner-brine" class="drink-corner brine-cnt">🥒3</span>
+        <span class="drink-emoji">🥒</span>
+        <span class="drink-name">Рассол</span>
+        <span class="drink-perk">Сброс сахара</span>
+      </button>
+      <button class="drink-card" type="button" data-drink="flat">
+        <span id="corner-flat" class="drink-corner">23°</span>
+        <span class="drink-emoji">🫠</span>
+        <span class="drink-name">Выдохлась</span>
+        <span class="drink-perk">Тёплая боль</span>
+      </button>
+    </nav>
+  </main>
+
+  <!-- ========================================================================
+       МОДАЛЬНОЕ ОКНО НОЧНЫХ ИВЕНТОВ (4 РАЗНЫХ СЦЕНАРИЯ)
+       ======================================================================== -->
+  <div id="eventModal" class="event-backdrop" role="dialog" aria-modal="true">
+    <div id="eventCard" class="event-card">
+      <div id="evTag" class="ev-tag">⚠️ НОЧНОЙ СТЕЛС</div>
+      <h2 id="evTitle" class="ev-title">СОБЫТИЕ</h2>
+      <p id="evDesc" class="ev-desc"></p>
+
+      <!-- Контент ивента рендерится динамически -->
+      <div id="evBody"></div>
+
+      <div id="evBarWrap">
+        <div class="ev-bar-row">
+          <span id="evBarLabel">ДАВЛЕНИЕ</span>
+          <span id="evBarPct">0%</span>
+        </div>
+        <div class="ev-bar-track">
+          <div id="evBarFill" class="ev-bar-fill"></div>
+        </div>
+      </div>
+      <div id="evTimer" class="ev-timer">Осталось: 6.0 сек</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       СТАРТОВЫЙ ЭКРАН (ВЫБОР РЕЖИМА, РЕКОРДЫ, АЛЬБОМ)
+       ======================================================================== -->
+  <div id="startScreen" class="full-screen visible">
+    <div class="card-shell">
+      <div class="hero-pill">03:17 AM • ВАСЬ НА КУХНЕ</div>
+      <h1 class="hero-title">ПРОТОКОЛ ГАЗЯВА 2.0:<br>ВАСЬ И ХРУМКА</h1>
+      <p class="hero-sub">Во рту пустыня. В ларьке газява. В шкафу хрустящие кирики.</p>
+
+      <div id="hcTrophyBanner" class="hc-trophy-banner">🏆 ХАРДКОР «ПОХМЕЛЬЕ 1 ЯНВАРЯ» ПРОЙДЕН!</div>
+
+      <!-- Выбор режима игры -->
+      <div class="mode-switch">
+        <button id="modeClassicBtn" class="mode-opt selected" type="button">
+          <div class="mode-name">🌙 03:17. КЛАССИКА</div>
+          <div class="mode-desc">Выжить до 07:00. Базовый сушняк и ночной вайб.</div>
+        </button>
+        <button id="modeHardcoreBtn" class="mode-opt hc-opt" type="button">
+          <div class="mode-name">🔥 ПОХМЕЛЬЕ 1 ЯНВАРЯ</div>
+          <div class="mode-desc">02:00 → 08:00. 1.5x сушняк, жёсткий шум, топ-концовка!</div>
+        </button>
+      </div>
+
+      <!-- Компактные правила -->
+      <div class="rules-compact">
+        <div class="rule-row">
+          <span>✨</span>
+          <div><strong>Зажимай бутылку</strong> и отпускай в <strong>Золотой зоне (70–90%)</strong> для <strong>Вознесения</strong> (морозит сушняк).</div>
+        </div>
+        <div class="rule-row">
+          <span>🥨</span>
+          <div><strong>Хрумка</strong> сбивает Сахарный долг, но сушит и шумит. <strong>Хрумка → Золотой глоток за 4.5с = ИМБА-КОМБО!</strong></div>
+        </div>
+        <div class="rule-row">
+          <span>❄️</span>
+          <div><strong>Морозилка</strong> студит бутылку (не передержи до льда!). Следи за <strong>Шумом</strong>, Батей и рассолом.</div>
+        </div>
+      </div>
+
+      <!-- Панель рекордов -->
+      <div class="records-strip">
+        <div class="rec-cell">
+          <div id="recScore" class="rec-val">0</div>
+          <div class="rec-lbl">Рекорд</div>
+        </div>
+        <div class="rec-cell">
+          <div id="recTime" class="rec-val">0с</div>
+          <div class="rec-lbl">Лучш. время</div>
+        </div>
+        <div class="rec-cell">
+          <div id="recHrumkas" class="rec-val">0</div>
+          <div class="rec-lbl">Хрумок</div>
+        </div>
+        <div class="rec-cell">
+          <div id="recEndings" class="rec-val">0/9</div>
+          <div class="rec-lbl">Концовки</div>
+        </div>
+      </div>
+
+      <button id="startBtn" class="btn-primary" type="button">ОТКРЫТЬ ХОЛОДИЛЬНИК (СТАРТ)</button>
+      <button id="startAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/9)</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       ЭКРАН КОНЦОВКИ + КОПИРОВАНИЕ КАРТОЧКИ ДЛЯ ЧАТА
+       ======================================================================== -->
+  <div id="endScreen" class="full-screen">
+    <div class="card-shell">
+      <div id="endEmoji" class="end-emoji">👼</div>
+      <div id="endBadge" class="end-badge win">ПОБЕДА</div>
+      <h2 id="endTitle" class="end-title">ВОЗНЕСЕНИЕ ВАСЯ</h2>
+      <p id="endDesc" class="end-desc"></p>
+
+      <div class="end-stats-grid">
+        <div class="end-stat">
+          <div id="endClock" class="end-stat-v">07:00</div>
+          <div class="end-stat-l">Время</div>
+        </div>
+        <div class="end-stat">
+          <div id="endScore" class="end-stat-v">0</div>
+          <div class="end-stat-l">Очки</div>
+        </div>
+        <div class="end-stat">
+          <div id="endSips" class="end-stat-v">0</div>
+          <div class="end-stat-l">Золотых</div>
+        </div>
+        <div class="end-stat">
+          <div id="endCombos" class="end-stat-v">0</div>
+          <div class="end-stat-l">Комбо</div>
+        </div>
+      </div>
+
+      <button id="shareBtn" class="btn-share" type="button">📋 Скопировать результат для чата</button>
+      <button id="restartBtn" class="btn-primary" type="button">ЕЩЁ ОДНА НОЧЬ, ВАСЬ!</button>
+      <button id="endAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/9)</button>
+      <button id="toMenuBtn" class="btn-secondary" type="button">🏠 СМЕНИТЬ РЕЖИМ</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       МОДАЛКА АЛЬБОМА КОНЦОВОК (9 ШТ.)
+       ======================================================================== -->
+  <div id="albumModal" class="event-backdrop" role="dialog" aria-modal="true">
+    <div class="album-card">
+      <div class="album-head">
+        <div id="albumTitle" class="album-title">📖 КОНЦОВКИ: 0/9</div>
+        <button id="closeAlbumBtn" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div id="albumList" class="album-list"></div>
+      <button id="albumOkBtn" class="btn-secondary" type="button" style="margin-bottom:0;">ЗАКРЫТЬ</button>
+    </div>
+  </div>
+</body>
+</html>

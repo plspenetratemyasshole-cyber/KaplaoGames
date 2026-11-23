@@ -331,12 +331,31 @@ namespace KaplaoGames.UI
         void PlaySelected()
         {
             if (selected == null || downloadInProgress) return;
+
+            // Check smart cache: if matching version already exists on disk, run immediately without downloading!
+            if (PublicLevelService.IsCachedInBrowsePlay(selected, out string cachedWorldName))
+            {
+                PublicLevelService.TouchBrowsePlayCache(cachedWorldName);
+                ClosePanel();
+                mainMenu?.PlayBrowseLevelByName(cachedWorldName);
+                return;
+            }
+
             StartCoroutine(DownloadRoutine(selected, PublicLevelService.LevelInstallTarget.BrowsePlay, playAfterDownload: true));
         }
 
         void CopySelected()
         {
             if (selected == null || downloadInProgress) return;
+
+            // If already cached in BrowsePlay, copy directly without downloading from internet!
+            if (PublicLevelService.TryCopyFromBrowsePlayCache(selected, out string copiedWorldName))
+            {
+                ClosePanel();
+                mainMenu?.OnBrowseLevelCopied(copiedWorldName);
+                return;
+            }
+
             StartCoroutine(DownloadRoutine(selected, PublicLevelService.LevelInstallTarget.UserLibrary, playAfterDownload: false));
         }
 
@@ -423,8 +442,7 @@ namespace KaplaoGames.UI
             try
             {
                 yield return PublicLevelService.DownloadAndInstall(
-                    entry.storage_path,
-                    entry.title,
+                    entry,
                     p =>
                     {
                         if (progressBar != null) progressBar.value = p;
@@ -559,6 +577,37 @@ namespace KaplaoGames.UI
                 Transform cancelButtonTransform = deleteConfirmPanel.transform.Find("BrowseDeleteCancelButton");
                 if (cancelButtonTransform != null)
                     deleteCancelButton = cancelButtonTransform.GetComponent<Button>();
+            }
+
+            if (backButton == null)
+            {
+                Transform backTransform = FindChildRecursive(canvasRoot, "BrowseBackButton");
+                if (backTransform != null)
+                    backButton = backTransform.GetComponent<Button>();
+            }
+
+            if (progressRoot == null)
+            {
+                Transform prTransform = FindChildRecursive(canvasRoot, "BrowseProgressRoot");
+                if (prTransform != null)
+                {
+                    progressRoot = prTransform.gameObject;
+                    if (progressBar == null)
+                        progressBar = prTransform.GetComponent<Slider>() ?? prTransform.GetComponentInChildren<Slider>(true);
+                    if (progressLabel == null)
+                    {
+                        Transform plTransform = FindChildRecursive(prTransform, "BrowseProgressLabel") ?? FindChildRecursive(prTransform, "ProgressLabel");
+                        if (plTransform != null)
+                            progressLabel = plTransform.GetComponent<TextMeshProUGUI>();
+                    }
+                }
+            }
+
+            if (statusLabel == null)
+            {
+                Transform stTransform = FindChildRecursive(canvasRoot, "BrowseStatusLabel") ?? FindChildRecursive(canvasRoot, "StatusLabel");
+                if (stTransform != null)
+                    statusLabel = stTransform.GetComponent<TextMeshProUGUI>();
             }
 
             // Legacy single-button setup from older scenes.

@@ -27,7 +27,11 @@ namespace KaplaoGames.Client
 
             string signature = style == null ? "none" : JsonUtilityFingerprint(style);
             if (signature == appliedSignature)
+            {
+                if (textEffect != null)
+                    ForceRefreshEffect();
                 return;
+            }
 
             ClearEffects();
             appliedSignature = signature;
@@ -76,7 +80,20 @@ namespace KaplaoGames.Client
             label.enableVertexGradient = false;
             NicknameStyle.ApplyOutline(label, style);
             textEffect.Refresh();
+            textEffect.StartOnStartEffects();
             enabled = true;
+        }
+
+        public void ForceRefreshEffect()
+        {
+            if (label == null) label = GetComponent<TextMeshProUGUI>();
+            if (label == null) return;
+            label.ForceMeshUpdate(true, true);
+            if (textEffect != null)
+            {
+                textEffect.Refresh();
+                textEffect.StartOnStartEffects();
+            }
         }
 
         public void Clear()

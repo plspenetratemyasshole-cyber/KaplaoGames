@@ -80,7 +80,8 @@ namespace KaplaoGames.Shared
         public static int ResolveServerSkinIndex(
             int preferredIndex,
             IReadOnlyList<string> ownedSkinIds,
-            bool ownershipVerified)
+            bool ownershipVerified,
+            bool allowUnverifiedAdminSkin = false)
         {
             if (preferredIndex < 0)
                 return PickRandomPublicIndex();
@@ -88,11 +89,15 @@ namespace KaplaoGames.Shared
             if (IsPublicSkinIndex(preferredIndex))
                 return preferredIndex;
 
-            if (IsAdminSkinIndex(preferredIndex) &&
-                ownershipVerified &&
-                OwnsAdminSkin(ownedSkinIds, preferredIndex))
+            if (IsAdminSkinIndex(preferredIndex))
             {
-                return preferredIndex;
+                if (ownershipVerified)
+                    return OwnsAdminSkin(ownedSkinIds, preferredIndex) ? preferredIndex : PickRandomPublicIndex();
+
+                if (!ownershipVerified && allowUnverifiedAdminSkin)
+                    return preferredIndex;
+
+                return PickRandomPublicIndex();
             }
 
             return PickRandomPublicIndex();

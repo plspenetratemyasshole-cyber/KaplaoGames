@@ -35,9 +35,9 @@ namespace KaplaoGames.Shared
             return Path.Combine(GetUserWorldDirectory(worldName), MetadataFileName);
         }
 
-        public static void RecordWorldVisited(string worldName)
+        public static void RecordWorldVisited(string worldName, bool ignoreBrowseFlag = false)
         {
-            if (string.IsNullOrWhiteSpace(worldName) || WorldSession.IsBrowsePlaySession)
+            if (string.IsNullOrWhiteSpace(worldName) || (!ignoreBrowseFlag && WorldSession.IsBrowsePlaySession))
                 return;
 
             string sanitized = SanitizeWorldName(worldName);
@@ -79,6 +79,11 @@ namespace KaplaoGames.Shared
             {
                 UnityEngine.Debug.LogWarning($"[WorldSaveService] Failed to record world visited for '{sanitized}': {ex.Message}");
             }
+        }
+
+        public static void RecordUserWorldVisited(string worldName)
+        {
+            RecordWorldVisited(worldName, ignoreBrowseFlag: true);
         }
 
         public static WorldMetadata ReadWorldMetadata(string worldName)

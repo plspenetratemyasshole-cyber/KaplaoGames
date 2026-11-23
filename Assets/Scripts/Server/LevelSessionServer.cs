@@ -1492,6 +1492,15 @@ namespace KaplaoGames.Server
             KeyframeMotionPredictor.HandleAnimationStopped(targetGroup, keyGroup);
         }
 
+        [SyncVar]
+        public bool isBrowsePlaySession;
+
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+            isBrowsePlaySession = WorldSession.IsBrowsePlaySession;
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();

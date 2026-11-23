@@ -85,7 +85,10 @@ namespace KaplaoGames.UI
         void TryAutoBind()
         {
             if (panelRoot != null && listContent != null)
+            {
+                CleanBannedScrollMasks(panelRoot.transform);
                 return;
+            }
 
             Canvas canvas = GetComponentInParent<Canvas>();
             if (canvas == null)
@@ -109,6 +112,12 @@ namespace KaplaoGames.UI
             if (listContent == null)
                 listContent = panel.Find("BannedScroll/Viewport/Content");
 
+            CleanBannedScrollMasks(panel);
+        }
+
+        void CleanBannedScrollMasks(Transform panel)
+        {
+            if (panel == null) return;
             Transform scroll = panel.Find("BannedScroll");
             if (scroll != null)
             {

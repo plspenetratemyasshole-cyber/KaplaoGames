@@ -281,6 +281,7 @@ namespace KaplaoGames.UI
         System.Collections.IEnumerator ReapplyNicknameStylesNextFrame(List<NetworkPlayer> playersSnapshot)
         {
             yield return null;
+            Canvas.ForceUpdateCanvases();
             if (listContent == null || playersSnapshot == null)
                 yield break;
 
@@ -295,6 +296,10 @@ namespace KaplaoGames.UI
                     if (label != null)
                     {
                         Client.NicknameStyle.Apply(label, np.accountEmail, np.nicknamePreset);
+                        if (label.TryGetComponent(out KaplaoNicknameEasyEffectsApplier applier))
+                        {
+                            applier.ForceRefreshEffect();
+                        }
                     }
                 }
             }
@@ -402,7 +407,9 @@ namespace KaplaoGames.UI
             Button banBtn = FindChildButton(row.transform, "BanButton");
             Button banIpBtn = FindChildButton(row.transform, "BanIpButton");
 
-            SetButtonVisible(kaplaoBtn, canModerate);
+            bool isBrowsePlay = WorldSession.IsBrowsePlaySession ||
+                                (LevelSessionServer.Instance != null && LevelSessionServer.Instance.isBrowsePlaySession);
+            SetButtonVisible(kaplaoBtn, canModerate && !isBrowsePlay);
             SetButtonVisible(modBtn, canModerate);
             SetButtonVisible(kickBtn, canModerate && !isSelf);
             SetButtonVisible(banBtn, canModerate && !isSelf);
@@ -554,6 +561,12 @@ namespace KaplaoGames.UI
             uint netId,
             uint localNetId)
         {
+            if (WorldSession.IsBrowsePlaySession || (LevelSessionServer.Instance != null && LevelSessionServer.Instance.isBrowsePlaySession))
+            {
+                CantChangeModeUi.Show("Copy the level to edit it as Kaplao.");
+                return;
+            }
+
             if (isProtectedTarget && !isSelf)
             {
                 CantChangeModeUi.Show();

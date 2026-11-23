@@ -55,6 +55,9 @@ namespace KaplaoGames.Network
         /// <summary>True when verify-player succeeded online for this join.</summary>
         public bool serverSkinOwnershipVerified;
 
+        /// <summary>True if online check ran and rejected the skin.</summary>
+        public bool serverSkinRejectedByOnlineCheck = false;
+
         /// <summary>Server-only auth token for verifying player privileges in real-time.</summary>
         public string serverAuthToken = string.Empty;
 
@@ -130,6 +133,9 @@ namespace KaplaoGames.Network
         [Server]
         public static bool CanToggleOwnRole(NetworkConnectionToClient conn, NetworkPlayer player)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return false;
+
             if (conn == null || player == null)
                 return false;
 
@@ -145,6 +151,9 @@ namespace KaplaoGames.Network
         [Command]
         public void CmdRequestSelfRoleToggle(int preferredSkinIndex)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return;
+
             if (!CanToggleOwnRole(connectionToClient, this))
                 return;
 
@@ -175,6 +184,9 @@ namespace KaplaoGames.Network
         [Command]
         public void CmdRequestEnterRoleToggle(bool spawnAtCurrentKaplaoPosition)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return;
+
             if (!CanToggleOwnRole(connectionToClient, this))
                 return;
 
@@ -226,6 +238,9 @@ namespace KaplaoGames.Network
         [Command]
         public void CmdRequestSetPlayerKaplao(uint targetNetId)
         {
+            if (WorldSession.IsBrowsePlaySession)
+                return;
+
             if (!isAdmin)
                 return;
 
@@ -328,11 +343,12 @@ namespace KaplaoGames.Network
 
             serverOwnedSkinIds = ownedSkinIds ?? System.Array.Empty<string>();
             serverSkinOwnershipVerified = ownershipVerified;
+            serverSkinRejectedByOnlineCheck = false;
             isVerifyingAccount = false;
 
             if (role == PlayerRole.Runner && TryGetComponent(out RunnerAppearanceClient appearance))
             {
-                appearance.ServerAssignCharacter(preferredSkinIndex, serverOwnedSkinIds, serverSkinOwnershipVerified);
+                appearance.ServerAssignCharacter(preferredSkinIndex, serverOwnedSkinIds, ownershipVerified, allowUnverifiedAdminSkin: false);
             }
 
             if (isLocalPlayer && !string.IsNullOrWhiteSpace(normalizedPreset))

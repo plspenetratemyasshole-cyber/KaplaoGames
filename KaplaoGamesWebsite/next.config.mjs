@@ -11,6 +11,12 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["bcryptjs", "@supabase/supabase-js"],
   },
+  async rewrites() {
+    return [
+      { source: '/gazyava', destination: '/gazyava/index.html' },
+      { source: '/gazyava/', destination: '/gazyava/index.html' },
+    ];
+  },
 };
 
 export default nextConfig;

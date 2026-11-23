@@ -724,6 +724,46 @@ namespace KaplaoGames.Editor
                         KaplaoUiToggleAnimator ta = child.GetComponent<KaplaoUiToggleAnimator>();
                         if (ta != null) UnityEngine.Object.DestroyImmediate(ta);
 
+                        // Remove UI_BtnGlow and UI_TopGlow
+                        Transform btnGlow = child.Find("UI_BtnGlow");
+                        if (btnGlow != null) UnityEngine.Object.DestroyImmediate(btnGlow.gameObject);
+                        Transform topGlow = child.Find("UI_TopGlow");
+                        if (topGlow != null) UnityEngine.Object.DestroyImmediate(topGlow.gameObject);
+
+                        // Card background
+                        if (child.TryGetComponent(out Image bgImg))
+                        {
+                            bgImg.sprite = KaplaoUiSprites.RoundedRect(10);
+                            bgImg.type = Image.Type.Sliced;
+                            bgImg.pixelsPerUnitMultiplier = 14f / 10f;
+                            bgImg.color = new Color(0x17 / 255f, 0x20 / 255f, 0x36 / 255f, 1f); // #172036
+                        }
+
+                        // Child Checkmark
+                        Transform checkmark = child.Find("Checkmark");
+                        if (checkmark != null && checkmark.TryGetComponent(out Image chkImg))
+                        {
+                            chkImg.sprite = KaplaoUiSprites.RoundedRect(10);
+                            chkImg.type = Image.Type.Sliced;
+                            chkImg.pixelsPerUnitMultiplier = 14f / 10f;
+                            chkImg.color = new Color(0.22f, 0.74f, 0.97f, 0.35f);
+                        }
+
+                        // Random Preview
+                        Transform preview = child.Find("Preview");
+                        if (preview != null && preview.TryGetComponent(out Image prevImg))
+                        {
+                            if (child.name.Contains("Random") || child.name.Contains("Rnd"))
+                            {
+                                preview.gameObject.SetActive(false);
+                            }
+                            else if (prevImg.sprite == null)
+                            {
+                                prevImg.sprite = KaplaoUiSprites.RoundedRect(8);
+                                prevImg.type = Image.Type.Sliced;
+                            }
+                        }
+
                         KaplaoSkinCardHover hover = child.GetComponent<KaplaoSkinCardHover>();
                         if (hover == null)
                             hover = child.gameObject.AddComponent<KaplaoSkinCardHover>();
@@ -1032,7 +1072,7 @@ namespace KaplaoGames.Editor
                 bpRt.anchorMax = new Vector2(0.5f, 0.5f);
                 bpRt.pivot = new Vector2(0.5f, 0.5f);
                 bpRt.anchoredPosition = Vector2.zero;
-                bpRt.sizeDelta = new Vector2(780f, 620f);
+                bpRt.sizeDelta = new Vector2(780f, 650f);
                 bpRt.localScale = Vector3.one;
                 KaplaoUiStyler.StylePanel(browsePanel.gameObject, true, true);
 
@@ -1043,7 +1083,7 @@ namespace KaplaoGames.Editor
                     srt.anchorMin = new Vector2(0.5f, 1f);
                     srt.anchorMax = new Vector2(0.5f, 1f);
                     srt.pivot = new Vector2(0.5f, 1f);
-                    srt.anchoredPosition = new Vector2(0f, -60f);
+                    srt.anchoredPosition = new Vector2(0f, -58f);
                     srt.sizeDelta = new Vector2(700f, 40f);
                     srt.localScale = Vector3.one;
                 }
@@ -1055,8 +1095,8 @@ namespace KaplaoGames.Editor
                     bsRt.anchorMin = new Vector2(0.5f, 0.5f);
                     bsRt.anchorMax = new Vector2(0.5f, 0.5f);
                     bsRt.pivot = new Vector2(0.5f, 0.5f);
-                    bsRt.anchoredPosition = new Vector2(0f, 15f);
-                    bsRt.sizeDelta = new Vector2(700f, 370f);
+                    bsRt.anchoredPosition = new Vector2(0f, 38f);
+                    bsRt.sizeDelta = new Vector2(700f, 360f);
                     bsRt.localScale = Vector3.one;
 
                     ScrollRect sr = browseScroll.GetComponent<ScrollRect>();
@@ -1131,10 +1171,67 @@ namespace KaplaoGames.Editor
                     }
                 }
 
-                SetAnchored(browsePanel.Find("BrowsePlayButton"), new Vector2(-165f, -255f), new Vector2(150f, 42f));
-                SetAnchored(browsePanel.Find("BrowseCopyButton"), new Vector2(-5f, -255f), new Vector2(150f, 42f));
-                SetAnchored(browsePanel.Find("BrowseDeleteFromServersButton"), new Vector2(155f, -255f), new Vector2(150f, 42f));
-                SetAnchored(browsePanel.Find("BrowseBackButton"), new Vector2(300f, -255f), new Vector2(110f, 42f));
+                SetAnchored(browsePanel.Find("BrowsePlayButton"), new Vector2(-160f, -182f), new Vector2(150f, 40f));
+                SetAnchored(browsePanel.Find("BrowseCopyButton"), new Vector2(0f, -182f), new Vector2(150f, 40f));
+                SetAnchored(browsePanel.Find("BrowseBackButton"), new Vector2(160f, -182f), new Vector2(130f, 40f));
+
+                Transform progressRoot = browsePanel.Find("BrowseProgressRoot");
+                if (progressRoot != null)
+                {
+                    progressRoot.gameObject.SetActive(false);
+                    SetAnchored(progressRoot, new Vector2(0f, -234f), new Vector2(520f, 26f));
+
+                    if (progressRoot.TryGetComponent(out Image prTrack))
+                    {
+                        prTrack.sprite = KaplaoUiSprites.RoundedRect(13);
+                        prTrack.type = Image.Type.Sliced;
+                        prTrack.pixelsPerUnitMultiplier = 14f / 13f;
+                        prTrack.color = new Color(0.04f, 0.06f, 0.11f, 1f); // #0A0F1C
+                    }
+
+                    Transform fillArea = progressRoot.Find("Fill Area") ?? progressRoot.Find("FillArea");
+                    Transform fill = fillArea != null ? fillArea.Find("Fill") : progressRoot.Find("Fill");
+                    if (fill != null && fill.TryGetComponent(out Image fillImg))
+                    {
+                        fillImg.sprite = KaplaoUiSprites.RoundedRect(12);
+                        fillImg.type = Image.Type.Sliced;
+                        fillImg.pixelsPerUnitMultiplier = 14f / 12f;
+                        fillImg.color = new Color(0.22f, 0.74f, 0.97f, 1f); // #38BDF8
+                    }
+
+                    Transform pct = progressRoot.Find("BrowseProgressLabel") ?? progressRoot.Find("ProgressLabel");
+                    if (pct != null)
+                    {
+                        RectTransform pctRt = pct.GetComponent<RectTransform>();
+                        pctRt.anchorMin = Vector2.zero;
+                        pctRt.anchorMax = Vector2.one;
+                        pctRt.offsetMin = Vector2.zero;
+                        pctRt.offsetMax = Vector2.zero;
+                        if (pct.TryGetComponent(out TextMeshProUGUI pctTmp))
+                        {
+                            pctTmp.fontSize = 13f;
+                            pctTmp.fontStyle = FontStyles.Bold;
+                            pctTmp.color = Color.white;
+                            pctTmp.alignment = TextAlignmentOptions.Center;
+                            pctTmp.raycastTarget = false;
+                        }
+                    }
+                }
+
+                SetAnchored(browsePanel.Find("BrowseDeleteFromServersButton"), new Vector2(0f, -282f), new Vector2(220f, 36f));
+
+                Transform statusLbl = browsePanel.Find("BrowseStatusLabel") ?? browsePanel.Find("StatusLabel");
+                if (statusLbl != null)
+                {
+                    SetAnchored(statusLbl, new Vector2(0f, -148f), new Vector2(600f, 24f));
+                    if (statusLbl.TryGetComponent(out TextMeshProUGUI stmp))
+                    {
+                        stmp.fontSize = 13f;
+                        stmp.color = new Color(0x94 / 255f, 0xA3 / 255f, 0xB8 / 255f, 1f);
+                        stmp.alignment = TextAlignmentOptions.Center;
+                        stmp.raycastTarget = false;
+                    }
+                }
 
                 StyleButtonIfExists(browsePanel, "BrowsePlayButton", KaplaoButtonVariant.Success);
                 StyleButtonIfExists(browsePanel, "BrowseCopyButton", KaplaoButtonVariant.Secondary);
@@ -1292,46 +1389,72 @@ namespace KaplaoGames.Editor
         static void EnsurePauseHeader(Transform pausePanel)
         {
             if (pausePanel == null) return;
-            Transform header = pausePanel.Find("Header");
+
+            // Remove legacy duplicate "Header" if it exists in PauseMenuPanel
+            Transform oldHeader = pausePanel.Find("Header");
+            if (oldHeader != null)
+            {
+                UnityEngine.Object.DestroyImmediate(oldHeader.gameObject);
+            }
+
+            Transform header = pausePanel.Find("PauseHeader");
             if (header == null)
             {
-                GameObject headerObj = new GameObject("Header", typeof(RectTransform));
+                GameObject headerObj = new GameObject("PauseHeader", typeof(RectTransform));
                 headerObj.transform.SetParent(pausePanel, false);
                 headerObj.transform.SetSiblingIndex(0);
                 header = headerObj.transform;
             }
 
             RectTransform hrt = header.GetComponent<RectTransform>();
-            hrt.sizeDelta = new Vector2(290f, 48f);
+            hrt.sizeDelta = new Vector2(290f, 64f);
             hrt.localScale = Vector3.one;
 
             LayoutElement hle = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
-            hle.minHeight = 48f;
-            hle.preferredHeight = 48f;
+            hle.minHeight = 64f;
+            hle.preferredHeight = 64f;
             hle.flexibleWidth = 1f;
 
-            // WorldNameLabel
-            Transform wnl = header.Find("WorldNameLabel");
+            VerticalLayoutGroup vlg = header.GetComponent<VerticalLayoutGroup>() ?? header.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 6f;
+            vlg.padding = new RectOffset(4, 4, 2, 6);
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+
+            // WorldName
+            Transform oldWnl = header.Find("WorldNameLabel");
+            if (oldWnl != null && header.Find("WorldName") == null)
+                oldWnl.name = "WorldName";
+
+            Transform wnl = header.Find("WorldName");
             if (wnl == null)
             {
-                GameObject wnlObj = new GameObject("WorldNameLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
+                GameObject wnlObj = new GameObject("WorldName", typeof(RectTransform), typeof(TextMeshProUGUI));
                 wnlObj.transform.SetParent(header, false);
                 wnl = wnlObj.transform;
             }
+            wnl.SetSiblingIndex(0);
+
+            LayoutElement wnLe = wnl.GetComponent<LayoutElement>() ?? wnl.gameObject.AddComponent<LayoutElement>();
+            wnLe.preferredHeight = 26f;
+            wnLe.flexibleWidth = 1f;
+
             RectTransform wnRt = wnl.GetComponent<RectTransform>();
-            wnRt.anchorMin = new Vector2(0f, 0.44f);
-            wnRt.anchorMax = new Vector2(1f, 1f);
-            wnRt.offsetMin = Vector2.zero;
-            wnRt.offsetMax = Vector2.zero;
             wnRt.localScale = Vector3.one;
-            if (wnl.TryGetComponent(out TextMeshProUGUI wnlTmp))
+            if (wnl.TryGetComponent(out TextMeshProUGUI wnTmp))
             {
-                wnlTmp.fontSize = 15f;
-                wnlTmp.fontStyle = FontStyles.Bold;
-                wnlTmp.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
-                wnlTmp.alignment = TextAlignmentOptions.Center;
-                if (string.IsNullOrEmpty(wnlTmp.text))
-                    wnlTmp.text = "МИР";
+                wnTmp.fontSize = 18f;
+                wnTmp.fontStyle = FontStyles.Bold;
+                wnTmp.color = new Color(0xF8 / 255f, 0xFA / 255f, 0xFC / 255f, 1f);
+                wnTmp.alignment = TextAlignmentOptions.Center;
+                wnTmp.overflowMode = TextOverflowModes.Ellipsis;
+                wnTmp.enableWordWrapping = false;
+                wnTmp.raycastTarget = false;
+                if (string.IsNullOrEmpty(wnTmp.text))
+                    wnTmp.text = "World";
             }
 
             // StatusPill
@@ -1342,26 +1465,38 @@ namespace KaplaoGames.Editor
                 pillObj.transform.SetParent(header, false);
                 pill = pillObj.transform;
             }
+            pill.SetSiblingIndex(1);
+
+            LayoutElement pillLe = pill.GetComponent<LayoutElement>() ?? pill.gameObject.AddComponent<LayoutElement>();
+            pillLe.minWidth = 170f;
+            pillLe.preferredWidth = 170f;
+            pillLe.minHeight = 24f;
+            pillLe.preferredHeight = 24f;
+            pillLe.flexibleWidth = 0f;
+
             RectTransform pillRt = pill.GetComponent<RectTransform>();
-            pillRt.anchorMin = new Vector2(0.5f, 0f);
-            pillRt.anchorMax = new Vector2(0.5f, 0.44f);
-            pillRt.pivot = new Vector2(0.5f, 0.5f);
-            pillRt.anchoredPosition = new Vector2(0f, 2f);
-            pillRt.sizeDelta = new Vector2(160f, 20f);
+            pillRt.sizeDelta = new Vector2(170f, 24f);
             pillRt.localScale = Vector3.one;
 
             if (pill.TryGetComponent(out Image pillImg))
             {
-                pillImg.sprite = KaplaoUiSprites.RoundedRect(10);
+                pillImg.sprite = KaplaoUiSprites.RoundedRect(12);
                 pillImg.type = Image.Type.Sliced;
-                pillImg.color = new Color(0.04f, 0.08f, 0.16f, 0.95f);
+                pillImg.pixelsPerUnitMultiplier = 14f / 12f;
+                pillImg.color = new Color(0x0B / 255f, 0x13 / 255f, 0x24 / 255f, 0.95f);
             }
 
-            // StatusLabel
-            Transform sl = pill.Find("StatusLabel");
+            KaplaoUiStyler.EnsureChildBorder(pill, 12, 1, new Color(0x33 / 255f, 0x41 / 255f, 0x55 / 255f, 0.8f));
+
+            // StatusText
+            Transform oldSl = pill.Find("StatusLabel");
+            if (oldSl != null && pill.Find("StatusText") == null)
+                oldSl.name = "StatusText";
+
+            Transform sl = pill.Find("StatusText");
             if (sl == null)
             {
-                GameObject slObj = new GameObject("StatusLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
+                GameObject slObj = new GameObject("StatusText", typeof(RectTransform), typeof(TextMeshProUGUI));
                 slObj.transform.SetParent(pill, false);
                 sl = slObj.transform;
             }
@@ -1373,12 +1508,13 @@ namespace KaplaoGames.Editor
             slRt.localScale = Vector3.one;
             if (sl.TryGetComponent(out TextMeshProUGUI slTmp))
             {
-                slTmp.fontSize = 11f;
+                slTmp.fontSize = 12f;
                 slTmp.fontStyle = FontStyles.Bold;
                 slTmp.color = new Color(0x38 / 255f, 0xBD / 255f, 0xF8 / 255f, 1f);
                 slTmp.alignment = TextAlignmentOptions.Center;
+                slTmp.raycastTarget = false;
                 if (string.IsNullOrEmpty(slTmp.text))
-                    slTmp.text = "ОДИНОЧНАЯ";
+                    slTmp.text = "Solo World";
             }
         }
 
@@ -1438,6 +1574,7 @@ namespace KaplaoGames.Editor
                 Transform scroll = bannedPanel.Find("BannedScroll");
                 if (scroll != null)
                 {
+                    RemoveLegacyMask(scroll.gameObject);
                     RectTransform srt = scroll.GetComponent<RectTransform>();
                     if (srt != null)
                     {
@@ -1451,12 +1588,21 @@ namespace KaplaoGames.Editor
                     if (scroll.TryGetComponent(out Image sImg))
                     {
                         sImg.sprite = KaplaoUiSprites.RoundedRect(10);
-                        sImg.color = new Color(0.06f, 0.09f, 0.16f, 0.85f);
+                        sImg.type = Image.Type.Sliced;
+                        sImg.pixelsPerUnitMultiplier = 14f / 10f;
+                        sImg.color = new Color(0.043f, 0.067f, 0.125f, 0.85f); // #0B1120 alpha 0.85
                     }
                     Transform viewport = scroll.Find("Viewport");
                     if (viewport != null)
                     {
+                        RemoveLegacyMask(viewport.gameObject);
                         EnsureRectMask2D(viewport.gameObject);
+                        RectTransform vprt = viewport.GetComponent<RectTransform>();
+                        if (vprt != null)
+                        {
+                            vprt.offsetMin = new Vector2(6f, 6f);
+                            vprt.offsetMax = new Vector2(-6f, -6f);
+                        }
                         if (viewport.TryGetComponent(out Image vpImg))
                         {
                             vpImg.color = Color.clear;
@@ -1806,7 +1952,8 @@ namespace KaplaoGames.Editor
                     RectTransform outRect = outputPanel.GetComponent<RectTransform>();
                     if (outRect != null)
                     {
-                        outRect.offsetMin = new Vector2(outRect.offsetMin.x, 54f);
+                        outRect.offsetMin = new Vector2(KaplaoCodeModeUi.FileTreeWidth + 8f, 56f);
+                        outRect.offsetMax = new Vector2(-8f, 56f + 150f);
                     }
                 }
 
@@ -1820,8 +1967,11 @@ namespace KaplaoGames.Editor
                     RectTransform drt = docBtn.GetComponent<RectTransform>();
                     if (drt != null)
                     {
-                        drt.anchoredPosition = new Vector2(drt.anchoredPosition.x, 10f);
-                        drt.sizeDelta = new Vector2(drt.sizeDelta.x, 34f);
+                        drt.anchorMin = new Vector2(0f, 0f);
+                        drt.anchorMax = new Vector2(0f, 0f);
+                        drt.pivot = new Vector2(0.5f, 0.5f);
+                        drt.sizeDelta = new Vector2(150f, 34f);
+                        drt.anchoredPosition = new Vector2(KaplaoCodeModeUi.FileTreeWidth + 92f, 28f);
                     }
                 }
                 if (statusLbl != null)
@@ -1830,8 +1980,11 @@ namespace KaplaoGames.Editor
                     RectTransform srt = statusLbl.GetComponent<RectTransform>();
                     if (srt != null)
                     {
-                        srt.anchoredPosition = new Vector2(srt.anchoredPosition.x, 12f);
-                        srt.sizeDelta = new Vector2(srt.sizeDelta.x, 30f);
+                        srt.anchorMin = new Vector2(0.5f, 0f);
+                        srt.anchorMax = new Vector2(0.5f, 0f);
+                        srt.pivot = new Vector2(0.5f, 0.5f);
+                        srt.sizeDelta = new Vector2(500f, 30f);
+                        srt.anchoredPosition = new Vector2(KaplaoCodeModeUi.FileTreeWidth * 0.5f, 28f);
                     }
                     if (statusLbl.TryGetComponent(out TextMeshProUGUI statusTmp))
                         statusTmp.raycastTarget = false;
@@ -1842,8 +1995,11 @@ namespace KaplaoGames.Editor
                     RectTransform rrt = runBtn.GetComponent<RectTransform>();
                     if (rrt != null)
                     {
-                        rrt.anchoredPosition = new Vector2(rrt.anchoredPosition.x, 10f);
-                        rrt.sizeDelta = new Vector2(rrt.sizeDelta.x, 34f);
+                        rrt.anchorMin = new Vector2(1f, 0f);
+                        rrt.anchorMax = new Vector2(1f, 0f);
+                        rrt.pivot = new Vector2(0.5f, 0.5f);
+                        rrt.sizeDelta = new Vector2(120f, 34f);
+                        rrt.anchoredPosition = new Vector2(-80f, 28f);
                     }
                 }
 

@@ -85,9 +85,9 @@ namespace KaplaoGames.Editor
 
             Transform pausePanel = SceneUiBinderUtility.FindRelative(root, "PauseMenuRoot/PauseMenuPanel");
             SceneUiBinderUtility.SetObject(serialized, "pauseWorldNameLabel",
-                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/WorldNameLabel") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/WorldName"), report, "PauseHeader/WorldName (optional)");
+                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/WorldName") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/WorldNameLabel"), report, "PauseHeader/WorldName (optional)");
             SceneUiBinderUtility.SetObject(serialized, "pauseStatusPillLabel",
-                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/StatusPill/StatusLabel") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/StatusPill/StatusText"), report, "PauseHeader/StatusPill/StatusText (optional)");
+                SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "PauseHeader/StatusPill/StatusText") ?? SceneUiBinderUtility.GetComponentOnPath<TextMeshProUGUI>(pausePanel, "Header/StatusPill/StatusLabel"), report, "PauseHeader/StatusPill/StatusText (optional)");
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(pauseMenuUi);

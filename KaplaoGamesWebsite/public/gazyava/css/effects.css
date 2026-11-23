@@ -1,0 +1,268 @@
+/* ==========================================================================
+   ЭФФЕКТЫ: АТМОСФЕРНЫЕ ОВЕРЛЕИ, СОСТОЯНИЯ ЭКРАНА И АНИМАЦИИ
+   ========================================================================== */
+
+/* Глобальные визуальные состояния экрана */
+    #app.mode-hardcore {
+      box-shadow: inset 0 0 36px rgba(255, 51, 88, 0.16);
+    }
+    #app.state-flat {
+      filter: grayscale(0.95) brightness(0.72) contrast(1.06);
+    }
+    #app.state-stun {
+      animation: stunShake 0.13s infinite;
+    }
+    #app.state-dry-tremor {
+      animation: dryTremor 0.24s infinite;
+    }
+    #app.state-crunch-bump {
+      animation: crunchBump 0.18s ease-out;
+    }
+
+    
+
+/* ==========================================================================
+       ЭКРАННЫЕ АТМОСФЕРНЫЕ ОВЕРЛЕИ
+       ========================================================================== */
+    .fx-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.28s ease;
+    }
+
+    /* Пустынная виньетка и трещины при Сушняке > 75% */
+    #fxDesert {
+      z-index: 10;
+      background: radial-gradient(circle at 50% 50%, transparent 36%, rgba(194, 102, 14, 0.45) 82%, rgba(124, 45, 18, 0.84) 100%);
+      box-shadow: inset 0 0 70px rgba(255, 166, 0, 0.52);
+    }
+    #fxDesert svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0.55;
+    }
+
+    /* Божественные золотые лучи при Вознесении / Комбо */
+    #fxAscension {
+      z-index: 11;
+      background:
+        conic-gradient(from 0deg at 50% 42%,
+          rgba(255, 224, 102, 0.28) 0deg, transparent 22deg,
+          rgba(255, 243, 176, 0.34) 45deg, transparent 70deg,
+          rgba(255, 213, 79, 0.28) 95deg, transparent 125deg,
+          rgba(255, 243, 176, 0.34) 150deg, transparent 180deg,
+          rgba(255, 213, 79, 0.28) 210deg, transparent 245deg,
+          rgba(255, 243, 176, 0.34) 275deg, transparent 310deg,
+          rgba(255, 224, 102, 0.28) 360deg),
+        radial-gradient(circle at 50% 42%, rgba(255, 241, 168, 0.52) 0%, rgba(255, 190, 30, 0.16) 50%, transparent 78%);
+      box-shadow: inset 0 0 85px rgba(255, 213, 79, 0.72);
+    }
+    #fxAscension.active {
+      opacity: 1;
+      animation: divinePulse 0.9s ease-in-out infinite alternate;
+    }
+
+    /* Тёплый VHS-фильтр с линиями развёртки от Дюшеса из ларька */
+    #fxVhs {
+      z-index: 12;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 244, 196, 0.06) 0px, rgba(255, 244, 196, 0.06) 1px, transparent 2px, transparent 4px),
+        radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.12) 0%, rgba(180, 83, 9, 0.32) 100%);
+      mix-blend-mode: screen;
+    }
+    #fxVhs.active {
+      opacity: 1;
+    }
+    .vhs-stamp {
+      position: absolute;
+      top: max(12px, var(--safe-top));
+      left: 14px;
+      font-family: "SF Mono", ui-monospace, monospace;
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #fef08a;
+      text-shadow: 2px 0 #ef4444, -2px 0 #38bdf8;
+      letter-spacing: 1px;
+    }
+
+    /* Пульсирующая алая виньетка сердцебиения от Энергоса */
+    #fxHeartbeat {
+      z-index: 13;
+      background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(255, 23, 68, 0.42) 86%, rgba(190, 18, 60, 0.8) 100%);
+      box-shadow: inset 0 0 70px rgba(255, 30, 86, 0.65);
+    }
+    #fxHeartbeat.active {
+      opacity: 1;
+      animation: heartPulse 0.55s ease-in-out infinite;
+    }
+
+    /* Оглушение от 100% Пробития в нос */
+    #fxStun {
+      z-index: 26;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 18%, rgba(255, 35, 76, 0.48) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    #fxStun.active {
+      opacity: 1;
+    }
+    .stun-card {
+      background: rgba(16, 6, 14, 0.92);
+      border: 2px solid var(--danger);
+      border-radius: 18px;
+      padding: 14px 18px;
+      text-align: center;
+      max-width: 310px;
+      box-shadow: 0 0 32px rgba(255, 51, 88, 0.6);
+    }
+    .stun-title {
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #ff758f;
+      margin-bottom: 4px;
+    }
+    .stun-sub {
+      font-size: 0.78rem;
+      color: #ffe4e9;
+      margin-bottom: 9px;
+    }
+    .stun-track {
+      height: 7px;
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .stun-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #ff3358, #fb923c);
+      border-radius: 99px;
+    }
+
+    /* Слой всплывающих мемных тостов */
+    #toastLayer {
+      position: fixed;
+      top: max(155px, calc(var(--safe-top) + 145px));
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(92vw, 415px);
+      z-index: 30;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    .toast {
+      padding: 7px 13px;
+      border-radius: 13px;
+      font-weight: 900;
+      font-size: 0.82rem;
+      letter-spacing: 0.35px;
+      text-align: center;
+      text-transform: uppercase;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: toastPop 2.35s cubic-bezier(0.2, 0.88, 0.3, 1) forwards;
+    }
+    .toast-gold {
+      background: linear-gradient(135deg, rgba(255, 226, 98, 0.96), rgba(255, 166, 33, 0.95));
+      color: #1c1000;
+      border: 1.5px solid #fff9db;
+      box-shadow: 0 0 28px rgba(255, 213, 79, 0.8);
+      font-size: 0.88rem;
+    }
+    .toast-combo {
+      background: linear-gradient(135deg, #fde047 0%, #f97316 52%, #ec4899 100%);
+      color: #ffffff;
+      border: 2px solid #fffbeb;
+      box-shadow: 0 0 34px rgba(251, 146, 60, 0.95);
+      font-size: 0.9rem;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+    }
+    .toast-crunch {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.94), rgba(180, 83, 9, 0.94));
+      color: #fffbeb;
+      border: 1.5px solid #fde68a;
+    }
+    .toast-info {
+      background: rgba(10, 27, 54, 0.92);
+      color: var(--cyan);
+      border: 1px solid rgba(56, 242, 255, 0.48);
+    }
+    .toast-danger {
+      background: rgba(98, 12, 30, 0.95);
+      color: #ffd0d9;
+      border: 1.5px solid rgba(255, 51, 88, 0.78);
+    }
+    .toast-roast {
+      background: rgba(38, 42, 52, 0.95);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+    }
+    .toast-vhs {
+      background: linear-gradient(135deg, rgba(163, 230, 53, 0.94), rgba(250, 204, 21, 0.94));
+      color: #162400;
+      border: 1.5px solid #f7fee7;
+    }
+
+    
+
+/* ==========================================================================
+       АНИМАЦИИ
+       ========================================================================== */
+    @keyframes divinePulse {
+      0% { opacity: 0.68; }
+      100% { opacity: 1; }
+    }
+    @keyframes heartPulse {
+      0% { opacity: 0.35; }
+      22% { opacity: 1; }
+      40% { opacity: 0.42; }
+      60% { opacity: 0.92; }
+      100% { opacity: 0.32; }
+    }
+    @keyframes stunShake {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(-5px, 3px); }
+      50% { transform: translate(5px, -3px); }
+      75% { transform: translate(-3px, -2px); }
+      100% { transform: translate(0, 0); }
+    }
+    @keyframes dryTremor {
+      0% { transform: translate(0, 0); }
+      33% { transform: translate(1.2px, -0.8px); }
+      66% { transform: translate(-1.2px, 0.8px); }
+      100% { transform: translate(0, 0); }
+    }
+    @keyframes crunchBump {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.018) rotate(-0.6deg); }
+      70% { transform: scale(0.992) rotate(0.5deg); }
+      100% { transform: scale(1); }
+    }
+    @keyframes pulseTiny {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05); }
+    }
+    @keyframes toastPop {
+      0% { opacity: 0; transform: translateY(14px) scale(0.88); }
+      14% { opacity: 1; transform: translateY(0) scale(1.04); }
+      24% { transform: translateY(-2px) scale(1); }
+      82% { opacity: 1; transform: translateY(-10px) scale(1); }
+      100% { opacity: 0; transform: translateY(-24px) scale(0.96); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Компактная подстройка под экраны iPhone SE (высота <= 690px) */
+    
