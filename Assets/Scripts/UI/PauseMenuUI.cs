@@ -296,25 +296,19 @@ namespace KaplaoGames.UI
 
         void UpdatePauseHeader()
         {
-            if (pauseWorldNameLabel == null || pauseStatusPillLabel == null)
-            {
-                Transform header = pauseMenuPanel != null ? pauseMenuPanel.transform.Find("PauseHeader") : null;
-                if (header == null && pauseMenuPanel != null)
-                    header = pauseMenuPanel.transform.Find("Header");
+            Transform header = pauseMenuPanel != null ? pauseMenuPanel.transform.Find("PauseHeader") : null;
+            if (header == null && pauseMenuPanel != null)
+                header = pauseMenuPanel.transform.Find("Header");
 
-                if (header != null)
-                {
-                    if (pauseWorldNameLabel == null)
-                    {
-                        Transform nameTrans = header.Find("WorldName") ?? header.Find("WorldNameLabel");
-                        if (nameTrans != null) pauseWorldNameLabel = nameTrans.GetComponent<TextMeshProUGUI>();
-                    }
-                    if (pauseStatusPillLabel == null)
-                    {
-                        Transform pillTrans = header.Find("StatusPill/StatusText") ?? header.Find("StatusPill/StatusLabel");
-                        if (pillTrans != null) pauseStatusPillLabel = pillTrans.GetComponent<TextMeshProUGUI>();
-                    }
-                }
+            if (header != null)
+            {
+                Transform nameTrans = header.Find("WorldName") ?? header.Find("WorldNameLabel");
+                if (nameTrans != null)
+                    pauseWorldNameLabel = nameTrans.GetComponent<TextMeshProUGUI>();
+
+                Transform pillTrans = header.Find("StatusPill/StatusText") ?? header.Find("StatusPill/StatusLabel");
+                if (pillTrans != null)
+                    pauseStatusPillLabel = pillTrans.GetComponent<TextMeshProUGUI>();
             }
 
             if (pauseWorldNameLabel != null)

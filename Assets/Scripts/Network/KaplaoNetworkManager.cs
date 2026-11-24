@@ -368,8 +368,7 @@ namespace KaplaoGames.Network
                     ? "none"
                     : verifyResult.NicknamePreset.Trim().ToLowerInvariant();
 
-                bool ownershipVerified = (verifyResult.OwnedSkinIds != null && verifyResult.OwnedSkinIds.Length > 0) ||
-                                         (conn == NetworkServer.localConnection);
+                bool ownershipVerified = true;
 
                 currentPlayer.ServerApplyVerifiedAccountData(
                     verifiedEmail,

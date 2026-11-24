@@ -83,7 +83,7 @@ namespace KaplaoGames.Shared
                 yield break;
             }
 
-            string url = $"{config.RestBaseUrl}{config.levelsTable}?select=id,title,author_nick,author_email,storage_path,created_at&order=created_at.desc&offset={offset}&limit={config.pageSize}";
+            string url = $"{config.RestBaseUrl}{config.levelsTable}?select=id,title,author_nick,author_email,storage_path,created_at,updated_at&order=created_at.desc&offset={offset}&limit={config.pageSize}";
             if (!string.IsNullOrWhiteSpace(search))
                 url += $"&title=ilike.*{UnityWebRequest.EscapeURL(search.Trim())}*";
 

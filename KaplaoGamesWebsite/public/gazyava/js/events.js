@@ -58,6 +58,11 @@ export function openNightEvent(type) {
   dom.evBarWrap.style.display = 'block';
   dom.evTimer.style.display = 'block';
   dom.evBody.innerHTML = '';
+  dom.evBarFill.style.background = '';
+  if (dom.evSweetZone) {
+    if (type === 'fridge_beep') dom.evSweetZone.classList.add('show');
+    else dom.evSweetZone.classList.remove('show');
+  }
 
   if (type === 'cap') {
     ev.needed = 4;
@@ -288,16 +293,16 @@ function renderToiletPhase2() {
   const flushBtn = document.createElement('button');
   flushBtn.type = 'button';
   flushBtn.className = 'ev-choice-btn';
-  const noiseGain = state.silencerTimer > 0 ? 18 : 36;
+  const noisePreview = Math.round(36 * (state.mode.noiseGainMult || 1) * (state.silencerTimer > 0 ? 0.5 : 1));
   flushBtn.innerHTML = `
     <span class="ev-choice-emoji">🌊</span>
     <span><b>СМЫТЬ КАК ЧЕЛОВЕК</b>
-      <span class="ev-choice-sub">+${noiseGain} Шума (звук Боинга), +220 очков, +2 🪙</span>
+      <span class="ev-choice-sub">+${noisePreview} Шума (звук Боинга), +220 очков, +2 🪙</span>
     </span>`;
   flushBtn.addEventListener('click', () => {
     sound.unlock();
     sound.playFlush();
-    addNoise(noiseGain);
+    addNoise(36);
     state.score += 220;
     state.caps += 2;
     state.totalCapsEarned += 2;
@@ -404,6 +409,8 @@ export function closeEventModal() {
   state.ev.type = null;
   state.ev.holdingSleep = false;
   state.ev.holdingToilet = false;
+  if (dom && dom.evBarFill) dom.evBarFill.style.background = '';
+  if (dom && dom.evSweetZone) dom.evSweetZone.classList.remove('show');
   dom.eventModal.classList.remove('open');
 }
 

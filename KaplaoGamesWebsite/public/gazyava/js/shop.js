@@ -11,6 +11,7 @@ let showToast = () => {};
 let addNoise = () => {};
 let stopDrinking = () => {};
 let applyBottleVisuals = () => {};
+let notifyTutorialAction = () => {};
 
 export function initShop(deps) {
   dom = deps.dom;
@@ -18,6 +19,7 @@ export function initShop(deps) {
   addNoise = deps.addNoise || (() => {});
   stopDrinking = deps.stopDrinking || (() => {});
   applyBottleVisuals = deps.applyBottleVisuals || (() => {});
+  notifyTutorialAction = deps.notifyTutorialAction || (() => {});
 
   if (dom.shopBtn) {
     dom.shopBtn.addEventListener('click', openShopModal);
@@ -40,6 +42,7 @@ export function openShopModal() {
   sound.playClick();
 
   state.shopOpen = true;
+  notifyTutorialAction('shop');
 
   // Безопасная остановка всех активных действий
   stopDrinking(false);
@@ -102,6 +105,13 @@ export function renderShopItems() {
 export function buyShopItem(itemId) {
   const item = SHOP_ITEMS.find((it) => it.id === itemId);
   if (!item) return;
+
+  if (item.id === 'fresh' && state.activeDrink === 'flat') {
+    sound.unlock();
+    sound.playSadTrombone();
+    showToast('🫠 ЭТУ ЛУЖУ УЖЕ НЕ СПАСТИ! ВЫБЕРИ НОРМ ГАЗЯВУ!', 'roast');
+    return;
+  }
 
   if (state.caps < item.cost) {
     sound.unlock();

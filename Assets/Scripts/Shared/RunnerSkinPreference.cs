@@ -23,6 +23,11 @@ namespace KaplaoGames.Shared
 
         public static IReadOnlyList<string> OwnedAdminSkinIdsReadOnly => OwnedAdminSkinIds;
 
+        static RunnerSkinPreference()
+        {
+            Load();
+        }
+
         public static void Load()
         {
             SelectedIndex = PlayerPrefs.GetInt(PrefsKey, RandomIndex);

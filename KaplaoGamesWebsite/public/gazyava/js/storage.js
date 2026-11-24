@@ -13,6 +13,7 @@ export function getDefaultRecords() {
     totalHrumkas: 0,
     totalCaps: 0,
     hardcoreCleared: false,
+    tutorialCleared: false,
     endings: []
   };
 }
@@ -29,6 +30,7 @@ export function loadRecords() {
       totalHrumkas: Number(parsed.totalHrumkas) || 0,
       totalCaps: Number(parsed.totalCaps) || 0,
       hardcoreCleared: Boolean(parsed.hardcoreCleared),
+      tutorialCleared: Boolean(parsed.tutorialCleared),
       endings: Array.isArray(parsed.endings) ? parsed.endings : []
     };
   } catch (err) {

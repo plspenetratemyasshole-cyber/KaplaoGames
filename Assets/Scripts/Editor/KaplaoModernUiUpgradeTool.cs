@@ -1300,6 +1300,22 @@ namespace KaplaoGames.Editor
                     // Ensure informative header with world name and LAN status pill
                     EnsurePauseHeader(pausePanel);
 
+                    PauseMenuUI pauseUi = pauseRoot.GetComponent<PauseMenuUI>() ?? canvas.GetComponentInChildren<PauseMenuUI>(true);
+                    if (pauseUi != null)
+                    {
+                        Transform wn = pausePanel.Find("PauseHeader/WorldName");
+                        Transform sp = pausePanel.Find("PauseHeader/StatusPill/StatusText");
+                        if (wn != null && sp != null)
+                        {
+                            SerializedObject pso = new SerializedObject(pauseUi);
+                            SerializedProperty wnProp = pso.FindProperty("pauseWorldNameLabel");
+                            SerializedProperty spProp = pso.FindProperty("pauseStatusPillLabel");
+                            if (wnProp != null) wnProp.objectReferenceValue = wn.GetComponent<TextMeshProUGUI>();
+                            if (spProp != null) spProp.objectReferenceValue = sp.GetComponent<TextMeshProUGUI>();
+                            pso.ApplyModifiedProperties();
+                        }
+                    }
+
                     StyleMenuButtonWithLayout(pausePanel, "ResumeButton", KaplaoButtonVariant.Primary, 280f, 42f);
                     StyleMenuButtonWithLayout(pausePanel, "SettingsButton", KaplaoButtonVariant.Secondary, 280f, 42f);
                     StyleMenuButtonWithLayout(pausePanel, "HostSettingsButton", KaplaoButtonVariant.Secondary, 280f, 42f);

@@ -124,15 +124,24 @@ export function initDom() {
 
     // Стартовый экран
     startScreen: document.getElementById('startScreen'),
+    modeTutorialBtn: document.getElementById('modeTutorialBtn'),
     modeClassicBtn: document.getElementById('modeClassicBtn'),
     modeHardcoreBtn: document.getElementById('modeHardcoreBtn'),
     startBtn: document.getElementById('startBtn'),
+    startRulesBtn: document.getElementById('startRulesBtn'),
     startAlbumBtn: document.getElementById('startAlbumBtn'),
     hcTrophyBanner: document.getElementById('hcTrophyBanner'),
     recScore: document.getElementById('recScore'),
     recTime: document.getElementById('recTime'),
     recHrumkas: document.getElementById('recHrumkas'),
     recEndings: document.getElementById('recEndings'),
+
+    // Тренер обучения
+    tutCoach: document.getElementById('tutCoach'),
+    tutCoachTitle: document.getElementById('tutCoachTitle'),
+    tutCoachText: document.getElementById('tutCoachText'),
+    tutCoachSkip: document.getElementById('tutCoachSkip'),
+    evSweetZone: document.getElementById('evSweetZone'),
 
     // Экран победы/поражения
     endScreen: document.getElementById('endScreen'),
@@ -156,30 +165,49 @@ export function initDom() {
     closeAlbumBtn: document.getElementById('closeAlbumBtn'),
     albumOkBtn: document.getElementById('albumOkBtn'),
 
+    // Модалка правил
+    rulesModal: document.getElementById('rulesModal'),
+    closeRulesBtn: document.getElementById('closeRulesBtn'),
+    rulesOkBtn: document.getElementById('rulesOkBtn'),
+
     tapWaterBtn: document.getElementById('tapWaterBtn')
   });
   return dom;
 }
 
+let toastTimeout = null;
 export function showToast(text, style = 'info') {
   if (!dom.toastLayer) return;
+  dom.toastLayer.innerHTML = '';
+  if (toastTimeout) clearTimeout(toastTimeout);
   const el = document.createElement('div');
   el.className = `toast toast-${style}`;
   el.textContent = text;
   dom.toastLayer.appendChild(el);
-  while (dom.toastLayer.children.length > 3) {
-    dom.toastLayer.removeChild(dom.toastLayer.firstChild);
-  }
-  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 2400);
+  toastTimeout = setTimeout(() => {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }, 1400);
 }
 
+let actBannerTimeout = null;
 export function showActBanner(text) {
   if (!dom.actBanner) return;
+  if (actBannerTimeout) clearTimeout(actBannerTimeout);
   dom.actBanner.textContent = text;
   dom.actBanner.classList.add('visible');
-  setTimeout(() => {
+  actBannerTimeout = setTimeout(() => {
     if (dom.actBanner) dom.actBanner.classList.remove('visible');
-  }, 3200);
+  }, 2300);
+}
+
+export function openRulesModal() {
+  sound.unlock();
+  sound.playClick();
+  if (dom.rulesModal) dom.rulesModal.classList.add('open');
+}
+
+export function closeRulesModal() {
+  if (dom.rulesModal) dom.rulesModal.classList.remove('open');
 }
 
 export function refreshRecordsUI() {
@@ -192,6 +220,13 @@ export function refreshRecordsUI() {
   if (dom.startAlbumBtn) dom.startAlbumBtn.textContent = `📖 АЛЬБОМ КОНЦОВОК (${count}/${total})`;
   if (dom.endAlbumBtn) dom.endAlbumBtn.textContent = `📖 АЛЬБОМ КОНЦОВОК (${count}/${total})`;
   if (dom.hcTrophyBanner) dom.hcTrophyBanner.classList.toggle('show', records.hardcoreCleared);
+  if (dom.modeTutorialBtn) {
+    const isCleared = Boolean(records.tutorialCleared);
+    const titleEl = dom.modeTutorialBtn.querySelector('.mode-name');
+    if (titleEl) {
+      titleEl.textContent = `🎓 ОБУЧЕНИЕ${isCleared ? ' ✓' : ''}`;
+    }
+  }
 }
 
 export function openAlbumModal() {
@@ -417,7 +452,7 @@ export function updateHUD(nowSec, dt = 0.016) {
     ? Math.min(1, Math.max(0, (state.thirst - 75) / 23))
     : 0;
   dom.fxDesert.style.opacity = desertOp.toFixed(2);
-  dom.fxAscension.classList.toggle('active', state.ascensionTimer > 0);
+  dom.fxAscension.classList.toggle('active', state.ascensionGlowTimer > 0);
   dom.fxVhs.classList.toggle('active', state.vhsTimer > 0);
   dom.fxHeartbeat.classList.toggle('active', state.energyTurboTimer > 0);
   dom.fxStun.classList.toggle('active', state.stunTimer > 0);
@@ -428,12 +463,14 @@ export function updateHUD(nowSec, dt = 0.016) {
   if (dom.fxDawn) dom.fxDawn.classList.toggle('active', act.index === 4 && state.phase === 'playing');
 
   // Многослойная аура холодильника
-  dom.fridgeAura.classList.toggle('ascend', state.ascensionTimer > 0);
-  dom.fridgeAura.classList.toggle('combo-window', state.comboWindowTimer > 0 && state.ascensionTimer <= 0);
+  dom.fridgeAura.classList.toggle('ascend', state.ascensionGlowTimer > 0);
+  dom.fridgeAura.classList.toggle('combo-window', state.comboWindowTimer > 0 && state.ascensionGlowTimer <= 0);
   dom.fridgeAura.classList.toggle('dragon-buff', state.dragonBreathCharges > 0);
 
   dom.app.classList.toggle('state-flat', state.flatTimer > 0);
   dom.app.classList.toggle('state-stun', state.stunTimer > 0);
+  dom.app.classList.toggle('state-slowmo', state.timeScale < 0.8 && state.phase === 'playing');
+  dom.app.classList.toggle('act-blackout', act.index === 3 && state.phase === 'playing');
   dom.app.classList.toggle('state-dry-tremor', (state.thirst > 84 || state.bladder >= 98) && state.stunTimer <= 0 && state.ascensionTimer <= 0);
 
   // Анимация самой SVG-бутылки
@@ -489,6 +526,8 @@ export function updateHUD(nowSec, dt = 0.016) {
   }
 }
 
+let copyBannerTimeout = null;
+
 // Карточка результата с информацией Патча 3.0
 export function copyScorecard() {
   sound.unlock();
@@ -508,8 +547,9 @@ export function copyScorecard() {
   ].join('\n');
 
   const showCopied = () => {
+    if (copyBannerTimeout) clearTimeout(copyBannerTimeout);
     dom.copyBanner.classList.add('show');
-    setTimeout(() => dom.copyBanner.classList.remove('show'), 2200);
+    copyBannerTimeout = setTimeout(() => dom.copyBanner.classList.remove('show'), 2200);
   };
 
   const fallbackCopy = () => {

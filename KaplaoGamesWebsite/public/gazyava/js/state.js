@@ -18,11 +18,12 @@ export function createInitialState(selectedMode = 'classic') {
 
   return {
     phase: 'start', // 'start' | 'playing' | 'ended'
-    selectedMode,   // 'classic' | 'hardcore'
+    selectedMode,   // 'classic' | 'hardcore' | 'tutorial'
     mode,
     currentAct: 1,  // 1..4
     nightProgress: 0,
     realElapsed: 0,
+    timeScale: 1.0,
     score: 0,
 
     thirst: mode.id === 'hardcore' ? 42 : 34,
@@ -62,6 +63,7 @@ export function createInitialState(selectedMode = 'classic') {
 
     // Таймеры эффектов
     ascensionTimer: 0,
+    ascensionGlowTimer: 0,
     stunTimer: 0,
     vhsTimer: 0,
     energyTurboTimer: 0,
@@ -98,6 +100,15 @@ export function createInitialState(selectedMode = 'classic') {
       fridgeDir: 1,
       fridgeBeepTick: 0,
       angle: 0
+    },
+
+    tutorial: {
+      enabled: false,
+      activeStep: null,
+      completed: [],
+      cooldown: 0,
+      elapsedSinceHint: 0,
+      hasSwitchedDrink: false
     },
 
     lastResult: null

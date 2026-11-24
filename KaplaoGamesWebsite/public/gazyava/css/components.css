@@ -378,7 +378,7 @@
   background: radial-gradient(circle, rgba(255, 224, 102, 0.65) 0%, rgba(255, 169, 41, 0.28) 52%, transparent 74%);
   opacity: 0;
   transform: scale(0.92);
-  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s ease-out;
+  transition: opacity 0.65s ease-out, transform 0.65s ease-out;
 }
 .aura-combo {
   background: radial-gradient(circle, rgba(251, 146, 60, 0.62) 0%, rgba(236, 72, 153, 0.28) 54%, transparent 75%);
@@ -925,7 +925,28 @@
   border-radius: 99px;
   overflow: hidden;
   margin-bottom: 8px;
+  position: relative;
 }
+.ev-sweet-zone {
+  position: absolute;
+  left: 40%;
+  width: 20%;
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid #a3e635;
+  border-right: 2px solid #a3e635;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(163, 230, 53, 0.28),
+    rgba(163, 230, 53, 0.28) 4px,
+    rgba(190, 242, 100, 0.45) 4px,
+    rgba(190, 242, 100, 0.45) 8px
+  );
+  pointer-events: none;
+  z-index: 2;
+  display: none;
+}
+.ev-sweet-zone.show { display: block; }
 .ev-bar-fill {
   height: 100%;
   width: 0%;
@@ -1112,8 +1133,8 @@
 
 .mode-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
   margin-bottom: 10px;
 }
 .mode-opt {
@@ -1130,6 +1151,11 @@
   background: linear-gradient(155deg, rgba(14, 58, 98, 0.95), rgba(8, 28, 56, 0.95));
   border-color: var(--cyan);
   color: #fff;
+  box-shadow: 0 0 16px rgba(56, 242, 255, 0.28);
+}
+.mode-opt.tut-opt.selected {
+  background: linear-gradient(155deg, rgba(16, 85, 110, 0.95), rgba(8, 44, 62, 0.95));
+  border-color: #38f2ff;
   box-shadow: 0 0 16px rgba(56, 242, 255, 0.28);
 }
 .mode-opt.hc-opt.selected {
@@ -1221,6 +1247,16 @@
 }
 .btn-primary:active { transform: scale(0.97); }
 
+.menu-secondary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.menu-secondary-row .btn-secondary {
+  margin-bottom: 0;
+}
+
 .btn-secondary {
   width: 100%;
   padding: 10px 11px;
@@ -1286,7 +1322,8 @@
 .end-stat-v { font-family: "SF Mono", ui-monospace, monospace; font-size: 0.82rem; font-weight: 900; color: var(--cyan); }
 .end-stat-l { font-size: 0.52rem; color: var(--text-muted); margin-top: 1px; }
 
-/* Альбом всех 12 концовок */
+/* Альбом всех 12 концовок и Модалка правил */
+#rulesModal,
 #albumModal {
   z-index: 60;
 }
@@ -1370,6 +1407,67 @@
 @keyframes pulseTiny {
   0% { transform: scale(1); }
   100% { transform: scale(1.05); }
+}
+
+/* ==========================================================================
+   ОБУЧЕНИЕ (🎓 ТРЕНЕР И ПОДСВЕТКА)
+   ========================================================================== */
+.tut-coach {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(94%, 340px);
+  z-index: 27;
+  background: linear-gradient(135deg, rgba(8, 28, 56, 0.96), rgba(4, 16, 36, 0.97));
+  border: 1.5px solid var(--cyan);
+  border-radius: 14px;
+  padding: 6px 10px 7px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 18px rgba(56, 242, 255, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease;
+}
+.tut-coach-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.tut-coach-title {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: 0.3px;
+}
+.tut-coach-skip {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 3px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.tut-coach-skip:hover { color: #fff; }
+.tut-coach-text {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #e0f2fe;
+  line-height: 1.25;
+}
+
+.tut-highlight {
+  outline: 2.5px solid #ffd54f !important;
+  box-shadow: 0 0 22px rgba(255, 213, 79, 0.85), inset 0 0 12px rgba(56, 242, 255, 0.45) !important;
+  animation: tutPulse 0.9s infinite alternate !important;
+}
+@keyframes tutPulse {
+  0% { transform: scale(1); outline-color: #ffd54f; }
+  100% { transform: scale(1.03); outline-color: #38f2ff; }
 }
 
 /* ==========================================================================

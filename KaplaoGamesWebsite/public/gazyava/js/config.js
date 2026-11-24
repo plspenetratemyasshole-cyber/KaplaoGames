@@ -4,6 +4,20 @@
 export const STORAGE_KEY = 'gazyava_v2_vasya_records';
 
 export const MODES = {
+  tutorial: {
+    id: 'tutorial',
+    name: '🎓 Обучение',
+    shortTag: '07:00',
+    startMin: 3 * 60 + 17,
+    endMin: 7 * 60 + 0,
+    durationSec: 210,      // 3 min 30 sec — experiences all 4 Acts
+    thirstMult: 0.84,      // Slightly gentler than Classic, still engaging
+    heatMult: 0.9,
+    noiseGainMult: 0.85,
+    noiseDecay: 5.2,
+    eventInterval: 30,
+    raidAt: 95
+  },
   classic: {
     id: 'classic',
     name: '03:17. Классика',

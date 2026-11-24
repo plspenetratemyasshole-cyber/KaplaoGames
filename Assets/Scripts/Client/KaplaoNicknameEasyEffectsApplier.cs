@@ -28,8 +28,7 @@ namespace KaplaoGames.Client
             string signature = style == null ? "none" : JsonUtilityFingerprint(style);
             if (signature == appliedSignature)
             {
-                if (textEffect != null)
-                    ForceRefreshEffect();
+                ForceRefreshEffect();
                 return;
             }
 
@@ -89,6 +88,7 @@ namespace KaplaoGames.Client
             if (label == null) label = GetComponent<TextMeshProUGUI>();
             if (label == null) return;
             label.ForceMeshUpdate(true, true);
+            if (textEffect == null) textEffect = GetComponent<TextEffect>();
             if (textEffect != null)
             {
                 textEffect.Refresh();

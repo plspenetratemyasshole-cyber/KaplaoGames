@@ -55,6 +55,19 @@ html, body {
   touch-action: manipulation;
 }
 
+/* Gameplay UI sections inside #app stay above atmospheric overlays (z-index: 1) */
+.hud-top,
+.night-bar-track,
+.meme-ticker,
+.meters-grid,
+.stage,
+.water-slot,
+.dock-header,
+.drink-dock {
+  position: relative;
+  z-index: 4;
+}
+
 /* Адаптив под мониторы ПК (min-width: 520px): центрированный контейнер с неоновой рамкой */
 @media (min-width: 520px) {
   body {

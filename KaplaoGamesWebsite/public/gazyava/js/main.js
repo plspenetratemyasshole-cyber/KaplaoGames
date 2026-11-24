@@ -35,6 +35,7 @@ import {
 import {
   initNotifications,
   pushPhoneNotif,
+  dismissNotification,
   updateNotifications
 } from './notifications.js';
 import {
@@ -44,6 +45,13 @@ import {
   canAffordAnyItem
 } from './shop.js';
 import {
+  initTutorial,
+  resetTutorial,
+  updateTutorial,
+  notifyTutorialAction,
+  skipActiveTutorialStep
+} from './tutorial.js';
+import {
   dom,
   initDom,
   showToast,
@@ -51,6 +59,8 @@ import {
   refreshRecordsUI,
   openAlbumModal,
   closeAlbumModal,
+  openRulesModal,
+  closeRulesModal,
   applyBottleVisuals,
   updateHUD,
   copyScorecard
@@ -61,9 +71,9 @@ let bladderUrgentTimer = 0;
 const DRINK_KEYS = ['cola', 'mineral', 'duchess', 'energy', 'brine', 'flat'];
 
 function addNoise(amount, cause = null) {
-  // Подушка-глушитель режет любой входящий шум вдвое
-  const eff = state.silencerTimer > 0 ? amount * 0.5 : amount;
-  state.noise = Math.min(100, Math.max(0, state.noise + eff));
+  const mult = state.mode.noiseGainMult || 1.0;
+  const sil = state.silencerTimer > 0 ? 0.5 : 1.0;
+  state.noise = Math.min(100, Math.max(0, state.noise + amount * mult * sil));
 
   if (state.noise >= 100) {
     if (cause === 'burp_apocalypse') {
@@ -80,6 +90,7 @@ function startGame() {
   state.currentAct = 1;
   state.nightProgress = 0;
   state.realElapsed = 0;
+  state.timeScale = 1.0;
   state.score = 0;
 
   state.thirst = state.mode.id === 'hardcore' ? 42 : 34;
@@ -116,6 +127,7 @@ function startGame() {
   state.freezerActive = false;
 
   state.ascensionTimer = 0;
+  state.ascensionGlowTimer = 0;
   state.stunTimer = 0;
   state.vhsTimer = 0;
   state.energyTurboTimer = 0;
@@ -134,6 +146,13 @@ function startGame() {
   state.eventIdx = 0;
   state.ev.active = false;
 
+  if (state.mode.id === 'tutorial') {
+    state.tutorial.enabled = true;
+    resetTutorial();
+  } else {
+    state.tutorial.enabled = false;
+  }
+
   Object.keys(DRINKS).forEach((k) => {
     state.bottles[k] = {
       temp: DRINKS[k].initTemp,
@@ -144,7 +163,9 @@ function startGame() {
     };
   });
 
-  dom.app.className = state.mode.id === 'hardcore' ? 'mode-hardcore' : '';
+  dom.app.className = state.mode.id === 'hardcore'
+    ? 'mode-hardcore'
+    : (state.mode.id === 'tutorial' ? 'mode-tutorial' : '');
   dom.nightBarFill.className = 'night-bar-fill' + (state.mode.id === 'hardcore' ? ' hc' : '');
   dom.clockMeta.innerHTML = state.mode.id === 'hardcore'
     ? '<span class="hc-tag">АКТ I</span><br>ДО 08:00'
@@ -172,8 +193,10 @@ function startGame() {
   showToast(
     state.mode.id === 'hardcore'
       ? '🔥 1 ЯНВАРЯ! ВАСЬ, ПОХМЕЛЬНЫЙ СУШНЯК!'
-      : '03:17. ВАСЬ, ХОЛОДИЛЬНИК ЗОВЁТ ❄️',
-    state.mode.id === 'hardcore' ? 'danger' : 'info'
+      : (state.mode.id === 'tutorial'
+        ? '🎓 ОБУЧЕНИЕ: СМОТРИ НА ПОДСКАЗКИ И ДЕРЖИ БАЛАНС!'
+        : '03:17. ВАСЬ, ХОЛОДИЛЬНИК ЗОВЁТ ❄️'),
+    state.mode.id === 'hardcore' ? 'danger' : (state.mode.id === 'tutorial' ? 'vhs' : 'info')
   );
 }
 
@@ -207,16 +230,20 @@ function startDrinking(pointerId) {
     state.sugarDebt = 0;
     state.thirst = Math.max(0, state.thirst - 22);
     state.bladder = Math.min(100, state.bladder + 13);
+    state.lastDrunkId = 'brine';
+    state.score += 180;
+    b.liquidLevel = Math.max(0.25, b.liquidLevel - 0.22);
     sound.playGulp();
     sound.playAscension(false);
     const rect = dom.bottleWrap.getBoundingClientRect();
     spawnParticles('ice', rect.left + rect.width / 2, rect.top + rect.height / 2, 16);
-    showToast('🥒 РАССОЛ ПОШЁЛ! САХАР СБРОШЕН В НОЛЬ!', 'vhs');
+    showToast('🥒 РАССОЛ ПОШЁЛ! САХАР СБРОШЕН В НОЛЬ! (+180)', 'vhs');
     return;
   }
 
   if (state.stunTimer > 0 || state.freezerActive) return;
 
+  state.energySipAccum = 0;
   state.isDrinking = true;
   state.activePointerId = pointerId;
   state.lastDrunkId = state.activeDrink;
@@ -247,15 +274,21 @@ function stopDrinking(successAttempt = true) {
       showToast('🫠 ВЫДОХЛАСЬ, ВАСЬ! ВСТРЯХНИ ИЛИ КУПИ СВЕЖУЮ!', 'roast');
     } else if (state.dragonBreathCharges > 0) {
       // Дыхание Дракона!
+      state.goldenSips++;
+      state.fizz = Math.max(0, state.fizz - 35);
+      state.thirst = Math.max(0, state.thirst - 16);
+      state.noise = Math.max(0, state.noise - 16);
+      state.ascensionTimer = 4.2;
+      state.ascensionGlowTimer = 1.5;
       state.dragonBreathCharges--;
       state.dragonBreathSips++;
       state.score += 600;
       state.caps += 5;
       state.totalCapsEarned += 5;
-      state.ascensionTimer = 4.5;
       sound.playAscension(true);
       spawnParticles('dragon', cx, cy, 34);
       showToast('🐉 ДЫХАНИЕ ЛЕДЯНОГО ДРАКОНА! (+600, +5 🪙)', 'gold');
+      notifyTutorialAction('golden_sip');
 
       if (state.dragonBreathSips >= 3) {
         endGame('dragon_breath');
@@ -263,26 +296,37 @@ function stopDrinking(successAttempt = true) {
       }
     } else if (state.comboWindowTimer > 0) {
       // Имба-комбо: Хрумка + Золотой глоток!
+      state.goldenSips++;
+      state.fizz = Math.max(0, state.fizz - 35);
+      state.thirst = Math.max(0, state.thirst - 12);
+      state.noise = Math.max(0, state.noise - 14);
+      state.ascensionTimer = 3.8;
+      state.ascensionGlowTimer = 1.35;
       state.combos++;
       state.score += 450;
       state.caps += 4;
       state.totalCapsEarned += 4;
-      state.ascensionTimer = 4.0;
       state.comboWindowTimer = 0;
       sound.playAscension(true);
       spawnParticles('gold', cx, cy, 26);
       showToast('🥨⚡ ИМБА-КОМБО! ХРУМКА + ГАЗЯВА! (+450, +4 🪙)', 'combo');
+      notifyTutorialAction('golden_sip');
     } else {
       // Обычное золотое вознесение
       state.goldenSips++;
+      state.fizz = Math.max(0, state.fizz - 35);
+      state.thirst = Math.max(0, state.thirst - 8);
+      state.noise = Math.max(0, state.noise - 6);
+      state.ascensionTimer = 3.0;
+      state.ascensionGlowTimer = 1.05;
       state.score += 250;
       state.caps += 2;
       state.totalCapsEarned += 2;
-      state.ascensionTimer = 3.2;
       sound.playAscension(false);
       spawnParticles('gold', cx, cy, 20);
       const q = ASCENSION_QUOTES[Math.floor(Math.random() * ASCENSION_QUOTES.length)];
       showToast(`${q} (+250, +2 🪙)`, 'gold');
+      notifyTutorialAction('golden_sip');
     }
   } else if (successAttempt && state.activeDrink === 'flat' && state.flatRoastCd <= 0) {
     state.flatRoastCd = 3.5;
@@ -294,7 +338,7 @@ function stopDrinking(successAttempt = true) {
 
 function eatHrumka() {
   sound.unlock();
-  if (state.phase !== 'playing' || state.ev.active || state.shopOpen) return;
+  if (state.phase !== 'playing' || state.ev.active || state.shopOpen || state.stunTimer > 0) return;
 
   state.hrumkasEaten++;
   state.score += 65;
@@ -316,6 +360,7 @@ function eatHrumka() {
   dom.hrumkaFlavor.textContent = HRUMKA_FLAVORS[state.flavorIdx];
 
   showToast('🥨 ХРУМКНУЛ! САХАР -22%, ШУМ +12, ГАЗ +11%', 'crunch');
+  notifyTutorialAction('hrumka');
 }
 
 function shakeActiveBottle() {
@@ -338,6 +383,7 @@ function shakeActiveBottle() {
   setTimeout(() => { dom.bottleWrap.style.transform = ''; }, 140);
 
   showToast('🫧 ВСТРЯХНУЛ! ГАЗЫ ВЕРНУЛИСЬ, ОСТОРОЖНО — ПЕНА!', 'info');
+  notifyTutorialAction('shake');
 }
 
 function startVentingBurp() {
@@ -347,6 +393,7 @@ function startVentingBurp() {
   stopDrinking(false);
   state.isVentingBurp = true;
   sound.startVentSound();
+  notifyTutorialAction('burp_vent');
 }
 
 function stopVentingBurp() {
@@ -367,6 +414,7 @@ function triggerToiletEvent() {
     sound.stopFreezerHum();
   }
 
+  notifyTutorialAction('toilet');
   openNightEvent('toilet');
 }
 
@@ -382,8 +430,11 @@ function toggleFreezer() {
 
   state.freezerActive = !state.freezerActive;
   if (state.freezerActive) {
+    stopDrinking(false);
+    stopVentingBurp();
     sound.startFreezerHum();
     showToast('❄️ МОРОЗИЛКА ВКЛЮЧЕНА! СЛЕДИ, ЧТОБ НЕ ЗАМЁРЗЛА!', 'info');
+    notifyTutorialAction('freezer');
   } else {
     sound.stopFreezerHum();
     showToast('МОРОЗИЛКА ВЫКЛЮЧЕНА', 'roast');
@@ -403,8 +454,10 @@ function selectDrink(drinkKey) {
 
   state.activeDrink = drinkKey;
   state.fizz = 0;
+  state.tutorial.hasSwitchedDrink = true;
   sound.playClick();
   applyBottleVisuals();
+  notifyTutorialAction('drink_switch');
 }
 
 function endGame(endingId, customNoEndingWin = false) {
@@ -416,16 +469,36 @@ function endGame(endingId, customNoEndingWin = false) {
   sound.stopVentSound();
   sound.stopFreezerHum();
 
+  closeEventModal();
+  closeShopModal();
+  dismissNotification(false);
+
+  state.tutorial.activeStep = null;
+  if (dom.tutCoach) dom.tutCoach.style.display = 'none';
+  document.querySelectorAll('.tut-highlight').forEach((el) => {
+    el.classList.remove('tut-highlight');
+  });
+
+  dom.app.className = '';
   dom.fxDesert.style.opacity = '0';
+  if (dom.actBanner) dom.actBanner.classList.remove('visible');
+  dom.fxAscension.classList.remove('active');
+  dom.fxVhs.classList.remove('active');
+  dom.fxHeartbeat.classList.remove('active');
+  dom.fxStun.classList.remove('active');
   dom.fxBlackout.classList.remove('active');
   dom.fxDawn.classList.remove('active');
 
   const finalScore = Math.round(state.score);
-  if (finalScore > records.bestScore) records.bestScore = finalScore;
-  if (state.realElapsed > records.bestTimeSec) records.bestTimeSec = Math.round(state.realElapsed);
-  records.totalGoldenSips += state.goldenSips;
-  records.totalHrumkas += state.hrumkasEaten;
-  records.totalCaps = (records.totalCaps || 0) + state.caps;
+  const isTutorial = state.mode.id === 'tutorial';
+
+  if (!isTutorial) {
+    if (finalScore > records.bestScore) records.bestScore = finalScore;
+    if (state.realElapsed > records.bestTimeSec) records.bestTimeSec = Math.round(state.realElapsed);
+    records.totalGoldenSips += state.goldenSips;
+    records.totalHrumkas += state.hrumkasEaten;
+    records.totalCaps = (records.totalCaps || 0) + state.caps;
+  }
 
   let emoji = '💀';
   let badge = 'КОНЕЦ';
@@ -434,7 +507,15 @@ function endGame(endingId, customNoEndingWin = false) {
   let desc = '';
   let isWin = false;
 
-  if (customNoEndingWin) {
+  if (isTutorial && (customNoEndingWin || endingId === 'ascension' || endingId === 'hrumka_king')) {
+    isWin = true;
+    records.tutorialCleared = true;
+    emoji = '🎓';
+    badge = 'ОБУЧЕНИЕ ПРОЙДЕНО';
+    badgeClass = 'win';
+    title = 'ВАСЬ ПРОШЁЛ КУРС МОЛОДОГО БОЙЦА!';
+    desc = 'Теперь ты знаешь всё про золотые глотки, хрумку, подушку, унитаз и схрон. Пора в настоящую Классику (и за 12 концовками)!';
+  } else if (customNoEndingWin) {
     isWin = true;
     emoji = '🌅';
     badge = 'ПОБЕДА (БАЗОВАЯ)';
@@ -450,11 +531,23 @@ function endGame(endingId, customNoEndingWin = false) {
     desc = e.desc;
     isWin = badgeClass === 'win' || badgeClass === 'secret' || badgeClass === 'hardcore';
 
-    if (!records.endings.includes(e.id)) {
-      records.endings.push(e.id);
-    }
-    if (e.id === 'hardcore_immortal') {
-      records.hardcoreCleared = true;
+    if (!isTutorial) {
+      if (!records.endings.includes(e.id)) {
+        records.endings.push(e.id);
+      }
+      if (e.id === 'hardcore_immortal') {
+        records.hardcoreCleared = true;
+      }
+    } else {
+      let tutTip = '💡 Совет: Попробуй снова и держи баланс!';
+      if (endingId === 'kuraga' || endingId === 'ouroboros' || endingId === 'betrayal') {
+        tutTip = '💡 Совет: Золотые глотки (70–90%) замораживают сушняк, а Рассол мгновенно сбрасывает Сахарный долг.';
+      } else if (endingId === 'woke_building' || endingId === 'burp_apocalypse') {
+        tutTip = '💡 Совет: Зажимай «В подушку», пока газы не бахнули, и покупай глушитель в Схроне.';
+      } else if (endingId === 'tap_water') {
+        tutTip = '💡 Совет: Не пей из-под крана — пей ледяную газяву из холодильника!';
+      }
+      desc += `\n\n${tutTip}`;
     }
   }
 
@@ -569,6 +662,7 @@ function updateGame(dt) {
 
   // Таймеры баффов / дебаффов
   if (state.ascensionTimer > 0) state.ascensionTimer = Math.max(0, state.ascensionTimer - dt);
+  if (state.ascensionGlowTimer > 0) state.ascensionGlowTimer = Math.max(0, state.ascensionGlowTimer - dt);
   if (state.mintTimer > 0) state.mintTimer = Math.max(0, state.mintTimer - dt);
   if (state.silencerTimer > 0) state.silencerTimer = Math.max(0, state.silencerTimer - dt);
   if (state.vhsTimer > 0) state.vhsTimer = Math.max(0, state.vhsTimer - dt);
@@ -649,8 +743,8 @@ function updateGame(dt) {
   if (state.burp >= 100) {
     sound.playMegaBurp();
     state.burp = 18;
-    dom.app.classList.add('state-stun');
-    setTimeout(() => dom.app.classList.remove('state-stun'), 420);
+    dom.app.classList.add('state-burp-shake');
+    setTimeout(() => dom.app.classList.remove('state-burp-shake'), 420);
     showToast('💥 БЭЭЭЭЭЭ!! ВАСЬ НЕ УСПЕЛ В ПОДУШКУ! (+45 ШУМА)', 'danger');
     addNoise(45, 'burp_apocalypse');
   }
@@ -770,13 +864,16 @@ function updateGame(dt) {
 
 function loop(ts) {
   if (!lastTs) lastTs = ts;
-  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  const dtReal = Math.min(0.05, (ts - lastTs) / 1000);
   lastTs = ts;
 
-  updateGame(dt);
-  drawCanvas(dt);
+  updateTutorial(dtReal);
+  const dtGame = dtReal * state.timeScale;
+
+  updateGame(dtGame);
+  drawCanvas(dtReal);
   if (state.phase === 'playing') {
-    updateHUD(ts / 1000, dt);
+    updateHUD(ts / 1000, dtReal);
   }
   requestAnimationFrame(loop);
 }
@@ -817,6 +914,7 @@ function bindEvents() {
 
   // Зажатие бутылки
   dom.bottleZone.addEventListener('pointerdown', (e) => {
+    if (e.target && e.target.closest('#shakeBtn')) return;
     e.preventDefault();
     try { dom.bottleZone.setPointerCapture(e.pointerId); } catch (err) {}
     startDrinking(e.pointerId);
@@ -875,7 +973,8 @@ function bindEvents() {
   }
 
   if (dom.shakeBtn) {
-    dom.shakeBtn.addEventListener('click', (e) => {
+    dom.shakeBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
       e.preventDefault();
       shakeActiveBottle();
     });
@@ -904,17 +1003,23 @@ function bindEvents() {
     sound.unlock();
     sound.playClick();
     state.selectedMode = modeKey;
+    if (dom.modeTutorialBtn) dom.modeTutorialBtn.classList.toggle('selected', modeKey === 'tutorial');
     dom.modeClassicBtn.classList.toggle('selected', modeKey === 'classic');
     dom.modeHardcoreBtn.classList.toggle('selected', modeKey === 'hardcore');
     dom.startBtn.classList.toggle('hc-start', modeKey === 'hardcore');
-    dom.startBtn.textContent = modeKey === 'hardcore'
-      ? '🔥 ЗАПУСТИТЬ ПОХМЕЛЬЕ 1 ЯНВАРЯ'
-      : 'ОТКРЫТЬ ХОЛОДИЛЬНИК (СТАРТ)';
+    if (modeKey === 'hardcore') {
+      dom.startBtn.textContent = '🔥 ЗАПУСТИТЬ ПОХМЕЛЬЕ 1 ЯНВАРЯ';
+    } else if (modeKey === 'tutorial') {
+      dom.startBtn.textContent = '🎓 НАЧАТЬ ОБУЧЕНИЕ';
+    } else {
+      dom.startBtn.textContent = 'ОТКРЫТЬ ХОЛОДИЛЬНИК (СТАРТ)';
+    }
   };
+  if (dom.modeTutorialBtn) dom.modeTutorialBtn.addEventListener('click', () => selectModeUI('tutorial'));
   dom.modeClassicBtn.addEventListener('click', () => selectModeUI('classic'));
   dom.modeHardcoreBtn.addEventListener('click', () => selectModeUI('hardcore'));
 
-  // Меню, рестарт, копирование, альбом
+  // Меню, рестарт, копирование, альбом, правила
   dom.startBtn.addEventListener('click', () => {
     sound.unlock();
     sound.playPssh(false);
@@ -934,6 +1039,10 @@ function bindEvents() {
   });
   dom.shareBtn.addEventListener('click', copyScorecard);
 
+  if (dom.startRulesBtn) dom.startRulesBtn.addEventListener('click', openRulesModal);
+  if (dom.closeRulesBtn) dom.closeRulesBtn.addEventListener('click', closeRulesModal);
+  if (dom.rulesOkBtn) dom.rulesOkBtn.addEventListener('click', closeRulesModal);
+
   dom.startAlbumBtn.addEventListener('click', openAlbumModal);
   dom.endAlbumBtn.addEventListener('click', openAlbumModal);
   dom.closeAlbumBtn.addEventListener('click', closeAlbumModal);
@@ -950,6 +1059,7 @@ function setupKeyboardControls() {
         return;
       }
       closeAlbumModal();
+      closeRulesModal();
       return;
     }
 
@@ -1032,12 +1142,18 @@ function init() {
     pushPhoneNotif
   });
 
+  initTutorial({
+    dom,
+    showToast
+  });
+
   initShop({
     dom,
     showToast,
     addNoise,
     stopDrinking,
-    applyBottleVisuals
+    applyBottleVisuals,
+    notifyTutorialAction
   });
 
   bindEvents();

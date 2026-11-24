@@ -30,54 +30,6 @@
   <!-- Холст частиц: пузырьки, хрустящие крошки, золотые искры, осколки льда, дракон -->
   <canvas id="fxCanvas"></canvas>
 
-  <!-- Атмосферный слой: пустынный сушняк (>75%) -->
-  <div id="fxDesert" class="fx-overlay" aria-hidden="true">
-    <svg viewBox="0 0 400 800" preserveAspectRatio="none">
-      <g stroke="#ffb703" stroke-width="1.8" fill="none" stroke-linecap="round">
-        <path d="M0,110 L52,144 L78,132 L112,174 M52,144 L36,196" />
-        <path d="M400,200 L342,228 L318,214 L286,260 M342,228 L360,285" />
-        <path d="M0,625 L58,596 L92,616 L124,572 M58,596 L42,542" />
-        <path d="M400,675 L336,642 L308,666 L274,630 M336,642 L354,588" />
-      </g>
-    </svg>
-  </div>
-
-  <!-- Божественные золотые лучи Вознесения с изолированным вращающимся слоем лучей -->
-  <div id="fxAscension" class="fx-overlay" aria-hidden="true">
-    <div class="ascension-rays"></div>
-  </div>
-
-  <!-- Тёплый VHS-фильтр (Дюшес из ларька) -->
-  <div id="fxVhs" class="fx-overlay" aria-hidden="true">
-    <div class="vhs-stamp">PLAY ▶ ЛЕТО 2006 • ДВОР</div>
-  </div>
-
-  <!-- Алая пульсация сердцебиения (Энергос) с изолированным пульсирующим слоем -->
-  <div id="fxHeartbeat" class="fx-overlay" aria-hidden="true">
-    <div class="heartbeat-inner"></div>
-  </div>
-
-  <!-- Оверлей Блэкаута (Акт 3: Кризис 5 утра — холодный спотлайт во тьме) -->
-  <div id="fxBlackout" class="fx-overlay" aria-hidden="true"></div>
-
-  <!-- Оверлей Предрассветного зарева (Акт 4: До будильника) -->
-  <div id="fxDawn" class="fx-overlay" aria-hidden="true"></div>
-
-  <!-- Слой оглушения при 100% пробитии в нос -->
-  <div id="fxStun" class="fx-overlay" aria-hidden="true">
-    <div class="stun-card">
-      <div class="stun-title">😭 ВАСЬ, ГАЗЫ В НОС ДО СЛЁЗ!</div>
-      <div class="stun-sub">Ты закашлялся на всю кухню... Отдышись!</div>
-      <div class="stun-track"><div id="stunFill" class="stun-fill"></div></div>
-    </div>
-  </div>
-
-  <!-- Всплывающие мемные цитаты -->
-  <div id="toastLayer" aria-live="polite"></div>
-
-  <!-- Кинематографичный баннер смены Акта ночи -->
-  <div id="actBanner" class="act-banner" aria-live="assertive"></div>
-
   <!-- Слайд-баннер фейкового push-уведомления iOS -->
   <div id="phonePush" class="phone-push" role="alert">
     <div class="push-top">
@@ -97,6 +49,47 @@
        ОСНОВНОЙ ИГРОВОЙ ИНТЕРФЕЙС
        ======================================================================== -->
   <main id="app">
+    <!-- Атмосферный слой: пустынный сушняк (>75%) -->
+    <div id="fxDesert" class="fx-overlay" aria-hidden="true">
+      <svg viewBox="0 0 400 800" preserveAspectRatio="none">
+        <g stroke="#ffb703" stroke-width="1.8" fill="none" stroke-linecap="round">
+          <path d="M0,110 L52,144 L78,132 L112,174 M52,144 L36,196" />
+          <path d="M400,200 L342,228 L318,214 L286,260 M342,228 L360,285" />
+          <path d="M0,625 L58,596 L92,616 L124,572 M58,596 L42,542" />
+          <path d="M400,675 L336,642 L308,666 L274,630 M336,642 L354,588" />
+        </g>
+      </svg>
+    </div>
+
+    <!-- Божественные золотые лучи Вознесения с изолированным вращающимся слоем лучей -->
+    <div id="fxAscension" class="fx-overlay" aria-hidden="true">
+      <div class="ascension-rays"></div>
+    </div>
+
+    <!-- Тёплый VHS-фильтр (Дюшес из ларька) -->
+    <div id="fxVhs" class="fx-overlay" aria-hidden="true">
+      <div class="vhs-stamp">PLAY ▶ ЛЕТО 2006 • ДВОР</div>
+    </div>
+
+    <!-- Алая пульсация сердцебиения (Энергос) с изолированным пульсирующим слоем -->
+    <div id="fxHeartbeat" class="fx-overlay" aria-hidden="true">
+      <div class="heartbeat-inner"></div>
+    </div>
+
+    <!-- Оверлей Блэкаута (Акт 3: Кризис 5 утра — холодный спотлайт во тьме) -->
+    <div id="fxBlackout" class="fx-overlay" aria-hidden="true"></div>
+
+    <!-- Оверлей Предрассветного зарева (Акт 4: До будильника) -->
+    <div id="fxDawn" class="fx-overlay" aria-hidden="true"></div>
+
+    <!-- Слой оглушения при 100% пробитии в нос -->
+    <div id="fxStun" class="fx-overlay" aria-hidden="true">
+      <div class="stun-card">
+        <div class="stun-title">😭 ВАСЬ, ГАЗЫ В НОС ДО СЛЁЗ!</div>
+        <div class="stun-sub">Ты закашлялся на всю кухню... Отдышись!</div>
+        <div class="stun-track"><div id="stunFill" class="stun-fill"></div></div>
+      </div>
+    </div>
     <!-- Шапка: часы, мета, статы, схрон, звук -->
     <header class="hud-top">
       <div class="clock-box">
@@ -194,6 +187,18 @@
 
     <!-- Центральная игровая арена -->
     <section class="stage">
+      <!-- Кинематографичный баннер смены Акта ночи -->
+      <div id="actBanner" class="act-banner" aria-live="assertive"></div>
+
+      <!-- Тренер интерактивного обучения -->
+      <div id="tutCoach" class="tut-coach" style="display:none;">
+        <div class="tut-coach-header">
+          <span id="tutCoachTitle" class="tut-coach-title">✨ ЗОЛОТАЯ ЗОНА</span>
+          <button id="tutCoachSkip" class="tut-coach-skip" type="button" aria-label="Пропустить подсказку">✕</button>
+        </div>
+        <div id="tutCoachText" class="tut-coach-text">Зажми бутылку и отпусти на 70–90% — заморозишь сушняк и получишь 🪙!</div>
+      </div>
+
       <!-- Многослойная аура холодильника (без рывков градиента) -->
       <div id="fridgeAura" class="fridge-aura">
         <div class="aura-layer aura-cyan"></div>
@@ -339,6 +344,9 @@
         </div>
       </div>
 
+      <!-- Всплывающие мемные цитаты (компактный тост над holdHint) -->
+      <div id="toastLayer" aria-live="polite"></div>
+
       <!-- Контекстная подсказка под бутылкой -->
       <div id="holdHint" class="hold-hint">ЗАЖМИ БУТЫЛКУ, ВАСЬ!</div>
 
@@ -417,6 +425,7 @@
           <span id="evBarPct">0%</span>
         </div>
         <div class="ev-bar-track">
+          <div id="evSweetZone" class="ev-sweet-zone"></div>
           <div id="evBarFill" class="ev-bar-fill"></div>
         </div>
       </div>
@@ -447,42 +456,26 @@
   <div id="startScreen" class="full-screen visible">
     <a href="/" class="back-site-link">← kaplao.ru</a>
     <div class="card-shell">
-      <div class="hero-pill">03:17 AM • НОЧНАЯ СМЕНА</div>
-      <h1 class="hero-title">03:17. ПРОТОКОЛ ГАЗЯВА 3.0:<br>НОЧНАЯ СМЕНА</h1>
-      <p class="hero-sub">4 акта ночной обороны. Схрон за крышечки, отрыжка в подушку и 12 концовок.</p>
+      <div class="hero-pill">03:17 AM • ВАСЬ НА КУХНЕ</div>
+      <h1 class="hero-title">03:17. ПРОТОКОЛ ГАЗЯВА 3.1</h1>
+      <p class="hero-sub">Ночная оборона холодильника.</p>
 
       <div id="hcTrophyBanner" class="hc-trophy-banner">🏆 ХАРДКОР «ПОХМЕЛЬЕ 1 ЯНВАРЯ» ПРОЙДЕН!</div>
 
-      <!-- Выбор режима игры -->
+      <!-- 3-режимный переключатель -->
       <div class="mode-switch">
+        <button id="modeTutorialBtn" class="mode-opt tut-opt" type="button">
+          <div class="mode-name">🎓 ОБУЧЕНИЕ</div>
+          <div class="mode-desc">Подсказки + слоу-мо</div>
+        </button>
         <button id="modeClassicBtn" class="mode-opt selected" type="button">
-          <div class="mode-name">🌙 03:17. КЛАССИКА (4.5 мин)</div>
-          <div class="mode-desc">03:17 → 07:00. 4 акта ночи, блэкаут в 5 утра и рассвет.</div>
+          <div class="mode-name">🌙 КЛАССИКА</div>
+          <div class="mode-desc">03:17→07:00 • 4.5м</div>
         </button>
         <button id="modeHardcoreBtn" class="mode-opt hc-opt" type="button">
-          <div class="mode-name">🔥 ПОХМЕЛЬЕ 1 ЯНВАРЯ (6.5 мин)</div>
-          <div class="mode-desc">02:00 → 08:00. 1.32x сушняк, злой шум, топ-концовка!</div>
+          <div class="mode-name">🔥 ХАРДКОР</div>
+          <div class="mode-desc">02:00→08:00 • 6.5м</div>
         </button>
-      </div>
-
-      <!-- Компактные правила -->
-      <div class="rules-compact">
-        <div class="rule-row">
-          <span>✨</span>
-          <div><strong>Зажимай бутылку</strong> и лови <strong>Золотую зону (70–90%)</strong>. 8+ глотков = Вознесение.</div>
-        </div>
-        <div class="rule-row">
-          <span>💨</span>
-          <div><strong>В подушку (Key B)</strong> — стравливай газы, иначе взорвётся Мега-отрыжка на 100% шума!</div>
-        </div>
-        <div class="rule-row">
-          <span>🚽</span>
-          <div><strong>Туалет (Key T)</strong> — стелс по половицам. Смывать со звуком Боинга или уйти с позором?</div>
-        </div>
-        <div class="rule-row">
-          <span>🛒</span>
-          <div><strong>Схрон (Key S)</strong> — копи крышечки 🪙 за золотые глотки и покупай лёд, мяту и глушитель!</div>
-        </div>
       </div>
 
       <!-- Панель рекордов -->
@@ -506,7 +499,10 @@
       </div>
 
       <button id="startBtn" class="btn-primary" type="button">ОТКРЫТЬ ХОЛОДИЛЬНИК (СТАРТ)</button>
-      <button id="startAlbumBtn" class="btn-secondary" type="button">📖 АЛЬБОМ КОНЦОВОК (0/12)</button>
+      <div class="menu-secondary-row">
+        <button id="startRulesBtn" class="btn-secondary" type="button">📜 ПРАВИЛА</button>
+        <button id="startAlbumBtn" class="btn-secondary" type="button">📖 КОНЦОВКИ (0/12)</button>
+      </div>
     </div>
   </div>
 
@@ -557,6 +553,63 @@
       </div>
       <div id="albumList" class="album-list"></div>
       <button id="albumOkBtn" class="btn-secondary" type="button" style="margin-bottom:0;">ЗАКРЫТЬ</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       МОДАЛКА ПРАВИЛ («📜 ПРАВИЛА»)
+       ======================================================================== -->
+  <div id="rulesModal" class="event-backdrop" role="dialog" aria-modal="true">
+    <div class="album-card">
+      <div class="album-head">
+        <div class="album-title">📜 КАК ВЫЖИТЬ В 03:17</div>
+        <button id="closeRulesBtn" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="album-list">
+        <div class="album-item unlocked">
+          <div class="album-emoji">✨</div>
+          <div>
+            <div class="album-name">Золотая зона (70–90%)</div>
+            <div class="album-hint">Зажимай бутылку и отпускай в золотой полосе: получишь заморозку сушняка, очки и крышечки 🪙. Не пережми до 100% — закашляешься!</div>
+          </div>
+        </div>
+        <div class="album-item unlocked">
+          <div class="album-emoji">🥨</div>
+          <div>
+            <div class="album-name">Хрумка и ИМБА-комбо</div>
+            <div class="album-hint">Сбивает Сахарный долг (но сушит и шумит). Сделай Золотой глоток за 4.5с после Хрумки = +450 очков и +4 🪙!</div>
+          </div>
+        </div>
+        <div class="album-item unlocked">
+          <div class="album-emoji">❄️</div>
+          <div>
+            <div class="album-name">Морозилка и 🫧 Выдыхание</div>
+            <div class="album-hint">Тёплая газява хуже сбивает сушняк и быстрее выдыхается. Остужай в Морозилке (не передержи до 0°C — станет льдом!). Если газы упали — жми «Встряхнуть» (осторожно: пойдёт быстрая пена!).</div>
+          </div>
+        </div>
+        <div class="album-item unlocked">
+          <div class="album-emoji">💨</div>
+          <div>
+            <div class="album-name">В подушку и 🚽 Туалет</div>
+            <div class="album-hint">Газы копятся в Васе: зажимай «В подушку», иначе бахнет Мега-отрыжка (+45 шума). Полный клапан трясёт руки — ходи в Туалет по стелсу и решай, смывать ли в 4 утра.</div>
+          </div>
+        </div>
+        <div class="album-item unlocked">
+          <div class="album-emoji">🛒</div>
+          <div>
+            <div class="album-name">Ночной Схрон и 4 Акта</div>
+            <div class="album-hint">Трать крышечки 🪙 на лёд, жвачку (даёт Дыхание Дракона!), свежую 2-литровку и глушитель шума. В 5 утра (Акт III) гаснет свет и пищит холодильник!</div>
+          </div>
+        </div>
+        <div class="album-item unlocked">
+          <div class="album-emoji">⌨️</div>
+          <div>
+            <div class="album-name">Управление на ПК</div>
+            <div class="album-hint"><code>Space</code> пить, <code>H/E</code> хрумка, <code>F</code> морозилка/лёд, <code>B</code> в подушку, <code>T</code> туалет, <code>X</code> встряхнуть, <code>S</code> схрон, <code>1–6</code> напитки, <code>Esc</code> закрыть окна.</div>
+          </div>
+        </div>
+      </div>
+      <button id="rulesOkBtn" class="btn-secondary" type="button" style="margin-bottom:0;">ПОНЯЛ, ВАСЬ!</button>
     </div>
   </div>
 </body>
